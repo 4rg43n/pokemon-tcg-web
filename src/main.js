@@ -1,4 +1,4 @@
-import {newGame,dispatch,cardInfo} from "./engine.js?v=9";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=10";
 let state=newGame(),preview=null;
 const $=s=>document.querySelector(s),board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log");
 const escape=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -7,10 +7,10 @@ function cardHtml(data,opts={}){
 const {small=false,selected=false,back=false,empty=false,attrs=""}=opts;
 if(empty)return `<div class="tcg-card empty">${escape(data||"Empty")}</div>`;
 if(back)return '<div class="tcg-card back"><span>Pokémon</span></div>';
-if(data.kind==="energy")return `<div class="tcg-card energy ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="energy-symbol">⚡</div><strong>Energy</strong></div>`;
+if(data.kind==="energy")return `<div class="tcg-card energy ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="energy-symbol">⚡</div><strong>${escape(data.type||"Basic")} Energy</strong></div>`;
 if(data.kind==="trainer")return `<div class="tcg-card trainer ${small?"small":""} ${selected?"selected":""}" ${attrs}><span class="card-type">TRAINER</span><strong>Trainer</strong><small>Effect pending</small></div>`;
 const c=data.kind==="pokemon"&&data.species!==undefined?cardInfo(data):data;
-return `<div class="tcg-card pokemon ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="card-top"><strong>${escape(c.name)}</strong><span>${c.hp} HP</span></div><img src="${sprite(c.id)}" alt="" loading="lazy"><div class="card-bottom"><span>⚡ ${c.energy||0}</span><span>${Math.max(0,c.hp-(c.damage||0))} HP</span></div></div>`;
+return `<div class="tcg-card pokemon ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="card-top"><strong>${escape(c.name)}</strong><span>${c.hp} HP</span></div><img src="${sprite(c.id)}" alt="" loading="lazy"><div class="card-bottom"><span>${escape((c.energies||[]).map(x=>x==="Fire"?"🔥":"⚡").join("")||"—")}</span><span>${Math.max(0,c.hp-(c.damage||0))} HP</span></div></div>`;
 }
 function side(p,i){
 const own=i===state.turn;
@@ -41,7 +41,7 @@ const pile=e.target.closest("[data-pile]");if(pile){const p=state.players[Number
 function showPreview(c){const d=c.kind==="pokemon"&&c.species!==undefined?cardInfo(c):c;preview={type:"card",card:d};renderModal();}
 function showPile(type,cards){preview={type:"pile",name:type,cards};renderModal();}
 function renderModal(){const modal=$("#modal");if(!preview){modal.hidden=true;return;}modal.hidden=false;
-if(preview.type==="card"){const c=preview.card;modal.querySelector(".modal-content").innerHTML=cardHtml(c)+`<p>${escape(c.name||"")}${c.attacks?.length?" · "+c.attacks.map(a=>a.name+" ("+a.cost+" Energy): "+a.damage+" damage").join(", "):""}</p>`;}
+if(preview.type==="card"){const c=preview.card;modal.querySelector(".modal-content").innerHTML=cardHtml(c)+`<p>${escape(c.name||"")}${c.attacks?.length?" · "+c.attacks.map(a=>a.name+" ("+a.cost.join(" + ")+"): "+a.damage+" damage").join(", "):""}</p>`;}
 else modal.querySelector(".modal-content").innerHTML=`<h2>${escape(preview.name)} · ${preview.cards.length} cards</h2><div class="pile-list">${preview.name==="deck"?"Deck contents are hidden during play.":preview.cards.length?preview.cards.map(c=>cardHtml(c,{small:true})).join(""):"No cards yet."}</div>`;
 }
 $("#modal").addEventListener("click",e=>{if(e.target.id==="modal"||e.target.closest(".close-modal")){$("#modal").hidden=true;preview=null;}});
