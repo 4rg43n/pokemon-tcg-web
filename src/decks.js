@@ -1,7 +1,7 @@
 import {species,energyTypes} from "./cards.js?v=22";
 export const pokemonCard=species=>({kind:"pokemon",species});
 export const energyCard=type=>({kind:"energy",type,name:type+" Energy"});
-const trainerCard=name=>({image:name==="Quick Ball"?"assets/cards/quick-ball.jpg":name==="Ultra Ball"?"assets/cards/ultra-ball.jpg":undefined,kind:"trainer",name,subtype:name==="Air Balloon"?"Pokémon Tool":name==="Professor's Research"?"Supporter":"Item"});
+export const trainerCard=name=>({image:name==="Quick Ball"?"assets/cards/quick-ball.jpg":name==="Ultra Ball"?"assets/cards/ultra-ball.jpg":undefined,kind:"trainer",name,subtype:name==="Air Balloon"?"Pokémon Tool":name==="Professor's Research"?"Supporter":"Item"});
 export const catalog=[
  ...species.map((s,i)=>({id:`pokemon-${i}`,name:s.name,category:"pokemon",detail:`${s.stage?`Stage ${s.stage} · evolves from ${s.evolvesFrom}`:"Basic"} · ${s.type} · ${s.hp} HP`,card:pokemonCard(i)})),
  ...energyTypes.map(type=>({id:`energy-${type}`,name:type+" Energy",category:"energy",detail:"Basic Energy · unlimited copies",card:energyCard(type)})),
