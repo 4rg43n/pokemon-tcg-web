@@ -1,4 +1,4 @@
-import {newGame,dispatch,cardInfo} from "./engine.js?v=8";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=9";
 let state=newGame(),preview=null;
 const $=s=>document.querySelector(s),board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log");
 const escape=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -24,7 +24,7 @@ status.textContent=state.phase==="replacement"?`Player ${state.turn+1}: tap a Be
 board.innerHTML=`<div class="mat">${side(state.players[1],1)}<div class="divider"></div>${side(state.players[0],0)}<div class="hand"><div class="zone-label">Player ${state.turn+1}'s hand · ${p.hand.length} cards</div><div class="hand-cards">${p.hand.map((c,i)=>cardHtml(c,{small:true,selected:i===state.selection,attrs:`data-hand="${i}"`})).join("")}</div><p class="hint">${state.phase==="setup"?"Choose a Basic Pokémon, tap the empty Active slot, optionally fill your Bench, then press Ready." :state.phase==="replacement"?"Tap a Benched Pokémon to promote it.":state.phase==="retreat"?"Tap a Benched Pokémon to switch it with your Active.":"Tap a hand card, then a Bench slot or Pokémon to play it. Tap a card again to inspect."}</p></div></div>`;
 log.replaceChildren(...state.log.slice(0,15).map(x=>{const li=document.createElement("li");li.textContent=x;return li;}));
 document.querySelectorAll("button[data-action=attack],button[data-action=end]").forEach(b=>b.disabled=state.phase!=="playing"||state.winner!==null);
-const retreat=document.querySelector("button[data-action=retreat]");retreat.hidden=state.phase!=="playing";retreat.disabled=state.phase!=="playing"||!state.players[state.turn].bench.length||state.players[state.turn].retreated;
+const retreat=document.querySelector("button[data-action=retreat]");retreat.textContent=`Retreat (${p.active?.retreat??1} Energy)`;retreat.hidden=state.phase!=="playing";retreat.disabled=state.phase!=="playing"||!state.players[state.turn].bench.length||state.players[state.turn].retreated||!p.active||p.active.energy<p.active.retreat;
 const ready=document.querySelector("button[data-action=ready]");ready.hidden=state.phase!=="setup";ready.disabled=state.phase!=="setup"||!state.players[state.turn].active;
 }
 function act(action,payload){const r=dispatch(state,action,payload);state=r.state;error.textContent=r.error||"";render();}
@@ -41,7 +41,7 @@ const pile=e.target.closest("[data-pile]");if(pile){const p=state.players[Number
 function showPreview(c){const d=c.kind==="pokemon"&&c.species!==undefined?cardInfo(c):c;preview={type:"card",card:d};renderModal();}
 function showPile(type,cards){preview={type:"pile",name:type,cards};renderModal();}
 function renderModal(){const modal=$("#modal");if(!preview){modal.hidden=true;return;}modal.hidden=false;
-if(preview.type==="card"){const c=preview.card;modal.querySelector(".modal-content").innerHTML=cardHtml(c)+`<p>${escape(c.name||"")}${c.attack?" · Attack: "+c.attack+" damage":""}</p>`;}
+if(preview.type==="card"){const c=preview.card;modal.querySelector(".modal-content").innerHTML=cardHtml(c)+`<p>${escape(c.name||"")}${c.attacks?.length?" · "+c.attacks.map(a=>a.name+" ("+a.cost+" Energy): "+a.damage+" damage").join(", "):""}</p>`;}
 else modal.querySelector(".modal-content").innerHTML=`<h2>${escape(preview.name)} · ${preview.cards.length} cards</h2><div class="pile-list">${preview.name==="deck"?"Deck contents are hidden during play.":preview.cards.length?preview.cards.map(c=>cardHtml(c,{small:true})).join(""):"No cards yet."}</div>`;
 }
 $("#modal").addEventListener("click",e=>{if(e.target.id==="modal"||e.target.closest(".close-modal")){$("#modal").hidden=true;preview=null;}});
