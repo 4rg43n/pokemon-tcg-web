@@ -7,6 +7,7 @@ export function renderPlanGraph(root,planner){
  const legend=document.createElement("div");legend.className="plan-legend";
  for(const [cls,title] of [["done","Completed"],["pending","Planned"],["matched","Predicted"],["tolerated","Immaterial"],["invalidated","Deviation"]]){const item=document.createElement("span");item.className="plan-key "+cls;item.textContent=title;legend.append(item);}
  root.append(legend);
+ let selectedDetails=null;
  const plans=[...planner.archive.slice(-5),...(planner.active?[planner.active]:[])].reverse();
  const details=document.createElement("section");details.className="plan-inspector";details.setAttribute("aria-live","polite");
  const inspect=(key,node,plan)=>{selectedNode=key;details.replaceChildren();const title=document.createElement("h4");title.textContent=(node.type==="opponent"?"Opponent checkpoint: ":"AI action: ")+node.label;details.append(title);const summary=document.createElement("p");summary.textContent=node.detail||"No additional explanation recorded.";details.append(summary);const meta=document.createElement("p");meta.textContent="Plan "+plan.id+" · "+node.status+" · "+(node.type==="opponent"?"Player 1":"Player 2");details.append(meta);if(node.data){const pre=document.createElement("pre");pre.textContent=JSON.stringify(node.data,null,2);details.append(pre);}root.querySelectorAll(".plan-node.selected").forEach(x=>x.classList.remove("selected"));root.querySelectorAll(".plan-node").forEach(x=>{if(x.dataset.nodeKey===key)x.classList.add("selected");});};
@@ -29,12 +30,13 @@ export function renderPlanGraph(root,planner){
    if(i){const line=document.createElement("span");line.className="plan-line";flow.append(line);}
    const el=document.createElement("button");el.type="button";el.className="plan-node "+node.type+" "+node.status;el.title=node.detail;const key=plan.id+":"+i;el.dataset.nodeKey=key;el.setAttribute("aria-label",node.label+" — "+node.detail);el.setAttribute("aria-pressed",String(selectedNode===key));el.addEventListener("click",()=>inspect(key,node,plan));
    const shape=document.createElement("span");shape.className="plan-shape";shape.textContent=node.type==="opponent"?"P1":String(i+1);el.append(shape);
-   const caption=document.createElement("span");caption.className="plan-node-label";caption.textContent=node.label;el.append(caption);flow.append(el);if(selectedNode===key)queueMicrotask(()=>inspect(key,node,plan));
+   const caption=document.createElement("span");caption.className="plan-node-label";caption.textContent=node.label;el.append(caption);flow.append(el);if(selectedNode===key){el.classList.add("selected");selectedDetails={key,node,plan};}
   }
   group.append(flow);
   if(plan.reason){const note=document.createElement("p");note.className="plan-reason";note.textContent=plan.reason;group.append(note);}
   root.append(group);
  }
  root.append(details);
- if(!selectedNode){const p=document.createElement("p");p.textContent="Tap any action circle or opponent square to inspect its details.";details.append(p);}
+ if(selectedDetails)inspect(selectedDetails.key,selectedDetails.node,selectedDetails.plan);
+ else {const p=document.createElement("p");p.textContent="Tap any action circle or opponent square to inspect its details.";details.append(p);}
 }
