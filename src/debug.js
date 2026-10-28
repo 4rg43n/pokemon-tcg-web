@@ -1,6 +1,6 @@
 // Debug test-scenario commands. Each takes (state, me, args) and returns {state, message} or {error}; the caller's state is never mutated.
 // `me` is the player using the debug menu; the opponent is always the other player.
-import {knockOut,next} from "./engine.js?v=51";
+import {knockOut,next} from "./engine.js?v=52";
 import {catalog,energyCard,pokemonCard} from "./decks.js?v=50";
 function shuffle(cards){for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]];}return cards;}
 // Same discards as a knockout: the Pokémon, its evolution stack, Energy and Tool.
