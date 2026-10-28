@@ -2,6 +2,19 @@ import {getCardDetail} from "./external-cards.js";
 import {parseLimitless} from "./limitless-import.js";
 const API="https://api.tcgdex.net/v2/en";
 let setsPromise;
+let setCodeIndexPromise;
+async function setCodeIndex(allSets){
+ if(!setCodeIndexPromise)setCodeIndexPromise=(async()=>{
+  const key="pokemon-tcg-tcgdex-set-codes-v1";
+  try{const saved=JSON.parse(localStorage.getItem(key)||"null");if(saved&&Object.keys(saved).length>100)return saved;}catch{}
+  const index={};let cursor=0;
+  async function worker(){while(cursor<allSets.length){const item=allSets[cursor++];try{const full=await getSet(item.id);const code=String(full.tcgOnline||"").toUpperCase();if(code)(index[code]??=[]).push(item.id);}catch{}}}
+  await Promise.all(Array.from({length:8},worker));
+  try{localStorage.setItem(key,JSON.stringify(index));}catch{}
+  return index;
+ })();
+ return setCodeIndexPromise;
+}
 async function sets(){
  if(!setsPromise)setsPromise=fetch(API+"/sets").then(r=>{if(!r.ok)throw Error("Unable to load card sets.");return r.json();}).catch(e=>{setsPromise=null;throw e;});
  return setsPromise;
@@ -16,10 +29,11 @@ export async function importLimitlessDeck(text,{onProgress}={}){
  const structural=parsed.errors.filter(e=>!/not in playable catalog|ambiguous/.test(e));
  if(structural.length)return {ok:false,errors:structural};
  const allSets=await sets(),cards=[],errors=[];
+ const setIndex=await setCodeIndex(allSets);
  const unique=[...new Map(parsed.rows.map(row=>[[row.set,row.number,row.name].join("|"),row])).values()];
  for(let i=0;i<unique.length;i++){
   const row=unique[i];onProgress?.(i+1,unique.length);
-  const candidateSets=allSets.filter(s=>String(s.tcgOnline||s.ptcgoCode||"").toUpperCase()===row.set||String(s.id||"").toUpperCase()===row.set||String(s.name||"").toUpperCase()===row.set);
+  const candidateSets=allSets.filter(s=>(setIndex[row.set]||[]).includes(s.id)||String(s.id||"").toUpperCase()===row.set||String(s.name||"").toUpperCase()===row.set);
   if(!candidateSets.length){errors.push(`Line ${row.line}: unknown set code ${row.set}.`);continue;}
   let match=null;
   for(const set of candidateSets){
