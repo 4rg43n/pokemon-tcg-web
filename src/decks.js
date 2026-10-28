@@ -23,8 +23,11 @@ export function registerExternalCard(raw){
 export function defaultDeck(player){
  const counts={};
  const add=(id,n)=>counts[id]=(counts[id]||0)+n;
- for(const index of player===0?[2,2,2,4,4,4,2,4,2,4,2,4,2,4,6,6,6,6]:[3,3,3,5,5,5,3,5,3,5,3,5,3,5,7,7,8,8])add(`pokemon-${index}`,1);
- add("energy-Fire",player===0?12:18);add("energy-Lightning",player===0?18:12);
+ // Exactly 60 cards, with no more than four copies of any non-Basic Energy name.
+ const pokemon=player===0?[[2,4],[4,4],[6,3],[10,3],[11,2]]:[[3,4],[5,4],[7,3],[8,3],[9,2]];
+ for(const [index,n] of pokemon)add(`pokemon-${index}`,n);
+ add("energy-Fire",player===0?10:18);
+ add("energy-Lightning",player===0?18:10);
  add("trainer-Potion",4);add("trainer-Quick Ball",4);add("trainer-Professor's Research",4);
  return {name:player===0?"Lightning starter":"Fire starter",counts};
 }
