@@ -17,11 +17,10 @@ function player(i){
  const cards=shuffle([...Array.from({length:18},(_,n)=>basic([base,4,5][n%3])),...Array.from({length:22},energy),...Array.from({length:20},trainer)]);
  let hand=[],mulligans=0;
  do{if(hand.length)cards.push(...hand);shuffle(cards);hand=cards.splice(0,7);mulligans++;}while(!hand.some(c=>c.kind==="pokemon"));
- const activeIndex=hand.findIndex(c=>c.kind==="pokemon"),activeCard=hand.splice(activeIndex,1)[0];
  const prizes=cards.splice(0,6);
- return {hand,deck:cards,prizeCards:prizes,discard:[],active:pokemon(activeCard.species),bench:[],prizes:prizes.length,attached:false,mulligans:mulligans-1};
+ return {hand,deck:cards,prizeCards:prizes,discard:[],active:null,bench:[],prizes:prizes.length,attached:false,mulligans:mulligans-1};
 }
-export function newGame(){const players=[player(0),player(1)];return {players,turn:0,round:1,winner:null,log:["Shuffled 60-card decks. Drew seven each, placed Active Pokémon and six Prize cards.","Player 1 goes first and cannot attack on the opening turn."],selection:null};}
+export function newGame(){const players=[player(0),player(1)];return {players,turn:0,round:1,phase:"setup",winner:null,log:["Each player: choose an Active Pokémon and optionally Bench Basics, then press Ready.","Shuffled 60-card decks and set six Prize cards per player."],selection:null};}
 const err=(state,error)=>({state,error});
 export function dispatch(state,action,payload={}){
 if(action==="reset")return {state:newGame()};
@@ -34,14 +33,22 @@ if(!Number.isInteger(idx)||idx<0||idx>=p.hand.length)return err(state,"Select a 
 s.selection=s.selection===idx?null:idx;
 return {state:s};
 }
+if(action==="ready"){
+ if(s.phase!=="setup")return err(state,"Setup is already complete.");
+ if(!p.active)return err(state,"Choose your Active Pokémon before pressing Ready.");
+ s.selection=null;
+ if(s.turn===0){s.turn=1;message="Player 1 ready. Player 2: choose your Active Pokémon and Bench.";}else{s.turn=0;s.phase="playing";message="Both players ready. Player 1 begins!";}
+ s.log.unshift(message);return {state:s};
+}
+if(s.phase==="setup"&&action!=="play")return err(state,"Finish opening setup first.");
 if(action==="play"){
 const idx=s.selection,card=p.hand[idx];
 if(!card)return err(state,"Select a card from your hand first.");
 if(card.kind==="trainer")return err(state,"Trainer card effects aren't implemented yet.");
 if(card.kind==="pokemon"){
-if(payload.target!=="bench")return err(state,"Basic Pokémon must be played to the Bench.");
-if(p.bench.length>=5)return err(state,"Your Bench is full.");
-p.bench.push(pokemon(card.species));message="Benched "+species[card.species].name+".";
+if(payload.target==="active"&&s.phase==="setup"&&!p.active){p.active=pokemon(card.species);message="Chose "+p.active.name+" as Active Pokémon.";}
+else if(payload.target==="bench"){if(!p.active)return err(state,"Choose your Active Pokémon first.");if(p.bench.length>=5)return err(state,"Your Bench is full.");p.bench.push(pokemon(card.species));message="Benched "+species[card.species].name+".";}
+else return err(state,s.phase==="setup"?"Tap the empty Active slot or an empty Bench slot.":"Basic Pokémon must be played to the Bench.");
 }else if(card.kind==="energy"){
 if(p.attached)return err(state,"You can attach only one Energy per turn.");
 const target=payload.target==="active"?p.active:payload.target==="bench"&&Number.isInteger(payload.slot)?p.bench[payload.slot]:null;
