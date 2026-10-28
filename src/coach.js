@@ -4,7 +4,6 @@ import {TIPS,REVIEW_RULES,CLEAN_GAME,SOURCES} from "./coach_knowledge.js?v=1";
 
 const RESEARCH="Professor's Research";
 const isEx=name=>typeof name==="string"&&name.endsWith(" ex");
-const hpLeft=mon=>mon?Math.max(0,mon.hp-(mon.damage||0)):0;
 
 function bestPayableAttack(mon){
 if(!mon)return null;
@@ -64,10 +63,10 @@ const active=player.active,oppActive=opponent.active;
 const bestAttack=bestPayableAttack(active);
 const isFirstPlayerFirstTurn=turn===0&&state.round===1;
 const canAttackNow=state.phase==="playing"&&!isFirstPlayerFirstTurn&&!!bestAttack&&!!oppActive;
-const oppHpLeft=hpLeft(oppActive);
+const oppHpLeft=oppActive?Math.max(0,oppActive.hp-(oppActive.damage||0)):0;
 const lethal=canAttackNow&&bestAttack.damage>0&&bestAttack.damage>=oppHpLeft;
 const oppThreat=maxThreat([oppActive]);
-const activeHp=hpLeft(active);
+const activeHp=active?Math.max(0,active.hp-(active.damage||0)):0;
 const activeInKORange=!!active&&oppThreat>0&&oppThreat>=activeHp;
 const bench=player.bench;
 return {

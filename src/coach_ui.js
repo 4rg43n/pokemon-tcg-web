@@ -62,10 +62,6 @@ return `<h4>${escape(section.playerLabel)} · ${section.turns} turn${section.tur
 return `<div class="coach-head"><span class="coach-kind">Review</span><span class="coach-player">Game over</span><button type="button" data-coach="toggle" aria-label="Minimize coach">—</button><button type="button" data-coach="mute" aria-label="Mute coach">✕</button></div><div class="coach-review"><h3>How did that go?</h3>${sections}</div>`;
 }
 
-function idleHtml(){
-return `<div class="coach-head"><span class="coach-kind">Coach</span><span class="coach-player">${escape(playerLabel)}</span><button type="button" data-coach="toggle" aria-label="Minimize coach">—</button><button type="button" data-coach="mute" aria-label="Mute coach">✕</button></div><p class="coach-text">${IDLE_TEXT}</p>`;
-}
-
 function render(){
 if(!root)mount();
 root.dataset.state=settings.muted?"muted":settings.minimized?"min":"open";
@@ -76,7 +72,7 @@ if(currentId&&currentId!==shownId&&!settings.minimized&&!settings.muted)birdButt
 shownId=currentId;
 if(current&&current.once&&!seenOnce.has(current.id)){seenOnce.add(current.id);saveSettings();}
 if(settings.muted||settings.minimized)return;
-bubble.innerHTML=reviewData?reviewHtml():current?tipHtml(current):idleHtml();
+bubble.innerHTML=reviewData?reviewHtml():current?tipHtml(current):`<div class="coach-head"><span class="coach-kind">Coach</span><span class="coach-player">${escape(playerLabel)}</span><button type="button" data-coach="toggle" aria-label="Minimize coach">—</button><button type="button" data-coach="mute" aria-label="Mute coach">✕</button></div><p class="coach-text">${IDLE_TEXT}</p>`;
 }
 
 export function update({prev=null,state,action="",error=""}){
