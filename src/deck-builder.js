@@ -1,6 +1,6 @@
-import {catalog,registerExternalCard,defaultDeck,validateDeck,migrateDeck} from "./decks.js?v=24";
+import {catalog,registerExternalCard,defaultDeck,validateDeck,migrateDeck} from "./decks.js?v=26";
 import {parseLimitless} from "./limitless-import.js?v=24";
-import {searchCardDatabase} from "./external-cards.js?v=25";
+import {searchCardDatabase} from "./external-cards.js?v=26";
 const storageKey="pokemon-tcg-decks-v1";
 const externalKey="pokemon-tcg-external-cards-v1";
 const esc=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
