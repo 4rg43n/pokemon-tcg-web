@@ -99,7 +99,7 @@ button.plan-node:focus-visible{outline:none}
 .plan-inspector pre{max-height:240px;overflow:auto;white-space:pre-wrap;font-size:.75rem;background:#080e1a;padding:10px;border-radius:6px}
 
 /* Pokémon TCG look: official blue/yellow brand, type-coloured card frames, tabletop mat, readable coach highlights. */
-:root{--pk-blue:#2a75bb;--pk-blue-deep:#153f7a;--pk-yellow:#ffcb05;--pk-yellow-deep:#c7a008;--pk-ink:#1b1d2a;--pk-cyan:#22e5ff}
+:root{--pk-blue:#2a75bb;--pk-blue-deep:#153f7a;--pk-yellow:#ffcb05;--pk-ink:#1b1d2a;--pk-cyan:#22e5ff}
 body{font-family:"Gill Sans","Gill Sans MT","Trebuchet MS","Segoe UI",system-ui,sans-serif;background:radial-gradient(ellipse at 50% 0%,#17386b,#0b1422 60%)}
 h1{font-weight:900;letter-spacing:.02em;color:var(--pk-yellow);text-shadow:0 2px 0 var(--pk-blue-deep),0 3px 8px #0008}
 #status{color:#fff;background:#153f7acc;border:1px solid #4d86c9;border-radius:999px;padding:6px 14px;font-weight:800}
@@ -113,19 +113,13 @@ h1{font-weight:900;letter-spacing:.02em;color:var(--pk-yellow);text-shadow:0 2px
 .side .active-slot{border:2px solid #ffcb0580;background:#ffcb050f;box-shadow:inset 0 0 24px #ffcb0514}
 .side .bench-row{border:1px dashed #7fa6e080;background:#ffffff08}
 .divider{border-top:2px dashed #ffcb0570}
-.divider::after{content:"BATTLE LINE";background:var(--pk-blue-deep);color:var(--pk-yellow);border:1px solid #4d86c9}
+.divider::after{background:var(--pk-blue-deep);color:var(--pk-yellow);border:1px solid #4d86c9}
 .hand{border-top:2px solid #ffcb0566;background:linear-gradient(#ffffff00,#ffffff08);border-radius:0 0 14px 14px;padding-bottom:8px}
 .hint{color:#c7d8f5}
 .tcg-card{position:relative;border:3px solid var(--pk-yellow);border-radius:9px;color:var(--pk-ink);box-shadow:0 3px 10px #0008,inset 0 0 0 1px #ffffff99;font-family:inherit}
 .tcg-card.pokemon{background:linear-gradient(160deg,#fff7c9,#f6d978 45%,#e8b94a)}
 .tcg-card.pokemon.type-fire{background:linear-gradient(160deg,#ffd9b3,#ff9c4d 45%,#f0632e)}
-.tcg-card.pokemon.type-water{background:linear-gradient(160deg,#cfe9ff,#6fb6f2 45%,#3187d8)}
-.tcg-card.pokemon.type-grass{background:linear-gradient(160deg,#dcf5c4,#8fd36a 45%,#4ea842)}
-.tcg-card.pokemon.type-psychic{background:linear-gradient(160deg,#efd8f7,#c48ad8 45%,#9a5bc4)}
-.tcg-card.pokemon.type-fighting{background:linear-gradient(160deg,#f6ddc6,#d6975f 45%,#b2682f)}
 .tcg-card.pokemon.type-colorless{background:linear-gradient(160deg,#f7f5ee,#dedacb 45%,#bdb7a4)}
-.tcg-card.pokemon.type-darkness{background:linear-gradient(160deg,#c9cfd9,#6f7a90 45%,#3b4556);color:#f4f6fb}
-.tcg-card.pokemon.type-metal{background:linear-gradient(160deg,#eef1f5,#bcc5d1 45%,#8d99a9)}
 .tcg-card.pokemon img{filter:drop-shadow(0 3px 3px #0005)}
 .card-top{background:#ffffffb8;border-radius:5px;padding:2px 4px;font-weight:900}
 .card-top span{color:#c62828}
@@ -169,4 +163,4 @@ button.coach-cta{position:relative;background:var(--pk-yellow);color:var(--pk-in
 button.coach-cta::after{content:"PRESS";top:-18px}
 @keyframes coach-ring{0%,100%{outline-color:#fff}50%{outline-color:var(--pk-cyan)}}
 @media(prefers-reduced-motion:reduce){.tcg-card.coach-focus,button.coach-cta{animation:none}}
-@media(max-width:700px){.mat::before{width:220px;height:220px}.mat::after{width:56px;height:56px}.tcg-card.coach-focus{transform:translateY(-8px) scale(1.04)}.tcg-card.coach-focus::after,button.coach-cta::after{font-size:8px;top:-13px}}
+@media(max-width:700px){.mat::before{width:220px;height:220px}.mat::after{width:56px;height:56px}.tcg-card{border-width:2px;border-radius:6px}.player-label{font-size:.65rem}.tcg-card.coach-focus{transform:translateY(-8px) scale(1.04)}.tcg-card.coach-focus::after,button.coach-cta::after{font-size:8px;top:-13px}}
