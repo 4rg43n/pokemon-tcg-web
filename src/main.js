@@ -1,4 +1,4 @@
-import {newGame,dispatch,cardInfo} from "./engine.js";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=4";
 let state=newGame(),preview=null;
 const $=s=>document.querySelector(s),board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log");
 const escape=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
