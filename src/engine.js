@@ -1,5 +1,5 @@
 // Lightweight two-player prototype; intentionally not a complete official TCG rules engine.
-import {species,canPay} from "./cards.js?v=10";
+import {species,canPay} from "./cards.js?v=14";
 const pokemon=(i)=>({...species[i],speciesIndex:i,damage:0,energy:0,energies:[],evolvedThisTurn:false,playedTurn:0,under:[]});
 const basic=(i)=>({kind:"pokemon",species:i});
 const energy=(type="Fire")=>({kind:"energy",type,name:type+" Energy"});
