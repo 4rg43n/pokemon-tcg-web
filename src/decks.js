@@ -1,18 +1,18 @@
-import {species,energyTypes} from "./cards.js?v=21";
+import {species,energyTypes} from "./cards.js?v=22";
 export const pokemonCard=species=>({kind:"pokemon",species});
 export const energyCard=type=>({kind:"energy",type,name:type+" Energy"});
-const trainerCard=name=>({kind:"trainer",name,subtype:name==="Air Balloon"?"Pokémon Tool":name==="Professor's Research"?"Supporter":"Item"});
+const trainerCard=name=>({image:name==="Quick Ball"?"assets/cards/quick-ball.jpg":name==="Ultra Ball"?"assets/cards/ultra-ball.jpg":undefined,kind:"trainer",name,subtype:name==="Air Balloon"?"Pokémon Tool":name==="Professor's Research"?"Supporter":"Item"});
 export const catalog=[
  ...species.map((s,i)=>({id:`pokemon-${i}`,name:s.name,category:"pokemon",detail:`${s.stage?`Stage ${s.stage} · evolves from ${s.evolvesFrom}`:"Basic"} · ${s.type} · ${s.hp} HP`,card:pokemonCard(i)})),
  ...energyTypes.map(type=>({id:`energy-${type}`,name:type+" Energy",category:"energy",detail:"Basic Energy · unlimited copies",card:energyCard(type)})),
- ...["Potion","Poké Ball","Professor's Research","Air Balloon"].map(name=>({id:`trainer-${name}`,name,category:"trainer",detail:name==="Air Balloon"?"Pokémon Tool · attach to a Pokémon · retreat costs 2 less":name==="Potion"?"Item · heal 30 damage":name==="Poké Ball"?"Item · simplified random Basic search":"Supporter · discard hand, draw up to 7",card:trainerCard(name)}))
+ ...["Potion","Quick Ball","Ultra Ball","Professor's Research","Air Balloon"].map(name=>({id:`trainer-${name}`,name,category:"trainer",detail:name==="Air Balloon"?"Pokémon Tool · attach to a Pokémon · retreat costs 2 less":name==="Potion"?"Item · heal 30 damage":name==="Quick Ball"?"Item · discard 1 other card; search for a Basic Pokémon":name==="Ultra Ball"?"Item · discard 2 other cards; search for any Pokémon":"Supporter · discard hand, draw up to 7",card:trainerCard(name)}))
 ];
 export function defaultDeck(player){
  const counts={};
  const add=(id,n)=>counts[id]=(counts[id]||0)+n;
  for(const index of player===0?[2,2,2,4,4,4,2,4,2,4,2,4,2,4,6,6,6,6]:[3,3,3,5,5,5,3,5,3,5,3,5,3,5,7,7,8,8])add(`pokemon-${index}`,1);
  add("energy-Fire",player===0?8:14);add("energy-Lightning",player===0?14:8);
- add("trainer-Potion",8);add("trainer-Poké Ball",8);add("trainer-Professor's Research",4);
+ add("trainer-Potion",8);add("trainer-Quick Ball",8);add("trainer-Professor's Research",4);
  return {name:player===0?"Lightning starter":"Fire starter",counts};
 }
 export function validateDeck(deck){
@@ -35,4 +35,13 @@ export function validateDeck(deck){
 export function expandDeck(deck){
  const result=validateDeck(deck);if(result.errors.length)throw new Error(result.errors.join(" "));
  return catalog.flatMap(entry=>Array.from({length:deck.counts[entry.id]||0},()=>({...entry.card})));
+}
+
+export function migrateDeck(deck){
+ const migrated=structuredClone(deck);
+ if(migrated?.counts&&Object.hasOwn(migrated.counts,"trainer-Poké Ball")){
+  migrated.counts["trainer-Quick Ball"]=(migrated.counts["trainer-Quick Ball"]||0)+migrated.counts["trainer-Poké Ball"];
+  delete migrated.counts["trainer-Poké Ball"];
+ }
+ return migrated;
 }

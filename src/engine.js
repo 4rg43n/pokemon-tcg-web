@@ -1,7 +1,7 @@
 // Lightweight two-player prototype; intentionally not a complete official TCG rules engine.
-import {species,canPay,retreatCost} from "./cards.js?v=21";
+import {species,canPay,retreatCost} from "./cards.js?v=22";
 const pokemon=(i)=>({...species[i],speciesIndex:i,damage:0,energy:0,energies:[],evolvedThisTurn:false,playedTurn:0,under:[],tool:null});
-import {defaultDeck, expandDeck, validateDeck, energyCard as energy, pokemonCard as basic} from "./decks.js?v=21";
+import {defaultDeck, expandDeck, validateDeck, energyCard as energy, pokemonCard as basic} from "./decks.js?v=22";
 function shuffle(cards){for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]];}return cards;}
 function player(i,deck){
  const cards=shuffle(expandDeck(deck||defaultDeck(i)));
@@ -64,7 +64,16 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
  target.tool=card;p.hand.splice(idx,1);s.selection=null;s.log.unshift("Player "+(s.turn+1)+": attached Air Balloon to "+target.name+". Retreat now costs "+retreatCost(target)+" Energy.");return {state:s};
  }
  else if(card.name==="Potion"){const target=payload.target==="active"?p.active:payload.target==="bench"?p.bench[payload.slot]:null;if(!target)return err(state,"Choose a Pokémon to heal.");if(!target.damage)return err(state,"That Pokémon has no damage.");target.damage=Math.max(0,target.damage-30);message="Potion healed "+target.name+".";}
- else if(card.name==="Poké Ball"){const choices=p.deck.map((c,i)=>({card:c,index:i})).filter(x=>x.card.kind==="pokemon"&&!species[x.card.species].stage);if(!choices.length)return err(state,"No Basic Pokémon in deck.");const chosen=choices[Math.floor(Math.random()*choices.length)];p.hand.push(p.deck.splice(chosen.index,1)[0]);shuffle(p.deck);message="Poké Ball found "+species[chosen.card.species].name+" (simplified search).";}
+ else if(card.name==="Quick Ball"||card.name==="Ultra Ball"){
+ const required=card.name==="Quick Ball"?1:2,discard=payload.discardIndices;
+ if(!Array.isArray(discard)||discard.length!==required||new Set(discard).size!==required||discard.some(i=>!Number.isInteger(i)||i===idx||!p.hand[i]))return err(state,"Choose "+required+" other card(s) to discard.");
+ const choice=payload.searchIndex;
+ if(choice!==null&&(!Number.isInteger(choice)||p.deck[choice]?.kind!=="pokemon"||(card.name==="Quick Ball"&&species[p.deck[choice].species].stage)))return err(state,"Choose a valid Pokémon or finish without finding one.");
+ const found=choice===null?null:p.deck.splice(choice,1)[0];
+ for(const i of [...discard,idx].sort((a,b)=>b-a))p.discard.push(p.hand.splice(i,1)[0]);
+ if(found)p.hand.push(found);shuffle(p.deck);s.selection=null;
+ s.log.unshift("Player "+(s.turn+1)+": used "+card.name+", discarded "+required+" other card(s), "+(found?"revealed "+species[found.species].name+" and added it to hand":"found no Pokémon")+", then shuffled.");return {state:s};
+ }
  else if(card.name==="Professor's Research"){p.discard.push(...p.hand.filter((_,i)=>i!==idx));p.hand=[];for(let n=0;n<7&&p.deck.length;n++)p.hand.push(p.deck.shift());p.supporterUsed=true;message="Professor's Research drew "+p.hand.length+" cards.";p.discard.push(card);s.selection=null;s.log.unshift("Player "+(state.turn+1)+": "+message);return {state:s};}
  else return err(state,"Unsupported Trainer.");
  p.hand.splice(idx,1);p.discard.push(card);if(card.subtype==="Supporter")p.supporterUsed=true;s.selection=null;s.log.unshift("Player "+(state.turn+1)+": "+message);return {state:s};

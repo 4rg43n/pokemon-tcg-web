@@ -21,7 +21,7 @@ page load, open the builder and start a match to use saved decks.
 
 To check the engine and deck validation, run `node --test tests/decks.test.mjs`.
 Serve the repository with `python -m http.server 8765` for local browser testing.
-All browser module and stylesheet cache keys are v21.
+All browser module and stylesheet cache keys are v22.
 
 ## Main menu (v17)
 
@@ -54,3 +54,7 @@ Both cards are available under Pokémon in the deck builder, using the supplied 
 ## Morpeko (v21)
 
 Morpeko (TWM 072/167) is available in the builder with the supplied image. Tap your Morpeko and use Snack Seek to privately inspect the top card and keep or discard it once per turn. Pick and Stick lets you choose up to two Basic Energy from discard and assign each to your Active or Benched Pokémon before ending the turn.
+
+## Ball search cards (v22)
+
+Quick Ball replaces Poké Ball in the card library and starters; saved decks automatically migrate those copies. Ultra Ball is also available. Select either in hand and press Play Trainer to choose the required other hand cards to discard and the Pokémon to find (Quick Ball: Basic only; Ultra Ball: any Pokémon). The found card is revealed in the log and the deck is shuffled. Search may finish without finding a card; discard costs still apply.

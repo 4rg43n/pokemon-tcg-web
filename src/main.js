@@ -1,7 +1,7 @@
-import {retreatCost} from "./cards.js?v=21";
-import {cardStats} from "./card-stats.js?v=21";
-import {newGame,dispatch,cardInfo} from "./engine.js?v=21";
-import {mountDeckBuilder} from "./deck-builder.js?v=21";
+import {retreatCost,species} from "./cards.js?v=22";
+import {cardStats} from "./card-stats.js?v=22";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=22";
+import {mountDeckBuilder} from "./deck-builder.js?v=22";
 let state=newGame(),preview=null,matchDecks=null;
 const $=s=>document.querySelector(s),board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log");
 const escape=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -11,7 +11,7 @@ const {small=false,selected=false,back=false,empty=false,attrs=""}=opts;
 if(empty)return `<div class="tcg-card empty">${escape(data||"Empty")}</div>`;
 if(back)return '<div class="tcg-card back"><span>Pokémon</span></div>';
 if(data.kind==="energy")return `<div class="tcg-card energy ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="energy-symbol">⚡</div><strong>${escape(data.type||"Basic")} Energy</strong></div>`;
-if(data.kind==="trainer")return `<div class="tcg-card trainer ${small?"small":""} ${selected?"selected":""}" ${attrs}><span class="card-type">TRAINER</span><strong>${escape(data.name)}</strong><small>${escape(data.subtype||"Item")}</small>${data.name==="Air Balloon"?'<span class="tool-effect">🎈 Retreat costs 2 less</span>':""}</div>`;
+if(data.kind==="trainer")return `<div class="tcg-card trainer ${small?"small":""} ${selected?"selected":""}" ${attrs}><span class="card-type">TRAINER</span><strong>${escape(data.name)}</strong><small>${escape(data.subtype||"Item")}</small>${data.image?`<img src="${escape(data.image)}" alt="${escape(data.name)}" loading="lazy">`:""}${data.name==="Air Balloon"?'<span class="tool-effect">🎈 Retreat costs 2 less</span>':""}</div>`;
 const c=data.kind==="pokemon"&&data.species!==undefined?cardInfo(data):data;
 return `<div class="tcg-card pokemon ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="card-top"><strong>${escape(c.name)}</strong><span>${c.hp} HP</span></div><img src="${c.image|| (c.printing?`https://images.pokemontcg.io/${c.printing.split("-")[0]}/${c.printing.split("-")[1]}.png`:sprite(c.id))}" alt="" loading="lazy"><div class="card-bottom"><span>${escape((c.energies||[]).map(x=>x==="Fire"?"🔥":"⚡").join("")||"—")}</span><span>${Math.max(0,c.hp-(c.damage||0))} HP</span></div>${c.tool?`<div class="attached-tool" title="Air Balloon: retreat costs 2 less">🎈 Air Balloon</div>`:""}${cardStats(c)}</div>`;
 }
@@ -67,6 +67,14 @@ if(preview.type==="card"&&preview.card.ability){
 }
 else if(preview.type!=="card") modal.querySelector(".modal-content").innerHTML=`<h2>${escape(preview.name)} · ${preview.cards.length} cards</h2><div class="pile-list">${preview.name==="deck"?"Deck contents are hidden during play.":preview.cards.length?preview.cards.map(c=>cardHtml(c,{small:true})).join(""):"No cards yet."}</div>`;
 }
+function showBallSearch(){
+ const p=state.players[state.turn],idx=state.selection,card=p.hand[idx],required=card.name==="Quick Ball"?1:2;
+ preview={type:"ball-search"};$("#modal").hidden=false;const panel=$("#modal .modal-content");panel.innerHTML="<h2>"+escape(card.name)+"</h2><p>Discard "+required+" other card(s), then choose a Pokémon to reveal and add to your hand.</p>";
+ const checks=[];
+ p.hand.forEach((c,i)=>{if(i===idx)return;const label=document.createElement("label"),check=document.createElement("input");check.type="checkbox";label.style.display="block";label.append(check,document.createTextNode(c.kind==="pokemon"?species[c.species].name:c.name));panel.append(label);checks.push({check,index:i});});
+ const select=document.createElement("select");select.setAttribute("aria-label","Pokémon to find");select.innerHTML='<option value="">Finish without finding a Pokémon</option>'+p.deck.map((c,i)=>({c,i})).filter(({c})=>c.kind==="pokemon"&&(card.name==="Ultra Ball"||!species[c.species].stage)).map(({c,i})=>'<option value="'+i+'">'+escape(species[c.species].name)+'</option>').join('');panel.append(select);
+ const status=document.createElement("p"),done=document.createElement("button");done.textContent="Play "+card.name;done.onclick=()=>{const result=dispatch(state,"trainer",{discardIndices:checks.filter(x=>x.check.checked).map(x=>x.index),searchIndex:select.value===""?null:Number(select.value)});if(result.error){status.textContent=result.error;return;}state=result.state;render();error.textContent="";preview=null;$("#modal").hidden=true;};panel.append(status,done);
+}
 function chooseAttack(index){
  const p=state.players[state.turn],move=p.active.attacks[index];
  if(move.effect!=="pickAndStick"){act("attack",{index});$("#modal").hidden=true;preview=null;return;}
@@ -80,7 +88,7 @@ function chooseAttack(index){
 function showAttacks(){const moves=state.players[state.turn].active.attacks;preview={type:"attacks"};const modal=$("#modal");modal.hidden=false;modal.querySelector(".modal-content").innerHTML="<h2>Choose an attack</h2>"+moves.map((a,i)=>`<button type="button" data-attack="${i}" style="display:block;margin:12px 0;padding:12px;width:100%;text-align:left">${escape(a.name)} — ${escape(a.cost.join(" + "))} — ${a.damage} damage</button>`).join("");}
 $("#modal").addEventListener("click",e=>{const attack=e.target.closest("[data-attack]");if(attack){chooseAttack(Number(attack.dataset.attack));return;}});
 $("#modal").addEventListener("click",e=>{if(e.target.id==="modal"||e.target.closest(".close-modal")){$("#modal").hidden=true;preview=null;}});
-document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.action==="attack"){if(state.players[state.turn].active?.attacks?.length>1)showAttacks();else chooseAttack(0);return;}if(b.dataset.action==="trainer"){const card=state.players[state.turn].hand[state.selection];if(card?.name==="Potion"||card?.name==="Air Balloon"){error.textContent=card.name==="Air Balloon"?"Tap your Active or a Benched Pokémon to attach Air Balloon.":"Tap a damaged Pokémon to use Potion.";return;}act("trainer");}else act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
+document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.action==="attack"){if(state.players[state.turn].active?.attacks?.length>1)showAttacks();else chooseAttack(0);return;}if(b.dataset.action==="trainer"){const card=state.players[state.turn].hand[state.selection];if(card?.name==="Quick Ball"||card?.name==="Ultra Ball"){showBallSearch();return;}if(card?.name==="Potion"||card?.name==="Air Balloon"){error.textContent=card.name==="Air Balloon"?"Tap your Active or a Benched Pokémon to attach Air Balloon.":"Tap a damaged Pokémon to use Potion.";return;}act("trainer");}else act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
 render();
 
 const deckBuilder=mountDeckBuilder({start(decks){matchDecks=structuredClone(decks);state=newGame(matchDecks);error.textContent="";preview=null;$("#modal").hidden=true;render();},inspect:showPreview,onClose:started=>started?showGame():showMenu()});
