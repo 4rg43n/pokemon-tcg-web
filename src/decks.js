@@ -2,8 +2,10 @@
   // Exact 60-card Fire collection: 14 Pokémon, 39 Trainers, 7 Fire Energy.
   for(const printing of fireStarterPrintings)add("external-"+printing.id,printing.supertype==="Energy"?7:1);
  }
- for(const name of ["Potion","Quick Ball","Professor's Research","Ultra Ball","Lillie's Determination"])add("trainer-"+name,4);
- for(const name of ["Nemona","Nest Ball","Air Balloon"])add("trainer-"+name,2);
+ if(player===0){
+  for(const name of ["Potion","Quick Ball","Professor's Research","Ultra Ball","Lillie's Determination"])add("trainer-"+name,4);
+  for(const name of ["Nemona","Nest Ball","Air Balloon"])add("trainer-"+name,2);
+ }
  return {name:player===0?"Lightning Learner · Pikachu & Electrode":"Fire Collection · 60 unique-printing cards",counts};
 }
 export function validateDeck(deck){
