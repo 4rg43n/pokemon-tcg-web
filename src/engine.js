@@ -67,8 +67,9 @@ p.hand.splice(idx,1);s.selection=null;
 }else if(action==="attack"){
 if(s.phase!=="playing")return err(state,"Finish the current Pokémon switch first.");
 if(s.turn===0&&s.round===1)return err(state,"Player 1 cannot attack on the first turn.");
-const move=p.active.attacks[0];if(!canPay(p.active.energies,move.cost))return err(state,move.name+" requires "+move.cost.join(" + ")+" Energy (attached: "+(p.active.energies.join(", ")||"none")+").");
-o.active.damage+=move.damage;message=p.active.name+" used "+move.name+" for "+move.damage+" damage.";
+const move=p.active.attacks[payload.index??0];if(!move)return err(state,"Choose a valid attack.");if(!canPay(p.active.energies,move.cost))return err(state,move.name+" requires "+move.cost.join(" + ")+" Energy (attached: "+(p.active.energies.join(", ")||"none")+").");
+if(move.effect==="stoke"){let attached=0;for(let n=p.deck.length-1;n>=0&&attached<2;n--){if(p.deck[n].kind==="energy"&&p.deck[n].type==="Fire"){p.deck.splice(n,1);p.active.energies.push("Fire");attached++;}}p.active.energy=p.active.energies.length;shuffle(p.deck);message=p.active.name+" used Stoke and attached "+attached+" Fire Energy.";}
+else{o.active.damage+=move.damage;message=p.active.name+" used "+move.name+" for "+move.damage+" damage.";if(move.effect==="discardEnergy"){const type=p.active.energies.pop();p.active.energy=p.active.energies.length;p.discard.push(energy(type));message+=" Discarded "+type+" Energy.";}}
 if(o.active.damage>=o.active.hp){
 const prizeCount=o.active.name.endsWith(" ex")?2:1;for(let n=0;n<prizeCount&&p.prizeCards.length;n++)p.hand.push(p.prizeCards.pop());p.prizes=p.prizeCards.length;o.discard.push({kind:"pokemon",species:species.findIndex(x=>x.name===o.active.name)});for(const type of o.active.energies)o.discard.push(energy(type));message+=" Knockout! "+prizeCount+" Prize card(s) taken.";
 if(p.prizes===0||o.bench.length===0){s.winner=s.turn;message+=" Game over!";}
