@@ -1,4 +1,4 @@
-// Transitional card definitions. Charcadet sv1-39 and Growlithe sv1-31 are verified printings; other cards remain placeholders.
+// Transitional prototype definitions. Printing data still needs source verification.
 // Printing IDs and official attack text will be imported after card-source verification.
 export const species=[
 {name:"Pikachu ex",hp:200,id:25,type:"Lightning",retreat:1,attacks:[{name:"Spark Strike",cost:["Lightning","Colorless"],damage:60}]},

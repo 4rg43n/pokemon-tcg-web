@@ -1,20 +1,18 @@
 // Lightweight two-player prototype; intentionally not a complete official TCG rules engine.
-import {species,canPay} from "./cards.js?v=15";
+import {species,canPay} from "./cards.js?v=16";
 const pokemon=(i)=>({...species[i],speciesIndex:i,damage:0,energy:0,energies:[],evolvedThisTurn:false,playedTurn:0,under:[]});
-const basic=(i)=>({kind:"pokemon",species:i});
-const energy=(type="Fire")=>({kind:"energy",type,name:type+" Energy"});
-const trainer=name=>({kind:"trainer",name,subtype:name==="Professor's Research"?"Supporter":"Item"});
+import {defaultDeck, expandDeck, validateDeck, energyCard as energy, pokemonCard as basic} from "./decks.js?v=16";
 function shuffle(cards){for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]];}return cards;}
-function player(i){
- const basics=i===0?[2,2,2,4,4,4,2,4,2,4,2,4,2,4]:[3,3,3,5,5,5,3,5,3,5,3,5,3,5];
- const evolutions=i===0?[6,6,6,6]:[7,7,8,8];
- const cards=shuffle([...basics.map(basic),...evolutions.map(basic),...Array.from({length:22},(_,n)=>energy(i===0?(n%3===0?"Fire":"Lightning"):(n%3===0?"Lightning":"Fire"))),...Array.from({length:20},(_,n)=>trainer(n<8?"Potion":n<16?"Poké Ball":"Professor's Research"))]);
+function player(i,deck){
+ const cards=shuffle(expandDeck(deck||defaultDeck(i)));
  let hand=[],mulligans=0;
  do{if(hand.length)cards.push(...hand);shuffle(cards);hand=cards.splice(0,7);mulligans++;}while(!hand.some(c=>c.kind==="pokemon"&&!species[c.species].stage));
  const prizes=cards.splice(0,6);
  return {hand,deck:cards,prizeCards:prizes,discard:[],active:null,bench:[],prizes:prizes.length,attached:false,retreated:false,supporterUsed:false,mulligans:mulligans-1};
 }
-export function newGame(){const players=[player(0),player(1)];return {players,turn:0,round:1,phase:"setup",winner:null,log:["Each player: choose an Active Pokémon and optionally Bench Basics, then press Ready.","Shuffled 60-card decks and set six Prize cards per player."],selection:null};}
+export function newGame(decks){
+ if(decks&&(!Array.isArray(decks)||decks.length!==2||decks.some(d=>validateDeck(d).errors.length)))throw new Error("Choose two complete 60-card decks containing a Basic Pokémon.");
+ const players=[player(0,decks?.[0]),player(1,decks?.[1])];return {players,turn:0,round:1,phase:"setup",winner:null,log:["Each player: choose an Active Pokémon and optionally Bench Basics, then press Ready.","Shuffled 60-card decks and set six Prize cards per player."],selection:null};}
 const err=(state,error)=>({state,error});
 export function dispatch(state,action,payload={}){
 if(action==="reset")return {state:newGame()};

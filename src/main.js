@@ -1,5 +1,6 @@
-import {newGame,dispatch,cardInfo} from "./engine.js?v=15";
-let state=newGame(),preview=null;
+import {newGame,dispatch,cardInfo} from "./engine.js?v=16";
+import {mountDeckBuilder} from "./deck-builder.js?v=16";
+let state=newGame(),preview=null,matchDecks=null;
 const $=s=>document.querySelector(s),board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log");
 const escape=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 const sprite=id=>`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
@@ -29,7 +30,7 @@ const retreat=document.querySelector("button[data-action=retreat]");retreat.text
 const playTrainer=document.querySelector("button[data-action=trainer]");playTrainer.hidden=state.phase!=="playing"||p.hand[state.selection]?.kind!=="trainer";
 const ready=document.querySelector("button[data-action=ready]");ready.hidden=state.phase!=="setup";ready.disabled=state.phase!=="setup"||!state.players[state.turn].active;
 }
-function act(action,payload){const r=dispatch(state,action,payload);state=r.state;error.textContent=r.error||"";render();}
+function act(action,payload){const r=action==="reset"?{state:newGame(matchDecks)}:dispatch(state,action,payload);state=r.state;error.textContent=r.error||"";render();}
 board.addEventListener("click",e=>{
 const hand=e.target.closest("[data-hand]");
 if(hand){const idx=Number(hand.dataset.hand);if(state.selection===idx){showPreview(state.players[state.turn].hand[idx]);}else act("select",{index:idx});return;}
@@ -52,3 +53,6 @@ $("#modal").addEventListener("click",e=>{const attack=e.target.closest("[data-at
 $("#modal").addEventListener("click",e=>{if(e.target.id==="modal"||e.target.closest(".close-modal")){$("#modal").hidden=true;preview=null;}});
 document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.action==="attack"&&state.players[state.turn].active?.attacks?.length>1){showAttacks();return;}if(b.dataset.action==="trainer"){const card=state.players[state.turn].hand[state.selection];if(card?.name==="Potion"){error.textContent="Tap a damaged Pokémon to use Potion.";return;}act("trainer");}else act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
 render();
+
+const deckBuilder=mountDeckBuilder({start(decks){matchDecks=structuredClone(decks);state=newGame(matchDecks);error.textContent="";preview=null;$("#modal").hidden=true;render();},inspect:showPreview});
+$("#open-decks").addEventListener("click",()=>deckBuilder.open());
