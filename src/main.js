@@ -82,6 +82,16 @@ if(preview.type==="card"&&preview.card.ability){
 }
 else if(preview.type!=="card") modal.querySelector(".modal-content").innerHTML=`<h2>${escape(preview.name)} · ${preview.cards.length} cards</h2><div class="pile-list">${preview.name==="deck"?"Deck contents are hidden during play.":preview.cards.length?preview.cards.map(c=>cardHtml(c,{small:true})).join(""):"No cards yet."}</div>`;
 }
+function showNestBallSearch(){
+ const p=state.players[state.turn],panel=$("#modal .modal-content");
+ preview={type:"nest-search"};$("#modal").hidden=false;
+ panel.innerHTML="<h2>Nest Ball</h2><p>Search your deck for a Basic Pokémon, put it directly on your Bench, then shuffle your deck. This does not add it to your hand.</p>";
+ const select=document.createElement("select");select.setAttribute("aria-label","Basic Pokémon to Bench");
+ select.innerHTML='<option value="">Do not find a Pokémon</option>'+p.deck.map((c,i)=>({c,i})).filter(({c})=>c.kind==="pokemon"&&!species[c.species]?.stage).map(({c,i})=>'<option value="'+i+'">'+escape(species[c.species].name)+'</option>').join("");
+ panel.append(select);const status=document.createElement("p"),done=document.createElement("button");done.textContent="Play Nest Ball";
+ done.onclick=()=>{const payload={searchIndex:select.value===""?null:Number(select.value)},result=dispatch(state,"trainer",payload);if(result.error){status.textContent=result.error;return;}turnHistory.record(state,result.state,"trainer",payload);const prev=state;state=result.state;render();coachUpdate({prev,state,action:"trainer"});error.textContent="";preview=null;$("#modal").hidden=true;};
+ panel.append(status,done);
+}
 function showBallSearch(){
  const p=state.players[state.turn],idx=state.selection,card=p.hand[idx],required=card.name==="Quick Ball"?1:2;
  preview={type:"ball-search"};$("#modal").hidden=false;const panel=$("#modal .modal-content");panel.innerHTML="<h2>"+escape(card.name)+"</h2><p>Discard "+required+" other card(s), then choose a Pokémon to reveal and add to your hand.</p>";
@@ -103,7 +113,7 @@ function chooseAttack(index){
 function showAttacks(){const moves=state.players[state.turn].active.attacks;preview={type:"attacks"};const modal=$("#modal");modal.hidden=false;modal.querySelector(".modal-content").innerHTML="<h2>Choose an attack</h2>"+moves.map((a,i)=>`<button type="button" data-attack="${i}" style="display:block;margin:12px 0;padding:12px;width:100%;text-align:left">${escape(a.name)} — ${escape(a.cost.join(" + "))} — ${a.damage} damage</button>`).join("");}
 $("#modal").addEventListener("click",e=>{const attack=e.target.closest("[data-attack]");if(attack){chooseAttack(Number(attack.dataset.attack));return;}});
 $("#modal").addEventListener("click",e=>{if(e.target.id==="modal"||e.target.closest(".close-modal")){$("#modal").hidden=true;preview=null;}});
-document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.action==="attack"){if(state.players[state.turn].active?.attacks?.length>1)showAttacks();else chooseAttack(0);return;}if(b.dataset.action==="trainer"){const card=state.players[state.turn].hand[state.selection];if(card?.name==="Quick Ball"||card?.name==="Ultra Ball"){showBallSearch();return;}if(card?.name==="Potion"||card?.name==="Air Balloon"){error.textContent=card.name==="Air Balloon"?"Tap your Active or a Benched Pokémon to attach Air Balloon.":"Tap a damaged Pokémon to use Potion.";return;}act("trainer");}else act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
+document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.action==="attack"){if(state.players[state.turn].active?.attacks?.length>1)showAttacks();else chooseAttack(0);return;}if(b.dataset.action==="trainer"){const card=state.players[state.turn].hand[state.selection];if(card?.name==="Quick Ball"||card?.name==="Ultra Ball"){showBallSearch();return;}if(card?.name==="Nest Ball"){showNestBallSearch();return;}if(card?.name==="Potion"||card?.name==="Air Balloon"){error.textContent=card.name==="Air Balloon"?"Tap your Active or a Benched Pokémon to attach Air Balloon.":"Tap a damaged Pokémon to use Potion.";return;}act("trainer");}else act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
 render();
 
 coachUpdate({state,action:"init"});
