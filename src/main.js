@@ -1,9 +1,9 @@
-import {retreatCost,species} from "./cards.js?v=23";
-import {cardStats} from "./card-stats.js?v=23";
-import {newGame,dispatch,cardInfo} from "./engine.js?v=23";
-import {mountDeckBuilder} from "./deck-builder.js?v=23";
-import {createRecorder} from "./history.js?v=23";
-import {createPlanner} from "./planning/planner.js?v=23";
+import {retreatCost,species} from "./cards.js?v=24";
+import {cardStats} from "./card-stats.js?v=24";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=24";
+import {mountDeckBuilder} from "./deck-builder.js?v=24";
+import {createRecorder} from "./history.js?v=24";
+import {createPlanner} from "./planning/planner.js?v=24";
 let state=newGame(),preview=null,matchDecks=null;
 const turnHistory=createRecorder();turnHistory.start(state);
 const planner=createPlanner();let aiEnabled=false,aiBusy=false;
