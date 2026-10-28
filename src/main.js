@@ -1,7 +1,7 @@
-import {retreatCost} from "./cards.js?v=19";
-import {cardStats} from "./card-stats.js?v=19";
-import {newGame,dispatch,cardInfo} from "./engine.js?v=19";
-import {mountDeckBuilder} from "./deck-builder.js?v=19";
+import {retreatCost} from "./cards.js?v=21";
+import {cardStats} from "./card-stats.js?v=21";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=21";
+import {mountDeckBuilder} from "./deck-builder.js?v=21";
 let state=newGame(),preview=null,matchDecks=null;
 const $=s=>document.querySelector(s),board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log");
 const escape=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -13,7 +13,7 @@ if(back)return '<div class="tcg-card back"><span>Pokémon</span></div>';
 if(data.kind==="energy")return `<div class="tcg-card energy ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="energy-symbol">⚡</div><strong>${escape(data.type||"Basic")} Energy</strong></div>`;
 if(data.kind==="trainer")return `<div class="tcg-card trainer ${small?"small":""} ${selected?"selected":""}" ${attrs}><span class="card-type">TRAINER</span><strong>${escape(data.name)}</strong><small>${escape(data.subtype||"Item")}</small>${data.name==="Air Balloon"?'<span class="tool-effect">🎈 Retreat costs 2 less</span>':""}</div>`;
 const c=data.kind==="pokemon"&&data.species!==undefined?cardInfo(data):data;
-return `<div class="tcg-card pokemon ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="card-top"><strong>${escape(c.name)}</strong><span>${c.hp} HP</span></div><img src="${c.printing?`https://images.pokemontcg.io/${c.printing.split("-")[0]}/${c.printing.split("-")[1]}.png`:sprite(c.id)}" alt="" loading="lazy"><div class="card-bottom"><span>${escape((c.energies||[]).map(x=>x==="Fire"?"🔥":"⚡").join("")||"—")}</span><span>${Math.max(0,c.hp-(c.damage||0))} HP</span></div>${c.tool?`<div class="attached-tool" title="Air Balloon: retreat costs 2 less">🎈 Air Balloon</div>`:""}${cardStats(c)}</div>`;
+return `<div class="tcg-card pokemon ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="card-top"><strong>${escape(c.name)}</strong><span>${c.hp} HP</span></div><img src="${c.image|| (c.printing?`https://images.pokemontcg.io/${c.printing.split("-")[0]}/${c.printing.split("-")[1]}.png`:sprite(c.id))}" alt="" loading="lazy"><div class="card-bottom"><span>${escape((c.energies||[]).map(x=>x==="Fire"?"🔥":"⚡").join("")||"—")}</span><span>${Math.max(0,c.hp-(c.damage||0))} HP</span></div>${c.tool?`<div class="attached-tool" title="Air Balloon: retreat costs 2 less">🎈 Air Balloon</div>`:""}${cardStats(c)}</div>`;
 }
 function side(p,i){
 const own=i===state.turn;
@@ -46,14 +46,41 @@ if(state.selection!==null)act("deselect");
 });
 function showPreview(c){const d=c.kind==="pokemon"&&c.species!==undefined?cardInfo(c):c;preview={type:"card",card:d};renderModal();}
 function showPile(type,cards){preview={type:"pile",name:type,cards};renderModal();}
+function useAbilityFromPreview(){
+ const p=state.players[state.turn],c=preview?.card;
+ const slot=p.bench.indexOf(c),target=p.active===c?"active":slot>=0?"bench":null;
+ if(target){
+ if(c.ability.name==="Snack Seek"){
+  if(!p.deck.length){error.textContent="No cards left to look at.";return;}
+  const panel=$("#modal .modal-content");panel.innerHTML="<h2>Snack Seek</h2><p>Top card of your deck</p>"+cardHtml(p.deck[0]);
+  for(const discard of [false,true]){const button=document.createElement("button");button.textContent=discard?"Discard card":"Keep on top";button.onclick=()=>{act("ability",{target,slot,discard});preview=null;$("#modal").hidden=true;};panel.append(button);}return;
+ }
+ act("ability",{target,slot});preview=null;$("#modal").hidden=true;
+}
+}
 function renderModal(){const modal=$("#modal");if(!preview){modal.hidden=true;return;}modal.hidden=false;
 if(preview.type==="card"){const c=preview.card;modal.querySelector(".modal-content").innerHTML=cardHtml(c)+`<p>${escape(c.name||"")}${c.attacks?.length?" · "+c.attacks.map(a=>a.name+" ("+a.cost.join(" + ")+"): "+a.damage+" damage").join(", "):""}</p>${c.hp?'<p class="stat-legend">★ = Colorless Energy for retreat · ? = data not yet recorded · — = no Weakness or Resistance. These stats are informational; Weakness and Resistance damage rules are not implemented.</p>':""}`;}
-else modal.querySelector(".modal-content").innerHTML=`<h2>${escape(preview.name)} · ${preview.cards.length} cards</h2><div class="pile-list">${preview.name==="deck"?"Deck contents are hidden during play.":preview.cards.length?preview.cards.map(c=>cardHtml(c,{small:true})).join(""):"No cards yet."}</div>`;
+if(preview.type==="card"&&preview.card.ability){
+ const c=preview.card,p=state.players[state.turn],own=c===p.active||p.bench.includes(c);
+ const text=document.createElement("p");text.textContent=c.ability.name+": "+c.ability.text;modal.querySelector(".modal-content").append(text);
+ if(own&&state.phase==="playing"){const button=document.createElement("button");button.textContent="Use "+c.ability.name;button.disabled=!!c.abilityUsed||state.winner!==null;button.onclick=useAbilityFromPreview;modal.querySelector(".modal-content").append(button);}
+}
+else if(preview.type!=="card") modal.querySelector(".modal-content").innerHTML=`<h2>${escape(preview.name)} · ${preview.cards.length} cards</h2><div class="pile-list">${preview.name==="deck"?"Deck contents are hidden during play.":preview.cards.length?preview.cards.map(c=>cardHtml(c,{small:true})).join(""):"No cards yet."}</div>`;
+}
+function chooseAttack(index){
+ const p=state.players[state.turn],move=p.active.attacks[index];
+ if(move.effect!=="pickAndStick"){act("attack",{index});$("#modal").hidden=true;preview=null;return;}
+ preview={type:"energy-choice"};$("#modal").hidden=false;
+ const panel=$("#modal .modal-content");panel.innerHTML="<h2>Pick and Stick</h2><p>Choose up to 2 Basic Energy cards and where to attach each. This attack ends your turn.</p>";
+ const fields=[];
+ p.discard.forEach((card,i)=>{if(card.kind!=="energy")return;const label=document.createElement("label");label.style.display="block";label.textContent=card.name+" ";const select=document.createElement("select");
+ select.innerHTML='<option value="">Leave in discard</option><option value="active">Active: '+escape(p.active.name)+'</option>'+p.bench.map((c,n)=>'<option value="'+n+'">Bench '+(n+1)+': '+escape(c.name)+'</option>').join('');label.append(select);panel.append(label);fields.push({select,index:i});});
+ const done=document.createElement("button");done.textContent="Use Pick and Stick";done.onclick=()=>{const attachments=fields.filter(x=>x.select.value!=="").map(x=>({index:x.index,target:x.select.value==="active"?"active":"bench",slot:Number(x.select.value)}));const result=dispatch(state,"attack",{index,attachments});if(result.error){error.textContent=result.error;return;}state=result.state;error.textContent="";render();preview=null;$("#modal").hidden=true;};panel.append(done);
 }
 function showAttacks(){const moves=state.players[state.turn].active.attacks;preview={type:"attacks"};const modal=$("#modal");modal.hidden=false;modal.querySelector(".modal-content").innerHTML="<h2>Choose an attack</h2>"+moves.map((a,i)=>`<button type="button" data-attack="${i}" style="display:block;margin:12px 0;padding:12px;width:100%;text-align:left">${escape(a.name)} — ${escape(a.cost.join(" + "))} — ${a.damage} damage</button>`).join("");}
-$("#modal").addEventListener("click",e=>{const attack=e.target.closest("[data-attack]");if(attack){act("attack",{index:Number(attack.dataset.attack)});$("#modal").hidden=true;preview=null;return;}});
+$("#modal").addEventListener("click",e=>{const attack=e.target.closest("[data-attack]");if(attack){chooseAttack(Number(attack.dataset.attack));return;}});
 $("#modal").addEventListener("click",e=>{if(e.target.id==="modal"||e.target.closest(".close-modal")){$("#modal").hidden=true;preview=null;}});
-document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.action==="attack"&&state.players[state.turn].active?.attacks?.length>1){showAttacks();return;}if(b.dataset.action==="trainer"){const card=state.players[state.turn].hand[state.selection];if(card?.name==="Potion"||card?.name==="Air Balloon"){error.textContent=card.name==="Air Balloon"?"Tap your Active or a Benched Pokémon to attach Air Balloon.":"Tap a damaged Pokémon to use Potion.";return;}act("trainer");}else act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
+document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.action==="attack"){if(state.players[state.turn].active?.attacks?.length>1)showAttacks();else chooseAttack(0);return;}if(b.dataset.action==="trainer"){const card=state.players[state.turn].hand[state.selection];if(card?.name==="Potion"||card?.name==="Air Balloon"){error.textContent=card.name==="Air Balloon"?"Tap your Active or a Benched Pokémon to attach Air Balloon.":"Tap a damaged Pokémon to use Potion.";return;}act("trainer");}else act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
 render();
 
 const deckBuilder=mountDeckBuilder({start(decks){matchDecks=structuredClone(decks);state=newGame(matchDecks);error.textContent="";preview=null;$("#modal").hidden=true;render();},inspect:showPreview,onClose:started=>started?showGame():showMenu()});
