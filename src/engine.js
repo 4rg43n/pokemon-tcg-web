@@ -1,9 +1,9 @@
 // Lightweight two-player prototype; intentionally not a complete official TCG rules engine.
-import {species,canPay} from "./cards.js?v=15";
-const pokemon=(i)=>({...species[i],speciesIndex:i,damage:0,energy:0,energies:[],evolvedThisTurn:false,playedTurn:0,under:[]});
-const basic=(i)=>({kind:"pokemon",species:i});
-const energy=(type="Fire")=>({kind:"energy",type,name:type+" Energy"});
-const trainer=name=>({kind:"trainer",name,subtype:name==="Professor's Research"?"Supporter":"Item"});
+import {species,canPay} from "./cards.js?v=16";
+export const pokemon=(i)=>({...species[i],speciesIndex:i,damage:0,energy:0,energies:[],evolvedThisTurn:false,playedTurn:0,under:[]});
+export const basic=(i)=>({kind:"pokemon",species:i});
+export const energy=(type="Fire")=>({kind:"energy",type,name:type+" Energy"});
+export const trainer=name=>({kind:"trainer",name,subtype:name==="Professor's Research"?"Supporter":"Item"});
 function shuffle(cards){for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]];}return cards;}
 function player(i){
  const basics=i===0?[2,2,2,4,4,4,2,4,2,4,2,4,2,4]:[3,3,3,5,5,5,3,5,3,5,3,5,3,5];

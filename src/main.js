@@ -1,5 +1,7 @@
-import {newGame,dispatch,cardInfo} from "./engine.js?v=15";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=16";
+import {createRecorder} from "./history.js?v=16";
 let state=newGame(),preview=null;
+const turnHistory=createRecorder();turnHistory.start(state);
 const $=s=>document.querySelector(s),board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log");
 const escape=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 const sprite=id=>`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
@@ -29,7 +31,7 @@ const retreat=document.querySelector("button[data-action=retreat]");retreat.text
 const playTrainer=document.querySelector("button[data-action=trainer]");playTrainer.hidden=state.phase!=="playing"||p.hand[state.selection]?.kind!=="trainer";
 const ready=document.querySelector("button[data-action=ready]");ready.hidden=state.phase!=="setup";ready.disabled=state.phase!=="setup"||!state.players[state.turn].active;
 }
-function act(action,payload){const r=dispatch(state,action,payload);state=r.state;error.textContent=r.error||"";render();}
+function act(action,payload){const r=dispatch(state,action,payload);if(!r.error){if(action==="reset")turnHistory.start(r.state);else turnHistory.record(state,r.state,action,payload);}state=r.state;error.textContent=r.error||"";render();}
 board.addEventListener("click",e=>{
 const hand=e.target.closest("[data-hand]");
 if(hand){const idx=Number(hand.dataset.hand);if(state.selection===idx){showPreview(state.players[state.turn].hand[idx]);}else act("select",{index:idx});return;}
