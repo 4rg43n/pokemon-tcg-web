@@ -6,7 +6,10 @@ function shuffle(cards){for(let i=cards.length-1;i>0;i--){const j=Math.floor(Mat
 function player(i,deck){
  const cards=shuffle(expandDeck(deck||defaultDeck(i)));
  let hand=[],mulligans=0;
- do{if(hand.length)cards.push(...hand);shuffle(cards);hand=cards.splice(0,7);mulligans++;}while(!hand.some(c=>c.kind==="pokemon"&&!species[c.species].stage));
+ const basicCard=c=>c.kind==="pokemon"&&species[c.species]&&!species[c.species].stage;
+ if(!cards.some(basicCard))throw new Error("This deck has no playable Basic Pokémon. Check the imported card stages.");
+ do{if(hand.length)cards.push(...hand);shuffle(cards);hand=cards.splice(0,7);mulligans++;}while(!hand.some(basicCard)&&mulligans<100);
+ if(!hand.some(basicCard)){cards.push(...hand);hand=[];shuffle(cards);const basicIndex=cards.findIndex(basicCard);hand.push(cards.splice(basicIndex,1)[0]);hand.push(...cards.splice(0,6));}
  const prizes=cards.splice(0,6);
  return {hand,deck:cards,prizeCards:prizes,discard:[],active:null,bench:[],prizes:prizes.length,attached:false,retreated:false,supporterUsed:false,mulligans:mulligans-1};
 }
