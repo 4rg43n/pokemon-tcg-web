@@ -1,4 +1,4 @@
-import {catalog,registerExternalCard,defaultDeck,validateDeck,migrateDeck} from "./decks.js?v=49";
+import {catalog,registerExternalCard,defaultDeck,validateDeck,migrateDeck} from "./decks.js?v=50";
 import {importLimitlessDeck} from "./limitless-resolver.js?v=35";
 import {searchCardDatabase,getCardDetail} from "./external-cards.js?v=31";
 const storageKey="pokemon-tcg-decks-v1";
