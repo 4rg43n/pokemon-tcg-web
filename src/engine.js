@@ -67,6 +67,16 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
  target.tool=card;p.hand.splice(idx,1);s.selection=null;s.log.unshift("Player "+(s.turn+1)+": attached Air Balloon to "+target.name+". Retreat now costs "+retreatCost(target)+" Energy.");return {state:s};
  }
  else if(card.name==="Potion"){const target=payload.target==="active"?p.active:payload.target==="bench"?p.bench[payload.slot]:null;if(!target)return err(state,"Choose a Pokémon to heal.");if(!target.damage)return err(state,"That Pokémon has no damage.");target.damage=Math.max(0,target.damage-30);message="Potion healed "+target.name+".";}
+ else if(card.name==="Nest Ball"){
+  if(p.bench.length>=5)return err(state,"Your Bench is full.");
+  const choice=payload.searchIndex;
+  if(choice!==null&&(!Number.isInteger(choice)||p.deck[choice]?.kind!=="pokemon"||species[p.deck[choice].species]?.stage))return err(state,"Choose a Basic Pokémon from your deck.");
+  const found=choice===null?null:p.deck.splice(choice,1)[0];
+  if(found){const added=pokemon(found.species);added.playedTurn=s.round;p.bench.push(added);}
+  p.hand.splice(idx,1);p.discard.push(card);shuffle(p.deck);s.selection=null;
+  s.log.unshift("Player "+(state.turn+1)+": used Nest Ball, "+(found?"put "+species[found.species].name+" directly onto the Bench":"found no Basic Pokémon")+", then shuffled the deck.");
+  return {state:s};
+ }
  else if(card.name==="Quick Ball"||card.name==="Ultra Ball"){
  const required=card.name==="Quick Ball"?1:2,discard=payload.discardIndices;
  if(!Array.isArray(discard)||discard.length!==required||new Set(discard).size!==required||discard.some(i=>!Number.isInteger(i)||i===idx||!p.hand[i]))return err(state,"Choose "+required+" other card(s) to discard.");
@@ -76,6 +86,14 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
  for(const i of [...discard,idx].sort((a,b)=>b-a))p.discard.push(p.hand.splice(i,1)[0]);
  if(found)p.hand.push(found);shuffle(p.deck);s.selection=null;
  s.log.unshift("Player "+(s.turn+1)+": used "+card.name+", discarded "+required+" other card(s), "+(found?"revealed "+species[found.species].name+" and added it to hand":"found no Pokémon")+", then shuffled.");return {state:s};
+ }
+ else if(card.name==="Nemona"){
+  p.hand.splice(idx,1);p.discard.push(card);
+  const drawn=Math.min(3,p.deck.length);
+  for(let n=0;n<drawn;n++)p.hand.push(p.deck.shift());
+  p.supporterUsed=true;s.selection=null;
+  s.log.unshift("Player "+(state.turn+1)+": Nemona drew "+drawn+" cards.");
+  return {state:s};
  }
  else if(card.name==="Lillie's Determination"){
  const returned=p.hand.filter((_,i)=>i!==idx);
