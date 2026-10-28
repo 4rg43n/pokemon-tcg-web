@@ -1,4 +1,4 @@
-import {retreatCost} from "./cards.js?v=24";
+import {retreatCost} from "./cards.js?v=22";
 // Display only: these stats do not add Weakness or Resistance battle rules.
 const symbols={Grass:"♣",Fire:"🔥",Water:"💧",Lightning:"ϟ",Psychic:"◉",Fighting:"✊",Darkness:"☾",Metal:"⚙",Dragon:"◆",Fairy:"✦",Colorless:"★"};
 const escape=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');

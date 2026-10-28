@@ -69,7 +69,7 @@ src/main.js ──act()──▶ engine.dispatch ──▶ new state
 ### `src/main.js` changes
 
 - Import `coach_ui.js`; call `coachUI.update(...)` at the end of `act()`, once after initial render, and in the two dialogs that dispatch directly (ball search, Pick and Stick). The deck builder's start callback reports a `reset`.
-- Bump cache-busting version to `v24` in `index.html` and every module import (upstream was at v23 when this landed).
+- Cache keys: upstream versions each module independently, so only the entry points this feature changes move: `style.css` and `main.js` go to `v32` in `index.html`, the coach modules start at `v1`, and other imports keep upstream's keys.
 - The page opens on the main menu; `main[hidden]~#coach` hides the widget until the playmat is shown.
 
 Upstream at integration time (origin/main 190ba3c, which added the Player 2 AI planner) had Quick Ball / Ultra Ball instead of Poké Ball, Air Balloon (retreat cost via `retreatCost()` in cards.js), and Abilities on Rapidash and Morpeko. The context uses `retreatCost()`, the ball tip covers both Balls, and an Ability reminder tip was added.

@@ -1,6 +1,6 @@
 // Pure coach logic: derive a context from game state, pick tips, track turns, review the game. No DOM.
-import {species,canPay,retreatCost} from "./cards.js?v=24";
-import {TIPS,REVIEW_RULES,CLEAN_GAME,SOURCES} from "./coach_knowledge.js?v=24";
+import {species,canPay,retreatCost} from "./cards.js?v=27";
+import {TIPS,REVIEW_RULES,CLEAN_GAME,SOURCES} from "./coach_knowledge.js?v=1";
 
 const RESEARCH="Professor's Research";
 const isEx=name=>typeof name==="string"&&name.endsWith(" ex");
@@ -122,7 +122,7 @@ const ctx=buildContext(prevState);
 const prevPlayer=prevState.players[prevState.turn];
 const attacked=action==="attack";
 const tookKO=attacked&&(nextState.phase==="replacement"||(nextState.winner===prevState.turn));
-const deckOut=nextState.winner!==null&&nextState.winner!==prevState.turn&&nextState.log[0]==="Deck out!";
+const deckOut=nextState.winner!==null&&nextState.winner!==prevState.turn&&nextState.winReason==="deck out";
 return {
 player:prevState.turn,playerLabel:ctx.playerLabel,round:prevState.round,
 missedAttach:!prevPlayer.attached&&ctx.energyInHand>0,

@@ -1,4 +1,4 @@
-import {species,energyTypes} from "./cards.js?v=24";
+import {species,energyTypes} from "./cards.js?v=22";
 export const pokemonCard=species=>({kind:"pokemon",species});
 export const energyCard=type=>({kind:"energy",type,name:type+" Energy"});
 export const trainerCard=name=>({image:name==="Quick Ball"?"assets/cards/quick-ball.jpg":name==="Ultra Ball"?"assets/cards/ultra-ball.jpg":undefined,kind:"trainer",name,subtype:name==="Air Balloon"?"Pokémon Tool":name==="Professor's Research"?"Supporter":"Item"});
@@ -7,12 +7,28 @@ export const catalog=[
  ...energyTypes.map(type=>({id:`energy-${type}`,name:type+" Energy",category:"energy",detail:"Basic Energy · unlimited copies",card:energyCard(type)})),
  ...["Potion","Quick Ball","Ultra Ball","Professor's Research","Air Balloon"].map(name=>({id:`trainer-${name}`,name,category:"trainer",detail:name==="Air Balloon"?"Pokémon Tool · attach to a Pokémon · retreat costs 2 less":name==="Potion"?"Item · heal 30 damage":name==="Quick Ball"?"Item · discard 1 other card; search for a Basic Pokémon":name==="Ultra Ball"?"Item · discard 2 other cards; search for any Pokémon":"Supporter · discard hand, draw up to 7",card:trainerCard(name)}))
 ];
+// Register external printings without claiming their effects are supported by the engine.
+export function registerExternalCard(raw){
+ if(!raw?.id||!raw?.name)return null;
+ const id="external-"+String(raw.id);
+ const existing=catalog.find(c=>c.id===id);if(existing)return existing;
+ const kind=String(raw.supertype||raw.type||raw.category||"").toLowerCase();
+ const category=kind.includes("pok")?"pokemon":kind.includes("energy")?"energy":"trainer";
+ const subtypes=Array.isArray(raw.subtypes)?raw.subtypes:[raw.subtype].filter(Boolean);
+ const subtype=subtypes.find(t=>/item|supporter|stadium|tool/i.test(t))||"";
+ const card={kind:category,name:raw.name,subtype,set:raw.set?.tcgOnline||raw.set?.id||raw.setCode||"",number:String(raw.number||""),printing:raw.id,image:raw.imageUrl||"",external:true};
+ const entry={id,name:raw.name,category,detail:[raw.set?.name||raw.setName||raw.set?.id||"",raw.number||"",subtypes.join(", ")].filter(Boolean).join(" · "),card,external:true,basic:category==="pokemon"&&(!/stage\s*[12]|vmax|vstar|break/i.test(String(raw.stage||"Basic"))),unlimited:category==="energy"&&/basic/i.test(String(raw.energyType||raw.subtype||""))};
+ catalog.push(entry);return entry;
+}
 export function defaultDeck(player){
  const counts={};
  const add=(id,n)=>counts[id]=(counts[id]||0)+n;
- for(const index of player===0?[2,2,2,4,4,4,2,4,2,4,2,4,2,4,6,6,6,6]:[3,3,3,5,5,5,3,5,3,5,3,5,3,5,7,7,8,8])add(`pokemon-${index}`,1);
- add("energy-Fire",player===0?8:14);add("energy-Lightning",player===0?14:8);
- add("trainer-Potion",8);add("trainer-Quick Ball",8);add("trainer-Professor's Research",4);
+ // Exactly 60 cards, with no more than four copies of any non-Basic Energy name.
+ const pokemon=player===0?[[2,4],[4,4],[6,3],[10,3],[11,2]]:[[3,4],[5,4],[7,3],[8,3],[9,2]];
+ for(const [index,n] of pokemon)add(`pokemon-${index}`,n);
+ add("energy-Fire",player===0?12:20);
+ add("energy-Lightning",player===0?20:12);
+ add("trainer-Potion",4);add("trainer-Quick Ball",4);add("trainer-Professor's Research",4);
  return {name:player===0?"Lightning starter":"Fire starter",counts};
 }
 export function validateDeck(deck){
@@ -23,13 +39,14 @@ export function validateDeck(deck){
   const entry=catalog.find(c=>c.id===id);
   if(!entry||!Number.isInteger(n)||n<0||n>60){errors.push("Deck contains an unsupported card or quantity.");continue;}
   total+=n;if(!n)continue;
-  if(entry.category==="pokemon"&&!species[entry.card.species].stage)basics+=n;
-  if(entry.category!=="energy")names.set(entry.name,(names.get(entry.name)||0)+n);
-  if(entry.category==="pokemon"&&species[entry.card.species].stage){const parent=species[entry.card.species].evolvesFrom;if(!catalog.some(c=>c.name===parent&&deck.counts[c.id]>0))warnings.push(`${entry.name} has no ${parent} to evolve from.`);}
+  if(entry.category==="pokemon"&&(entry.external?entry.basic:!species[entry.card.species].stage))basics+=n;
+  if(!(entry.category==="energy"&&(entry.unlimited||!entry.external)))names.set(entry.name,(names.get(entry.name)||0)+n);
+  if(entry.category==="pokemon"&&!entry.external&&species[entry.card.species].stage){const parent=species[entry.card.species].evolvesFrom;if(!catalog.some(c=>c.name===parent&&deck.counts[c.id]>0))warnings.push(`${entry.name} has no ${parent} to evolve from.`);}
  }
  if(total!==60)errors.push(`Needs exactly 60 cards (${total}/60).`);
  if(!basics)errors.push("Add at least one Basic Pokémon.");
- for(const [name,n] of names)if(n>4)warnings.push(`${name}: ${n} copies exceeds the usual four-copy limit.`);
+ for(const [name,n] of names)if(n>4)errors.push(`${name}: maximum four copies across printings.`);
+ if(Object.entries(deck.counts).some(([id,n])=>n>0&&catalog.find(c=>c.id===id)?.external))warnings.push("External cards can be saved but cannot yet be played in the automated simulator.");
  return {errors,warnings,total,basics};
 }
 export function expandDeck(deck){

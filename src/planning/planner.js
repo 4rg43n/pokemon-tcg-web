@@ -1,7 +1,26 @@
 // Deterministic Player 2 planning experiment. All decisions use Player 2's visible information.
-import {canPay,retreatCost,species} from "../cards.js?v=24";
+import {canPay,retreatCost,species} from "../cards.js?v=23";
 const KEY="ptcg.ai.plans.v1";
 const identity=m=>m?m.name:null;
+// Attack utility is effect-specific. A zero score means do not use the attack.
+// These values are decision preferences, not Pokémon damage or official card rules.
+export function attackUtility(move,me,opponent){
+ if(!canPay(me.active.energies,move.cost))return {score:0,reason:"Cannot pay attack cost"};
+ if(move.effect==="stoke"){
+  const fire=me.active.energies.filter(x=>x==="Fire").length;
+  const cap=Math.max(0,...me.active.attacks.flatMap(a=>[a.cost.filter(x=>x==="Fire").length]));
+  const missing=Math.max(0,cap-fire);
+  // Deck is unknown in a fair-play observation; the count here is an upper bound.
+  const potential=Math.min(2,missing,me.deck.length);
+  const score=potential===0?0:potential===2?90:35;
+  return {score,reason:potential===0?"No useful Fire Energy capacity remains":`Stoke can fill up to ${potential} of ${missing} useful Fire Energy slots`};
+ }
+ if(move.effect==="draw")return {score:me.deck.length>3?25:0,reason:"Draw-card attack"};
+ if(move.effect==="pickAndStick")return {score:0,reason:"Attachment targets not yet supported by AI"};
+ const damage=move.damage||0;
+ const remaining=opponent.active?opponent.active.hp-opponent.active.damage:Infinity;
+ return {score:damage>0?50+Math.min(damage,150)/3+(damage>=remaining?100:0):0,reason:damage>=remaining?"Potential knockout":"Direct damage"};
+}
 const observed=s=>({active:identity(s.players[0].active),activeHp:s.players[0].active?Math.max(0,s.players[0].active.hp-s.players[0].active.damage):0,bench:s.players[0].bench.length,prizes:s.players[0].prizes});
 export function createPlanner(storage=(()=>{try{return localStorage;}catch{return null;}})()){
  let active=null,archive=[],sequence=0;
@@ -33,8 +52,9 @@ export function createPlanner(storage=(()=>{try{return localStorage;}catch{retur
    if(s.players[1].hand[step.select]?.kind!==wanted){const i=s.players[1].hand.findIndex(c=>c.kind===wanted&&(wanted!=="pokemon"||!species[c.species].stage));if(i<0){active.actions.shift();return next(s);}step={...step,select:i};}
   }
   if(step.action==="attackOrEnd"){
-   const p=s.players[1],index=p.active?.attacks.findIndex(a=>a.effect!=="pickAndStick"&&canPay(p.active.energies,a.cost))??-1;
-   step={...step,action:index>=0?"attack":"end",payload:index>=0?{index}:{}};
+   const p=s.players[1],choices=(p.active?.attacks||[]).map((move,index)=>({index,...attackUtility(move,p,s.players[0])})).sort((a,b)=>b.score-a.score);
+   const best=choices[0],index=best&&best.score>0?best.index:-1;
+   step={...step,action:index>=0?"attack":"end",payload:index>=0?{index}:{},utility:choices,why:index>=0?best.reason:"No beneficial attack available"};
   }
   return step;
  }

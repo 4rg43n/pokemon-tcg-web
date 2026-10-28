@@ -1,10 +1,10 @@
-import {retreatCost,species} from "./cards.js?v=24";
-import {cardStats} from "./card-stats.js?v=24";
-import {newGame,dispatch,cardInfo} from "./engine.js?v=24";
-import {mountDeckBuilder} from "./deck-builder.js?v=24";
-import {createRecorder} from "./history.js?v=24";
-import {createPlanner} from "./planning/planner.js?v=24";
-import {update as coachUpdate} from "./coach_ui.js?v=24";
+import {retreatCost,species} from "./cards.js?v=27";
+import {cardStats} from "./card-stats.js?v=27";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=30";
+import {mountDeckBuilder} from "./deck-builder.js?v=31";
+import {createRecorder} from "./history.js?v=27";
+import {createPlanner} from "./planning/planner.js?v=29";
+import {update as coachUpdate} from "./coach_ui.js?v=1";
 let state=newGame(),preview=null,matchDecks=null;
 const turnHistory=createRecorder();turnHistory.start(state);
 const planner=createPlanner();let aiEnabled=false,aiBusy=false;
@@ -28,9 +28,9 @@ return `<section class="side ${i===1?"opponent":"self"} ${own?"current":""}"><di
 }
 function render(){
 const p=state.players[state.turn];
-status.textContent=state.phase==="replacement"?`Player ${state.turn+1}: tap a Benched Pokémon to replace the Knocked Out Active`:state.phase==="retreat"?`Player ${state.turn+1}: tap a Benched Pokémon to retreat into`:state.phase==="setup"?`Setup: Player ${state.turn+1} — choose Active, optionally Bench, then Ready`:state.winner===null?`Player ${state.turn+1}'s turn · Turn ${state.round}`:`Player ${state.winner+1} wins!`;
+status.textContent=state.phase==="replacement"?`Player ${state.turn+1}: tap a Benched Pokémon to replace the Knocked Out Active`:state.phase==="retreat"?`Player ${state.turn+1}: tap a Benched Pokémon to retreat into`:state.phase==="setup"?`Setup: Player ${state.turn+1} — choose Active, optionally Bench, then Ready`:state.winner===null?`Player ${state.turn+1}'s turn · Turn ${state.round}`:`Player ${state.winner+1} won by ${state.winReason}`;
 board.innerHTML=`<div class="mat">${side(state.players[1],1)}<div class="divider"></div>${side(state.players[0],0)}<div class="hand"><div class="zone-label">Player ${state.turn+1}'s hand · ${p.hand.length} cards</div><div class="hand-cards">${p.hand.map((c,i)=>cardHtml(c,{small:true,selected:i===state.selection,attrs:`data-hand="${i}"`})).join("")}</div><p class="hint">${state.phase==="setup"?"Choose a Basic Pokémon, tap the empty Active slot, optionally fill your Bench, then press Ready." :state.phase==="replacement"?"Tap a Benched Pokémon to promote it.":state.phase==="retreat"?"Tap a Benched Pokémon to switch it with your Active.":"Tap a hand card, then a Bench slot or Pokémon to play it. Tap a card again to inspect."}</p></div></div>`;
-log.replaceChildren(...state.log.slice(0,15).map(x=>{const li=document.createElement("li");li.textContent=x;return li;}));
+log.replaceChildren(...state.log.map(x=>{const li=document.createElement("li");li.textContent=x;return li;}));
 document.querySelectorAll("button[data-action=attack],button[data-action=end]").forEach(b=>b.disabled=state.phase!=="playing"||state.winner!==null);
 const attack=document.querySelector("button[data-action=attack]");attack.textContent=p.active?.attacks?.length>1?"Choose Attack":"Attack";
 const retreat=document.querySelector("button[data-action=retreat]");retreat.textContent=`Retreat (${retreatCost(p.active)} Energy)`;retreat.hidden=state.phase!=="playing";retreat.disabled=state.phase!=="playing"||!state.players[state.turn].bench.length||state.players[state.turn].retreated||!p.active||p.active.energy<retreatCost(p.active);
