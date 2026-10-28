@@ -3,7 +3,7 @@ import {cardStats} from "./card-stats.js?v=27";
 import {newGame,dispatch,cardInfo} from "./engine.js?v=27";
 import {mountDeckBuilder} from "./deck-builder.js?v=29";
 import {createRecorder} from "./history.js?v=27";
-import {createPlanner} from "./planning/planner.js?v=27";
+import {createPlanner} from "./planning/planner.js?v=29";
 let state=newGame(),preview=null,matchDecks=null;
 const turnHistory=createRecorder();turnHistory.start(state);
 const planner=createPlanner();let aiEnabled=false,aiBusy=false;
