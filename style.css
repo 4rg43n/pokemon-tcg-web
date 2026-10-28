@@ -36,6 +36,15 @@ main[hidden]~#coach{display:none}
 .coach-review li{margin-bottom:5px;line-height:1.35}
 .coach-review a{color:#9fd3c7;font-size:.72rem;text-decoration:none}
 .coach-unmute{font-size:.7rem;padding:6px 10px;margin:0;opacity:.8}
+.coach-move{font-size:.95rem;color:#f4f6fb;background:#0f2634;border-left:3px solid #f9d36b;padding:8px 10px;border-radius:0 8px 8px 0}
+.coach-tip{border-top:1px solid #89b7c155;margin-top:10px;padding-top:8px}
+.coach-tip strong{font-size:.9rem;color:#ffdd72;margin-left:4px}
+.coach-tip .coach-text{margin-top:6px}
+.tcg-card.coach-playable{box-shadow:0 0 0 3px #55ffaf,0 0 16px #55ffaf99}
+.tcg-card.coach-focus{box-shadow:0 0 0 3px #f9d36b,0 0 20px #f9d36bcc;animation:coach-pulse 1.4s ease-in-out infinite}
+button.coach-cta{box-shadow:0 0 0 3px #f9d36b,0 0 20px #f9d36bcc;animation:coach-pulse 1.4s ease-in-out infinite}
+@keyframes coach-pulse{0%,100%{box-shadow:0 0 0 3px #f9d36b,0 0 10px #f9d36b88}50%{box-shadow:0 0 0 4px #ffe88a,0 0 26px #f9d36bee}}
+@media(prefers-reduced-motion:reduce){.tcg-card.coach-focus,button.coach-cta{animation:none}}
 @keyframes coach-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 @keyframes coach-flap{0%{transform:rotate(0) scale(1)}25%{transform:rotate(-10deg) scale(1.12)}50%{transform:rotate(8deg) scale(1.12)}75%{transform:rotate(-5deg)}100%{transform:rotate(0) scale(1)}}
 @keyframes coach-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}

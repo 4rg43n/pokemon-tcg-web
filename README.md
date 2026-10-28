@@ -63,7 +63,8 @@ Quick Ball replaces Poké Ball in the card library and starters; saved decks aut
 
 The BattleRoad battle bird sits in the bottom-right corner of the playmat and coaches whoever's turn it is: it explains a rule the moment you bump into it, points out Knock Outs, Energy, evolution and Ability plays, and warns about deck-out and bad prize trades. Every tip links to its source (official rules references and articles by competitive players). When the game ends it reviews both players' habits.
 
-- **Next / Got it** cycle or dismiss tips; **—** minimizes to the bird; **✕** mutes (click **Coach** to bring it back).
+- The bubble always opens with **Do this now**: a concrete instruction built from the moves the engine will actually accept (which card to tap and where, which button to press). Playable hand cards glow green, the recommended one gold, and the suggested button pulses. When nothing is left it says so and tells you to end the turn; cards the prototype can't play yet are named as such.
+- **Next / Got it** cycle or dismiss the rule and strategy tips shown under the instruction; **—** minimizes to the bird; **✕** mutes (click **Coach** to bring it back).
 - Rules explanations show once per browser; strategy tips recur when the board calls for them.
 - Knowledge lives in `src/coach_knowledge.js`; each entry is a trigger over the game state plus a cited source. Add a source and a tip there to extend it. Design notes: [COACH_DESIGN.md](COACH_DESIGN.md).
 
