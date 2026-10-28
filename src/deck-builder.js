@@ -67,9 +67,9 @@ export function mountDeckBuilder({start,inspect,onClose}){
  decks.forEach((d,i)=>d.name=d.name.trim()||`Player ${i+1} deck`);
  try{localStorage.setItem(storageKey,JSON.stringify(decks));message="Both decks saved on this browser.";}catch{message="Saving is unavailable in this browser. You can still play with these decks.";}
  }
- if(action==="start"&&playable)confirmStart=true;
+ if(action==="start"){if(!playable){message="Cannot start: "+decks.map((d,i)=>validateDeck(d).errors.map(e=>"Player "+(i+1)+": "+e).join(" | ")).filter(Boolean).join(" | ");confirmStart=false;}else{confirmStart=true;message="Confirm below to start the match.";}render();root.querySelector(".deck-confirm")?.scrollIntoView({block:"center",behavior:"smooth"});return;}
  if(action==="cancel")confirmStart=false;
- if(action==="confirm"){if(!playable){message="Both players need valid 60-card decks before starting.";render();return;}try{start(structuredClone(decks));confirmStart=false;close(true);}catch(error){message="Could not start match: "+(error?.message||String(error));confirmStart=false;render();}return;}
+ if(action==="confirm"){message="Starting match…";if(!playable){message="Both players need valid 60-card decks before starting.";render();return;}try{start(structuredClone(decks));confirmStart=false;close(true);}catch(error){message="Could not start match: "+(error?.message||String(error));confirmStart=false;render();}return;}
  if(action==="clear"||action==="starter"){confirmStart=false;message="";}
  render();
  });
