@@ -97,3 +97,76 @@ button.plan-node:focus-visible{outline:none}
 .plan-inspector h4{margin:0 0 8px;color:#f2f2ff}
 .plan-inspector p{margin:6px 0}
 .plan-inspector pre{max-height:240px;overflow:auto;white-space:pre-wrap;font-size:.75rem;background:#080e1a;padding:10px;border-radius:6px}
+
+/* Pokémon TCG look: official blue/yellow brand, type-coloured card frames, tabletop mat, readable coach highlights. */
+:root{--pk-blue:#2a75bb;--pk-blue-deep:#153f7a;--pk-yellow:#ffcb05;--pk-yellow-deep:#c7a008;--pk-ink:#1b1d2a;--pk-cyan:#22e5ff}
+body{font-family:"Gill Sans","Gill Sans MT","Trebuchet MS","Segoe UI",system-ui,sans-serif;background:radial-gradient(ellipse at 50% 0%,#17386b,#0b1422 60%)}
+h1{font-weight:900;letter-spacing:.02em;color:var(--pk-yellow);text-shadow:0 2px 0 var(--pk-blue-deep),0 3px 8px #0008}
+#status{color:#fff;background:#153f7acc;border:1px solid #4d86c9;border-radius:999px;padding:6px 14px;font-weight:800}
+.mat{background:radial-gradient(circle at 50% 50%,#1f4f93 0,#163a72 28%,#102a55 60%,#0b1d3c 100%);border:5px solid var(--pk-yellow);border-radius:20px;box-shadow:inset 0 0 0 3px var(--pk-blue-deep),0 14px 40px #0008;position:relative;overflow:hidden}
+.mat::before{content:"";position:absolute;left:50%;top:50%;width:360px;height:360px;transform:translate(-50%,-50%);border-radius:50%;background:linear-gradient(#ffffff14 0 50%,#ffffff05 50% 100%);border:14px solid #ffffff0c;pointer-events:none}
+.mat::after{content:"";position:absolute;left:50%;top:50%;width:92px;height:92px;transform:translate(-50%,-50%);border-radius:50%;background:#0b1d3c;border:14px solid #ffffff0c;box-shadow:0 0 0 6px #0b1d3c;pointer-events:none}
+.mat>*{position:relative;z-index:1}
+.player-label{color:#dfe9ff;font-weight:900;letter-spacing:.06em;text-transform:uppercase;font-size:.78rem}
+.side.current .player-label{color:var(--pk-yellow)}
+.zone-label{color:#a9c4ec;font-weight:700}
+.side .active-slot{border:2px solid #ffcb0580;background:#ffcb050f;box-shadow:inset 0 0 24px #ffcb0514}
+.side .bench-row{border:1px dashed #7fa6e080;background:#ffffff08}
+.divider{border-top:2px dashed #ffcb0570}
+.divider::after{content:"BATTLE LINE";background:var(--pk-blue-deep);color:var(--pk-yellow);border:1px solid #4d86c9}
+.hand{border-top:2px solid #ffcb0566;background:linear-gradient(#ffffff00,#ffffff08);border-radius:0 0 14px 14px;padding-bottom:8px}
+.hint{color:#c7d8f5}
+.tcg-card{position:relative;border:3px solid var(--pk-yellow);border-radius:9px;color:var(--pk-ink);box-shadow:0 3px 10px #0008,inset 0 0 0 1px #ffffff99;font-family:inherit}
+.tcg-card.pokemon{background:linear-gradient(160deg,#fff7c9,#f6d978 45%,#e8b94a)}
+.tcg-card.pokemon.type-fire{background:linear-gradient(160deg,#ffd9b3,#ff9c4d 45%,#f0632e)}
+.tcg-card.pokemon.type-water{background:linear-gradient(160deg,#cfe9ff,#6fb6f2 45%,#3187d8)}
+.tcg-card.pokemon.type-grass{background:linear-gradient(160deg,#dcf5c4,#8fd36a 45%,#4ea842)}
+.tcg-card.pokemon.type-psychic{background:linear-gradient(160deg,#efd8f7,#c48ad8 45%,#9a5bc4)}
+.tcg-card.pokemon.type-fighting{background:linear-gradient(160deg,#f6ddc6,#d6975f 45%,#b2682f)}
+.tcg-card.pokemon.type-colorless{background:linear-gradient(160deg,#f7f5ee,#dedacb 45%,#bdb7a4)}
+.tcg-card.pokemon.type-darkness{background:linear-gradient(160deg,#c9cfd9,#6f7a90 45%,#3b4556);color:#f4f6fb}
+.tcg-card.pokemon.type-metal{background:linear-gradient(160deg,#eef1f5,#bcc5d1 45%,#8d99a9)}
+.tcg-card.pokemon img{filter:drop-shadow(0 3px 3px #0005)}
+.card-top{background:#ffffffb8;border-radius:5px;padding:2px 4px;font-weight:900}
+.card-top span{color:#c62828}
+.card-bottom{background:#1b1d2ab3;color:#fff;border-radius:5px;padding:1px 4px;font-weight:800}
+.tcg-card.energy{gap:4px;background:linear-gradient(160deg,#fffbe8,#f3e3a4)}
+.tcg-card.energy strong{font-size:clamp(9px,.95vw,12px);text-align:center;line-height:1.1;font-weight:900}
+.energy-symbol{width:58%;aspect-ratio:1;display:grid;place-items:center;border-radius:50%;font-size:1.7rem;background:radial-gradient(circle at 35% 30%,#fff2a8,var(--pk-yellow) 55%,#d9a400);border:3px solid #fff;box-shadow:0 3px 8px #0006}
+.tcg-card.energy.type-lightning{background:linear-gradient(160deg,#fff6c4,#f9d94b)}
+.tcg-card.energy.type-fire{background:linear-gradient(160deg,#ffe0cc,#ff9a5c)}
+.tcg-card.energy.type-fire .energy-symbol{background:radial-gradient(circle at 35% 30%,#ffd1a6,#ff7a2e 55%,#c9401b)}
+.tcg-card.energy.type-water{background:linear-gradient(160deg,#d9efff,#7cc0f5)}
+.tcg-card.energy.type-water .energy-symbol{background:radial-gradient(circle at 35% 30%,#d3ecff,#4aa6ef 55%,#1d6cc2)}
+.tcg-card.trainer{background:linear-gradient(#ffffff,#eef3fb 70%,#dde7f6);gap:5px;border-color:#f3f6fb}
+.tcg-card.trainer .card-type{background:var(--pk-blue);color:#fff;font-weight:900;letter-spacing:.14em;font-size:8px;padding:2px 8px;border-radius:0 0 6px 6px;width:100%;text-align:center}
+.tcg-card.trainer strong{font-size:clamp(9px,.95vw,12px);text-align:center;line-height:1.1;font-weight:900;color:var(--pk-ink)}
+.tcg-card.trainer small{font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#fff;background:#5a7fb1;padding:1px 7px;border-radius:999px}
+.tcg-card.trainer.trainer-supporter .card-type,.tcg-card.trainer.trainer-supporter small{background:#e3572e}
+.tcg-card.trainer.trainer-supporter{background:linear-gradient(#fff6f1,#ffd9c5 70%,#ffbf9d)}
+.tcg-card.trainer.trainer-pok-mon-tool .card-type,.tcg-card.trainer.trainer-pok-mon-tool small{background:#7b4fb8}
+.tcg-card.trainer.trainer-pok-mon-tool{background:linear-gradient(#f8f2ff,#e2d3f5 70%,#cdb4ec)}
+.tcg-card.back{background:radial-gradient(circle at 50% 42%,#ffffff 0 9%,#1b1d2a 9% 13%,#e3350d 13% 46%,#1b1d2a 46% 52%,#f4f4f4 52% 100%);border-color:#2a75bb;color:transparent}
+.tcg-card.empty{border:2px dashed #7fa6e0aa;background:#ffffff0a;color:#b9cdf0}
+.tcg-card.selected{outline:4px solid var(--pk-cyan);outline-offset:2px;transform:translateY(-8px)}
+button{background:var(--pk-blue);color:#fff;font-weight:900;letter-spacing:.02em;border:2px solid #4d86c9;border-radius:10px;box-shadow:0 3px 0 var(--pk-blue-deep),0 6px 12px #0006;transition:transform .08s}
+button:hover:not(:disabled){transform:translateY(-1px)}
+button:disabled{opacity:.45;box-shadow:none}
+button[data-action=attack]{background:#e3350d;border-color:#ff7a5c;box-shadow:0 3px 0 #8f1f05,0 6px 12px #0006}
+button[data-action=reset],#open-menu,#open-decks{background:#243b5f;border-color:#3f5f8f;box-shadow:0 3px 0 #16263f,0 6px 12px #0006}
+.coach-bubble{background:linear-gradient(#173e74,#102c55);border:3px solid var(--pk-yellow);box-shadow:0 10px 30px #000a}
+.coach-bubble::after{border-left-color:var(--pk-yellow)}
+.coach-bird{background:var(--pk-blue-deep);border:3px solid var(--pk-yellow);color:var(--pk-yellow)}
+.coach-title{color:var(--pk-yellow);font-weight:900;text-transform:uppercase;letter-spacing:.08em;font-size:.8rem}
+.coach-move{background:#0b1d3c;border-left:4px solid var(--pk-cyan);font-size:1rem;line-height:1.45}
+.coach-kind{background:var(--pk-yellow);color:var(--pk-ink)}
+.coach-kind.rule{background:#7cc4ff}
+/* Highlights: thick cool-coloured rings read clearly against yellow and orange cards. */
+.tcg-card.coach-playable{outline:4px solid var(--pk-cyan);outline-offset:3px;box-shadow:0 0 0 7px #0b1422,0 0 18px 6px #22e5ff88;transform:translateY(-6px)}
+.tcg-card.coach-focus{overflow:visible;outline:5px solid #fff;outline-offset:3px;box-shadow:0 0 0 8px #0b1422,0 0 0 12px var(--pk-cyan),0 0 28px 10px #22e5ffcc;transform:translateY(-14px) scale(1.06);z-index:3;animation:coach-ring 1.1s ease-in-out infinite}
+.tcg-card.coach-focus::after,button.coach-cta::after{content:"TAP";position:absolute;left:50%;top:-16px;transform:translateX(-50%);background:#fff;color:var(--pk-ink);font-size:10px;font-weight:900;letter-spacing:.14em;padding:3px 9px;border-radius:999px;box-shadow:0 2px 6px #0008;white-space:nowrap;z-index:4}
+button.coach-cta{position:relative;background:var(--pk-yellow);color:var(--pk-ink);border-color:#fff;outline:4px solid var(--pk-cyan);outline-offset:3px;box-shadow:0 0 0 7px #0b1422,0 0 24px 8px #22e5ffaa;transform:translateY(-2px) scale(1.06);animation:coach-ring 1.1s ease-in-out infinite}
+button.coach-cta::after{content:"PRESS";top:-18px}
+@keyframes coach-ring{0%,100%{outline-color:#fff}50%{outline-color:var(--pk-cyan)}}
+@media(prefers-reduced-motion:reduce){.tcg-card.coach-focus,button.coach-cta{animation:none}}
+@media(max-width:700px){.mat::before{width:220px;height:220px}.mat::after{width:56px;height:56px}.tcg-card.coach-focus{transform:translateY(-8px) scale(1.04)}.tcg-card.coach-focus::after,button.coach-cta::after{font-size:8px;top:-13px}}
