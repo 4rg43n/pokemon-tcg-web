@@ -3,7 +3,8 @@ import {cardStats} from "./card-stats.js?v=27";
 import {newGame,dispatch,cardInfo} from "./engine.js?v=38";
 import {mountDeckBuilder} from "./deck-builder.js?v=39";
 import {createRecorder} from "./history.js?v=27";
-import {createPlanner} from "./planning/planner.js?v=29";
+import {createPlanner} from "./planning/planner.js?v=40";
+import {renderPlanGraph} from "./planning/plan-graph.js?v=40";
 import {update as coachUpdate} from "./coach_ui.js?v=1";
 let state=newGame(),preview=null,matchDecks=null;
 const turnHistory=createRecorder();turnHistory.start(state);
@@ -36,6 +37,7 @@ const attack=document.querySelector("button[data-action=attack]");attack.textCon
 const retreat=document.querySelector("button[data-action=retreat]");retreat.textContent=`Retreat (${retreatCost(p.active)} Energy)`;retreat.hidden=state.phase!=="playing";retreat.disabled=state.phase!=="playing"||!state.players[state.turn].bench.length||state.players[state.turn].retreated||!p.active||p.active.energy<retreatCost(p.active);
 const playTrainer=document.querySelector("button[data-action=trainer]");playTrainer.hidden=state.phase!=="playing"||p.hand[state.selection]?.kind!=="trainer";
 const aiButton=document.querySelector("#ai-toggle");aiButton.textContent=aiEnabled?"AI Player 2: ON":"AI Player 2: OFF";
+renderPlanGraph(document.querySelector("#ai-graph"),planner);
 const panel=document.querySelector("#ai-plans");if(panel)panel.textContent=JSON.stringify({active:planner.active,archived:planner.archive.slice(-3)},null,2);
 const ready=document.querySelector("button[data-action=ready]");ready.hidden=state.phase!=="setup";ready.disabled=state.phase!=="setup"||!state.players[state.turn].active;
 }
