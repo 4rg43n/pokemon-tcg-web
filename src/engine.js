@@ -11,13 +11,17 @@ const pokemon=(i)=>({...species[i],damage:0,energy:0});
 const basic=(i)=>({kind:"pokemon",species:i});
 const energy=()=>({kind:"energy",name:"Basic Energy"});
 const trainer=()=>({kind:"trainer",name:"Trainer (coming soon)"});
+function shuffle(cards){for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]];}return cards;}
 function player(i){
-const base=i===0?2:3;
-const hand=[basic(base),basic(4),basic(5),energy(),energy(),energy(),trainer()];
-const deck=[...Array.from({length:17},(_,n)=>basic([base,4,5][n%3])),...Array.from({length:17},energy),...Array.from({length:16},trainer)];
-return {hand,deck,discard:[],active:pokemon(i),bench:[],prizes:6,attached:false};
+ const base=i===0?2:3;
+ const cards=shuffle([...Array.from({length:18},(_,n)=>basic([base,4,5][n%3])),...Array.from({length:22},energy),...Array.from({length:20},trainer)]);
+ let hand=[],mulligans=0;
+ do{if(hand.length)cards.push(...hand);shuffle(cards);hand=cards.splice(0,7);mulligans++;}while(!hand.some(c=>c.kind==="pokemon"));
+ const activeIndex=hand.findIndex(c=>c.kind==="pokemon"),activeCard=hand.splice(activeIndex,1)[0];
+ const prizes=cards.splice(0,6);
+ return {hand,deck:cards,prizeCards:prizes,discard:[],active:pokemon(activeCard.species),bench:[],prizes:prizes.length,attached:false,mulligans:mulligans-1};
 }
-export function newGame(){return {players:[player(0),player(1)],turn:0,round:1,winner:null,log:["Game started. Active Pokémon are preselected."],selection:null};}
+export function newGame(){const players=[player(0),player(1)];return {players,turn:0,round:1,winner:null,log:["Shuffled 60-card decks. Drew seven each, placed Active Pokémon and six Prize cards.","Player 1 goes first and cannot attack on the opening turn."],selection:null};}
 const err=(state,error)=>({state,error});
 export function dispatch(state,action,payload={}){
 if(action==="reset")return {state:newGame()};
@@ -46,10 +50,11 @@ target.energy++;p.attached=true;message="Attached Energy to "+target.name+".";
 }else return err(state,"Unsupported card.");
 p.hand.splice(idx,1);s.selection=null;
 }else if(action==="attack"){
+if(s.turn===0&&s.round===1)return err(state,"Player 1 cannot attack on the first turn.");
 if(p.active.energy<1)return err(state,"Your Active Pokémon needs at least one Energy.");
 o.active.damage+=p.active.attack;message=p.active.name+" dealt "+p.active.attack+" damage.";
 if(o.active.damage>=o.active.hp){
-p.prizes--;o.discard.push({kind:"pokemon",species:o.active.id});message+=" Knockout! Prize taken.";
+const prizeCount=o.active.name.endsWith(" ex")?2:1;for(let n=0;n<prizeCount&&p.prizeCards.length;n++)p.hand.push(p.prizeCards.pop());p.prizes=p.prizeCards.length;o.discard.push({kind:"pokemon",species:species.findIndex(x=>x.name===o.active.name)});message+=" Knockout! "+prizeCount+" Prize card(s) taken.";
 if(p.prizes===0||o.bench.length===0){s.winner=s.turn;message+=" Game over!";}
 else o.active=o.bench.shift();
 }
