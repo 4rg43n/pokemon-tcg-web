@@ -1,10 +1,12 @@
-import {retreatCost,species} from "./cards.js?v=22";
-import {cardStats} from "./card-stats.js?v=22";
-import {newGame,dispatch,cardInfo} from "./engine.js?v=22";
-import {mountDeckBuilder} from "./deck-builder.js?v=22";
-import {createRecorder} from "./history.js?v=22";
+import {retreatCost,species} from "./cards.js?v=23";
+import {cardStats} from "./card-stats.js?v=23";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=23";
+import {mountDeckBuilder} from "./deck-builder.js?v=23";
+import {createRecorder} from "./history.js?v=23";
+import {createPlanner} from "./planning/planner.js?v=23";
 let state=newGame(),preview=null,matchDecks=null;
 const turnHistory=createRecorder();turnHistory.start(state);
+const planner=createPlanner();let aiEnabled=false,aiBusy=false;
 const $=s=>document.querySelector(s),board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log");
 const escape=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 const sprite=id=>`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
@@ -32,9 +34,14 @@ document.querySelectorAll("button[data-action=attack],button[data-action=end]").
 const attack=document.querySelector("button[data-action=attack]");attack.textContent=p.active?.attacks?.length>1?"Choose Attack":"Attack";
 const retreat=document.querySelector("button[data-action=retreat]");retreat.textContent=`Retreat (${retreatCost(p.active)} Energy)`;retreat.hidden=state.phase!=="playing";retreat.disabled=state.phase!=="playing"||!state.players[state.turn].bench.length||state.players[state.turn].retreated||!p.active||p.active.energy<retreatCost(p.active);
 const playTrainer=document.querySelector("button[data-action=trainer]");playTrainer.hidden=state.phase!=="playing"||p.hand[state.selection]?.kind!=="trainer";
+const aiButton=document.querySelector("#ai-toggle");aiButton.textContent=aiEnabled?"AI Player 2: ON":"AI Player 2: OFF";
+const panel=document.querySelector("#ai-plans");if(panel)panel.textContent=JSON.stringify({active:planner.active,archived:planner.archive.slice(-3)},null,2);
 const ready=document.querySelector("button[data-action=ready]");ready.hidden=state.phase!=="setup";ready.disabled=state.phase!=="setup"||!state.players[state.turn].active;
 }
-function act(action,payload){const r=action==="reset"?{state:newGame(matchDecks)}:dispatch(state,action,payload);if(!r.error){if(action==="reset")turnHistory.start(r.state);else turnHistory.record(state,r.state,action,payload);}state=r.state;error.textContent=r.error||"";render();}
+function act(action,payload,fromAI=false){const r=action==="reset"?{state:newGame(matchDecks)}:dispatch(state,action,payload);if(!r.error){if(action==="reset"){planner.reset();turnHistory.start(r.state);}else{turnHistory.record(state,r.state,action,payload);planner.onChange(state,r.state,action);}}state=r.state;error.textContent=r.error||"";render();if(!fromAI)queueAI();return r;}
+function queueAI(){if(!aiEnabled||aiBusy||state.turn!==1||state.winner!==null)return;aiBusy=true;setTimeout(()=>{try{for(let n=0;n<12&&aiEnabled&&state.turn===1&&state.winner===null;n++){const step=planner.next(state);if(!step)break;if(step.select!==undefined){const sel=dispatch(state,"select",{index:step.select});if(sel.error)break;state=sel.state;}const before=state;const r=act(step.action,step.payload||{},true);if(r.error){planner.reset();error.textContent="AI paused: "+r.error;aiEnabled=false;break;}planner.applied(step,state);if(state===before)break;}render();}catch(e){aiEnabled=false;error.textContent="AI error: "+e.message;}finally{aiBusy=false;}},180);}
+document.querySelector("#ai-toggle").addEventListener("click",()=>{aiEnabled=!aiEnabled;render();queueAI();});
+document.querySelector("#ai-export").addEventListener("click",()=>{const blob=new Blob([planner.export()],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="pokemon-ai-plans.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
 board.addEventListener("click",e=>{
 const hand=e.target.closest("[data-hand]");
 if(hand){const idx=Number(hand.dataset.hand);if(state.selection===idx){showPreview(state.players[state.turn].hand[idx]);}else act("select",{index:idx});return;}
@@ -93,7 +100,7 @@ $("#modal").addEventListener("click",e=>{if(e.target.id==="modal"||e.target.clos
 document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.action==="attack"){if(state.players[state.turn].active?.attacks?.length>1)showAttacks();else chooseAttack(0);return;}if(b.dataset.action==="trainer"){const card=state.players[state.turn].hand[state.selection];if(card?.name==="Quick Ball"||card?.name==="Ultra Ball"){showBallSearch();return;}if(card?.name==="Potion"||card?.name==="Air Balloon"){error.textContent=card.name==="Air Balloon"?"Tap your Active or a Benched Pokémon to attach Air Balloon.":"Tap a damaged Pokémon to use Potion.";return;}act("trainer");}else act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
 render();
 
-const deckBuilder=mountDeckBuilder({start(decks){matchDecks=structuredClone(decks);state=newGame(matchDecks);turnHistory.start(state);error.textContent="";preview=null;$("#modal").hidden=true;render();},inspect:showPreview,onClose:started=>started?showGame():showMenu()});
+const deckBuilder=mountDeckBuilder({start(decks){matchDecks=structuredClone(decks);state=newGame(matchDecks);turnHistory.start(state);planner.reset();error.textContent="";preview=null;$("#modal").hidden=true;render();},inspect:showPreview,onClose:started=>started?showGame():showMenu()});
 $("#open-decks").addEventListener("click",()=>deckBuilder.open());
 
 function hideModal(){preview=null;$("#modal").hidden=true;}
