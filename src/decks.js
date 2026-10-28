@@ -1,11 +1,11 @@
-import {species,energyTypes} from "./cards.js?v=18";
+import {species,energyTypes} from "./cards.js?v=19";
 export const pokemonCard=species=>({kind:"pokemon",species});
 export const energyCard=type=>({kind:"energy",type,name:type+" Energy"});
-const trainerCard=name=>({kind:"trainer",name,subtype:name==="Professor's Research"?"Supporter":"Item"});
+const trainerCard=name=>({kind:"trainer",name,subtype:name==="Air Balloon"?"Pokémon Tool":name==="Professor's Research"?"Supporter":"Item"});
 export const catalog=[
  ...species.map((s,i)=>({id:`pokemon-${i}`,name:s.name,category:"pokemon",detail:`${s.stage?`Stage ${s.stage} · evolves from ${s.evolvesFrom}`:"Basic"} · ${s.type} · ${s.hp} HP`,card:pokemonCard(i)})),
  ...energyTypes.map(type=>({id:`energy-${type}`,name:type+" Energy",category:"energy",detail:"Basic Energy · unlimited copies",card:energyCard(type)})),
- ...["Potion","Poké Ball","Professor's Research"].map(name=>({id:`trainer-${name}`,name,category:"trainer",detail:name==="Potion"?"Item · heal 30 damage":name==="Poké Ball"?"Item · simplified random Basic search":"Supporter · discard hand, draw up to 7",card:trainerCard(name)}))
+ ...["Potion","Poké Ball","Professor's Research","Air Balloon"].map(name=>({id:`trainer-${name}`,name,category:"trainer",detail:name==="Air Balloon"?"Pokémon Tool · attach to a Pokémon · retreat costs 2 less":name==="Potion"?"Item · heal 30 damage":name==="Poké Ball"?"Item · simplified random Basic search":"Supporter · discard hand, draw up to 7",card:trainerCard(name)}))
 ];
 export function defaultDeck(player){
  const counts={};

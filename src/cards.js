@@ -13,3 +13,5 @@ export const species=[
 ];
 export const energyTypes=["Fire","Lightning"];
 export function canPay(attached,cost){const pool=[...attached];for(const type of cost.filter(x=>x!=="Colorless")){const i=pool.indexOf(type);if(i<0)return false;pool.splice(i,1);}return pool.length>=cost.filter(x=>x==="Colorless").length;}
+
+export function retreatCost(pokemon){return Math.max(0,(pokemon?.retreat??0)-(pokemon?.tool?.name==="Air Balloon"?2:0));}

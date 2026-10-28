@@ -21,7 +21,7 @@ page load, open the builder and start a match to use saved decks.
 
 To check the engine and deck validation, run `node --test tests/decks.test.mjs`.
 Serve the repository with `python -m http.server 8765` for local browser testing.
-All browser module and stylesheet cache keys are v18.
+All browser module and stylesheet cache keys are v19.
 
 ## Main menu (v17)
 
@@ -37,3 +37,12 @@ Retreat. Typed circles identify Weakness/Resistance; a Colorless star with a
 number identifies the retreat Energy cost. Unknown data is shown as `?`,
 and explicitly absent values as `—`. No missing card data is inferred.
 Weakness and Resistance are informational until their battle rules are added.
+
+## Air Balloon (v19)
+
+Add Air Balloon from Trainers in the deck builder (remove a card first if
+your deck has 60). During your turn, select Air Balloon in your hand and tap
+your Active or a Benched Pokémon. One Pokémon Tool is allowed per Pokémon.
+Air Balloon reduces retreat cost by two, to a minimum of zero; the retreat
+button and card icons show the adjusted cost. It stays through evolution
+and retreat, and goes to Discard when its Pokémon is Knocked Out.
