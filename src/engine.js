@@ -75,6 +75,7 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
  s.log.unshift("Player "+(s.turn+1)+": used "+card.name+", discarded "+required+" other card(s), "+(found?"revealed "+species[found.species].name+" and added it to hand":"found no Pokémon")+", then shuffled.");return {state:s};
  }
  else if(card.name==="Professor's Research"){p.discard.push(...p.hand.filter((_,i)=>i!==idx));p.hand=[];for(let n=0;n<7&&p.deck.length;n++)p.hand.push(p.deck.shift());p.supporterUsed=true;message="Professor's Research drew "+p.hand.length+" cards.";p.discard.push(card);s.selection=null;s.log.unshift("Player "+(state.turn+1)+": "+message);return {state:s};}
+ else if(card.external){message=card.name+" played (prototype: no automated effect).";}
  else return err(state,"Unsupported Trainer.");
  p.hand.splice(idx,1);p.discard.push(card);if(card.subtype==="Supporter")p.supporterUsed=true;s.selection=null;s.log.unshift("Player "+(state.turn+1)+": "+message);return {state:s};
 }
