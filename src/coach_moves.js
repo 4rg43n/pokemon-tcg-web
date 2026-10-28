@@ -1,8 +1,9 @@
 // Next-move finder: asks the engine which actions are legal right now and turns the best one into an instruction.
-import {species,canPay,retreatCost} from "./cards.js?v=43";
-import {dispatch} from "./engine.js?v=52";
-
 const RESEARCH="Professor's Research";
+
+// main.js injects the engine and card helpers so legality probes run against the same modules the game uses.
+let species,canPay,retreatCost,dispatch;
+export function configure(deps){({species,canPay,retreatCost,dispatch}=deps);}
 
 // Probe an action against a copy of the state; the engine never mutates its input.
 function probe(state,action,payload,handIndex){

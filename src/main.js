@@ -1,4 +1,4 @@
-import {retreatCost,species,energyTypes} from "./cards.js?v=53";
+import {retreatCost,species,energyTypes,canPay} from "./cards.js?v=53";
 import {catalog} from "./decks.js?v=53";
 import {commands as debugCommands,pokemonRefs} from "./debug.js?v=53";
 import {cardStats} from "./card-stats.js?v=27";
@@ -7,7 +7,8 @@ import {mountDeckBuilder} from "./deck-builder.js?v=53";
 import {createRecorder} from "./history.js?v=27";
 import {createPlanner} from "./planning/planner.js?v=40";
 import {renderPlanGraph} from "./planning/plan-graph.js?v=47";
-import {update as coachUpdate} from "./coach_ui.js?v=2";
+import {update as coachUpdate,configure as coachConfigure} from "./coach_ui.js?v=3";
+coachConfigure({species,canPay,retreatCost,dispatch});
 let state=newGame(),preview=null,matchDecks=null;
 const turnHistory=createRecorder();turnHistory.start(state);
 const planner=createPlanner();let aiEnabled=false,aiBusy=false;
