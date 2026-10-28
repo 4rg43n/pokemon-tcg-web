@@ -105,6 +105,62 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
  return {state:s};
  }
  else if(card.name==="Professor's Research"){p.discard.push(...p.hand.filter((_,i)=>i!==idx));p.hand=[];for(let n=0;n<7&&p.deck.length;n++)p.hand.push(p.deck.shift());p.supporterUsed=true;message="Professor's Research drew "+p.hand.length+" cards.";p.discard.push(card);s.selection=null;s.log.unshift("Player "+(state.turn+1)+": "+message);return {state:s};}
+ else if(["Buddy-Buddy Poffin","Evolution Incense","Level Ball","Poké Pad","Trainers' Mail","Earthen Vessel","Arven","Gloria","Hisuian Heavy Ball"].includes(card.name)){
+  const options=card.name==="Hisuian Heavy Ball"?p.prizeCards:p.deck;
+  const allowed=c=>card.name==="Buddy-Buddy Poffin"?c.kind==="pokemon"&&!species[c.species]?.stage&&species[c.species]?.hp<=70:
+    card.name==="Evolution Incense"?c.kind==="pokemon"&&!!species[c.species]?.stage:
+    card.name==="Level Ball"?c.kind==="pokemon"&&species[c.species]?.hp<=90:
+    card.name==="Arven"?c.kind==="trainer"&&(c.subtype==="Item"||c.subtype==="Pokémon Tool"):
+    card.name==="Trainers' Mail"?c.kind==="trainer":
+    card.name==="Earthen Vessel"?c.kind==="energy":
+    card.name==="Gloria"?c.kind==="pokemon"&&!species[c.species]?.stage:
+    card.name==="Hisuian Heavy Ball"?c.kind==="pokemon"&&!species[c.species]?.stage:
+    c.kind==="pokemon"||c.kind==="trainer";
+  const limit=card.name==="Buddy-Buddy Poffin"||card.name==="Earthen Vessel"||card.name==="Arven"||card.name==="Gloria"?2:1;
+  const choices=payload.searchIndices;
+  if(!Array.isArray(choices)||choices.length>limit||new Set(choices).size!==choices.length||choices.some(i=>!Number.isInteger(i)||!options[i]||!allowed(options[i])))return err(state,"Select up to "+limit+" eligible card(s) from "+(card.name==="Hisuian Heavy Ball"?"Prize cards":"your deck")+".");
+  if(card.name==="Gloria"&&p.bench.length+choices.length>5)return err(state,"Not enough Bench space.");
+  const found=choices.slice().sort((a,b)=>b-a).map(i=>options.splice(i,1)[0]);
+  if(card.name==="Hisuian Heavy Ball"){for(const c of found){p.hand.push(c);p.prizeCards.push({kind:"trainer",name:card.name,subtype:"Item"});}shuffle(p.prizeCards);p.prizes=p.prizeCards.length;}
+  else if(card.name==="Gloria"){for(const c of found){const mon=pokemon(c.species);mon.playedTurn=s.round;p.bench.push(mon);}shuffle(p.deck);}
+  else{p.hand.push(...found);shuffle(p.deck);}
+  message=card.name+" searched for "+found.length+" card(s) and shuffled.";
+ }
+ else if(card.name==="Night Stretcher"||card.name==="Rescue Stretcher"||card.name==="Lana's Aid"){
+  const eligible=p.discard.map((c,i)=>({c,i})).filter(({c})=>c.kind==="pokemon"||c.kind==="energy");
+  const limit=card.name==="Lana's Aid"?3:1;
+  const chosen=Array.isArray(payload.discardIndices)?payload.discardIndices:[];
+  if(chosen.length>limit||new Set(chosen).size!==chosen.length||chosen.some(i=>!eligible.some(x=>x.i===i)))return err(state,"Choose up to "+limit+" Pokémon or Basic Energy cards from discard.");
+  for(const i of chosen.slice().sort((a,b)=>b-a))p.hand.push(p.discard.splice(i,1)[0]);
+  message=card.name+" recovered "+chosen.length+" card(s).";
+ }
+ else if(card.name==="Welder"){
+  const target=payload.target==="bench"?p.bench[payload.slot]:p.active;
+  if(!target)return err(state,"Choose a Pokémon for Welder.");
+  const chosen=Array.isArray(payload.discardIndices)?payload.discardIndices:[];
+  if(chosen.length>2||new Set(chosen).size!==chosen.length||chosen.some(i=>i===idx||p.hand[i]?.kind!=="energy"||p.hand[i]?.type!=="Fire"))return err(state,"Choose up to two Fire Energy cards from hand.");
+  for(const i of chosen.slice().sort((a,b)=>b-a)){p.hand.splice(i,1);target.energies.push("Fire");}
+  target.energy=target.energies.length;let drawn=0;for(let n=0;n<3&&p.deck.length;n++){p.hand.push(p.deck.shift());drawn++;}
+  message="Welder attached "+chosen.length+" Fire Energy and drew "+drawn+" cards.";
+ }
+ else if(card.name==="Bird Keeper"){
+  if(!p.bench.length)return err(state,"Bird Keeper needs a Benched Pokémon.");
+  const slot=payload.slot;if(!Number.isInteger(slot)||!p.bench[slot])return err(state,"Choose a Benched Pokémon to switch in.");
+  const old=p.active;p.active=p.bench[slot];p.bench[slot]=old;
+  let drawn=0;for(let n=0;n<3&&p.deck.length;n++){p.hand.push(p.deck.shift());drawn++;}
+  message="Bird Keeper switched Active Pokémon and drew "+drawn+" cards.";
+ }
+ else if(card.name==="Magma Basin"){
+  if(s.stadium)p.discard.push(s.stadium);s.stadium=card;p.hand.splice(idx,1);s.selection=null;
+  s.log.unshift("Player "+(s.turn+1)+": played Magma Basin Stadium.");return {state:s};
+ }
+ else if(card.name==="Float Stone"||card.name==="Muscle Band"||card.name==="Vitality Band"){
+  const target=payload.target==="bench"?p.bench[payload.slot]:p.active;
+  if(!target)return err(state,"Choose a Pokémon for the Tool.");
+  if(target.tool)return err(state,"That Pokémon already has a Tool.");
+  target.tool=card;p.hand.splice(idx,1);s.selection=null;
+  s.log.unshift("Player "+(s.turn+1)+": attached "+card.name+" to "+target.name+".");return {state:s};
+ }
  else if(card.name==="Energy Retrieval"||card.name==="Fire Crystal"){
   const max=card.name==="Fire Crystal"?3:2;
   const eligible=p.discard.map((c,i)=>({c,i})).filter(({c})=>c.kind==="energy"&&(card.name!=="Fire Crystal"||c.type==="Fire")).slice(0,max);
