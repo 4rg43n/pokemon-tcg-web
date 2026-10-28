@@ -161,6 +161,12 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   target.tool=card;p.hand.splice(idx,1);s.selection=null;
   s.log.unshift("Player "+(s.turn+1)+": attached "+card.name+" to "+target.name+".");return {state:s};
  }
+ else if(card.name==="PokéStop"||card.name==="Silent Lab"){
+  if(s.stadium)s.players[s.stadiumOwner??s.turn].discard.push(s.stadium);
+  s.stadium=card;s.stadiumOwner=s.turn;
+  p.hand.splice(idx,1);s.selection=null;
+  s.log.unshift("Player "+(s.turn+1)+": played "+card.name+" Stadium.");return {state:s};
+ }
  else if(card.name==="Energy Retrieval"||card.name==="Fire Crystal"){
   const max=card.name==="Fire Crystal"?3:2;
   const eligible=p.discard.map((c,i)=>({c,i})).filter(({c})=>c.kind==="energy"&&(card.name!=="Fire Crystal"||c.type==="Fire")).slice(0,max);
@@ -182,6 +188,69 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   if(index<0)return err(state,"VS Seeker requires a Supporter in the discard pile.");
   const recovered=p.discard.splice(index,1)[0];p.hand.push(recovered);
   message="VS Seeker returned "+recovered.name+" from discard to hand.";
+ }
+ else if(card.name==="Red Card"||card.name==="Reset Stamp"){
+  const amount=card.name==="Red Card"?4:p.prizes;
+  o.deck.push(...o.hand);o.hand=[];shuffle(o.deck);
+  for(let n=0;n<amount&&o.deck.length;n++)o.hand.push(o.deck.shift());
+  message=card.name+" shuffled the opponent's hand into their deck and drew "+o.hand.length+" cards.";
+ }
+ else if(card.name==="Field Blower"){
+  const targets=[p.active,...p.bench,o.active,...o.bench].filter(Boolean);
+  const tools=targets.filter(mon=>mon.tool).slice(0,2);
+  for(const mon of tools){(targets.includes(mon)&&[p.active,...p.bench].includes(mon)?p:o).discard.push(mon.tool);mon.tool=null;}
+  if(tools.length<2&&s.stadium){s.players[s.stadiumOwner??s.turn].discard.push(s.stadium);s.stadium=null;}
+  message="Field Blower discarded "+tools.length+" Tool(s)"+(!s.stadium?" and cleared the Stadium if present.":".");
+ }
+ else if(card.name==="Blacksmith"){
+  const target=payload.target==="bench"?p.bench[payload.slot]:p.active;
+  if(!target)return err(state,"Choose a Pokémon.");
+  let count=0;
+  for(let i=p.discard.length-1;i>=0&&count<2;i--)if(p.discard[i].kind==="energy"&&p.discard[i].type==="Fire"){p.discard.splice(i,1);target.energies.push("Fire");count++;}
+  target.energy=target.energies.length;message="Blacksmith attached "+count+" Fire Energy from discard.";
+ }
+ else if(card.name==="Raihan"){
+  const target=payload.target==="bench"?p.bench[payload.slot]:p.active;
+  if(!target)return err(state,"Choose a Pokémon.");
+  const index=p.discard.findIndex(c=>c.kind==="energy");
+  if(index<0)return err(state,"Raihan requires a Basic Energy in the discard pile.");
+  const c=p.discard.splice(index,1)[0];target.energies.push(c.type);target.energy=target.energies.length;
+  const chosen=payload.searchIndices?.[0];
+  if(Number.isInteger(chosen)&&p.deck[chosen])p.hand.push(p.deck.splice(chosen,1)[0]);
+  shuffle(p.deck);message="Raihan attached an Energy and searched the deck.";
+ }
+ else if(card.name==="Guzma"){
+  if(!o.bench.length||!p.bench.length)return err(state,"Guzma requires Benched Pokémon on both sides.");
+  const theirs=payload.opponentSlot,ours=payload.slot;
+  if(!Number.isInteger(theirs)||!o.bench[theirs]||!Number.isInteger(ours)||!p.bench[ours])return err(state,"Choose a Benched Pokémon on each side.");
+  [o.active,o.bench[theirs]]=[o.bench[theirs],o.active];
+  [p.active,p.bench[ours]]=[p.bench[ours],p.active];
+  message="Guzma switched both players' Active Pokémon.";
+ }
+ else if(card.name==="Escape Rope"){
+  if(!p.bench.length||!o.bench.length)return err(state,"Both players need a Benched Pokémon.");
+  const theirs=payload.opponentSlot,ours=payload.slot;
+  if(!Number.isInteger(theirs)||!o.bench[theirs]||!Number.isInteger(ours)||!p.bench[ours])return err(state,"Choose a Benched Pokémon on each side.");
+  [o.active,o.bench[theirs]]=[o.bench[theirs],o.active];
+  [p.active,p.bench[ours]]=[p.bench[ours],p.active];
+  message="Escape Rope switched both Active Pokémon.";
+ }
+ else if(card.name==="Scoop Up Net"){
+  const target=payload.target==="bench"?p.bench[payload.slot]:p.active;
+  if(!target)return err(state,"Choose a Pokémon to pick up.");
+  if(target===p.active&&!p.bench.length)return err(state,"You need a Benched Pokémon before picking up your Active.");
+  if(target===p.active){p.active=p.bench.shift();}else p.bench.splice(payload.slot,1);
+  p.hand.push(basic(target.speciesIndex));for(const under of target.under)p.hand.push(basic(under));
+  for(const type of target.energies)p.hand.push(energy(type));if(target.tool)p.hand.push(target.tool);
+  message="Scoop Up Net returned a Pokémon and attached cards to hand.";
+ }
+ else if(card.name==="Rare Candy"){
+  const target=payload.target==="bench"?p.bench[payload.slot]:p.active;
+  const evolution=p.hand[payload.evolutionIndex];
+  if(!target||!evolution||evolution.kind!=="pokemon"||species[evolution.species]?.stage!==2||!target.name||!!species[target.speciesIndex]?.stage||!species.some(x=>x.name===species[evolution.species]?.evolvesFrom&&x.evolvesFrom===target.name)||target.playedTurn===s.round||target.evolvedThisTurn)return err(state,"Select a Basic Pokémon and a compatible Stage 2 Rare Candy evolution.");
+  const evolved=pokemon(evolution.species);evolved.energies=target.energies;evolved.energy=target.energy;evolved.damage=target.damage;evolved.tool=target.tool;evolved.under=[...target.under,target.speciesIndex];evolved.playedTurn=target.playedTurn;evolved.evolvedThisTurn=true;
+  if(payload.target==="bench")p.bench[payload.slot]=evolved;else p.active=evolved;
+  p.hand.splice(payload.evolutionIndex,1);message="Rare Candy evolved "+target.name+" into "+evolved.name+".";
  }
  else if(card.external){return err(state,card.name+" is not implemented yet. This card will remain in your hand until its effect is supported.");}
  else return err(state,"Unsupported Trainer.");
