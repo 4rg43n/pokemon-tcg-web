@@ -13,13 +13,13 @@ async function getSet(id){
 }
 export async function importLimitlessDeck(text,{onProgress}={}){
  const parsed=parseLimitless(text,[]);
- const structural=parsed.errors.filter(e=>!/not in playable catalog/.test(e));
+ const structural=parsed.errors.filter(e=>!/not in playable catalog|ambiguous/.test(e));
  if(structural.length)return {ok:false,errors:structural};
  const allSets=await sets(),cards=[],errors=[];
  const unique=[...new Map(parsed.rows.map(row=>[[row.set,row.number,row.name].join("|"),row])).values()];
  for(let i=0;i<unique.length;i++){
   const row=unique[i];onProgress?.(i+1,unique.length);
-  const candidateSets=allSets.filter(s=>String(s.tcgOnline||"").toUpperCase()===row.set||String(s.id||"").toUpperCase()===row.set);
+  const candidateSets=allSets.filter(s=>String(s.tcgOnline||s.ptcgoCode||"").toUpperCase()===row.set||String(s.id||"").toUpperCase()===row.set||String(s.name||"").toUpperCase()===row.set);
   if(!candidateSets.length){errors.push(`Line ${row.line}: unknown set code ${row.set}.`);continue;}
   let match=null;
   for(const set of candidateSets){
