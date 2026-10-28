@@ -16,16 +16,16 @@ export function registerExternalCard(raw){
  const category=kind.includes("pok")?"pokemon":kind.includes("energy")?"energy":"trainer";
  const subtypes=Array.isArray(raw.subtypes)?raw.subtypes:[raw.subtype].filter(Boolean);
  const subtype=subtypes.find(t=>/item|supporter|stadium|tool/i.test(t))||"";
- const card={kind:category,name:raw.name,subtype,set:raw.set?.ptcgoCode||raw.set?.id||raw.setCode||"",number:String(raw.number||""),printing:raw.id,image:raw.imageUrl||"",external:true};
- const entry={id,name:raw.name,category,detail:[raw.set?.name||raw.setName||raw.set||"",raw.number||"",subtypes.join(", ")].filter(Boolean).join(" · "),card,external:true,basic:category==="pokemon"&&(!subtypes.some(t=>/stage\s*[12]|vmax|vstar|break/i.test(t))&&!/stage\s*[12]/i.test(String(raw.stage||""))),unlimited:category==="energy"&&/basic/i.test(subtypes.join(" "))};
+ const card={kind:category,name:raw.name,subtype,set:raw.set?.tcgOnline||raw.set?.id||raw.setCode||"",number:String(raw.number||""),printing:raw.id,image:raw.imageUrl||"",external:true};
+ const entry={id,name:raw.name,category,detail:[raw.set?.name||raw.setName||raw.set?.id||"",raw.number||"",subtypes.join(", ")].filter(Boolean).join(" · "),card,external:true,basic:category==="pokemon"&&(!/stage\s*[12]|vmax|vstar|break/i.test(String(raw.stage||"Basic"))),unlimited:category==="energy"&&/basic/i.test(String(raw.energyType||raw.subtype||""))};
  catalog.push(entry);return entry;
 }
 export function defaultDeck(player){
  const counts={};
  const add=(id,n)=>counts[id]=(counts[id]||0)+n;
  for(const index of player===0?[2,2,2,4,4,4,2,4,2,4,2,4,2,4,6,6,6,6]:[3,3,3,5,5,5,3,5,3,5,3,5,3,5,7,7,8,8])add(`pokemon-${index}`,1);
- add("energy-Fire",player===0?8:14);add("energy-Lightning",player===0?14:8);
- add("trainer-Potion",8);add("trainer-Quick Ball",8);add("trainer-Professor's Research",4);
+ add("energy-Fire",player===0?12:18);add("energy-Lightning",player===0?18:12);
+ add("trainer-Potion",4);add("trainer-Quick Ball",4);add("trainer-Professor's Research",4);
  return {name:player===0?"Lightning starter":"Fire starter",counts};
 }
 export function validateDeck(deck){
