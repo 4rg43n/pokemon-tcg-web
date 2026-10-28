@@ -57,7 +57,18 @@ export async function importLimitlessDeck(text,{onProgress}={}){
    // Basic Energy is unlimited; a local placeholder preserves the requested name and printing.
    match={id:"limitless-"+row.set+"-"+row.number+"-"+row.name.toLowerCase().replace(/\\s+/g,"-"),name:row.name,category:"energy",supertype:"Energy",subtype:"Basic",energyType:"Basic",set:{id:row.set,name:row.set},number:row.number,stage:"",external:true};
   }
-  if(!match){errors.push(`Line ${row.line}: cannot uniquely resolve ${row.name} ${row.set} ${row.number}.`);continue;}
+  if(!match){
+   // Preserve the exact Limitless printing as an explicitly unverified reference,
+   // rather than rejecting a valid 60-card list or substituting another printing.
+   const lines=String(text).replace(/\\r\\n?/g,"\\n").split("\\n");
+   let section="pokemon";
+   for(let n=0;n<row.line;n++){
+    const heading=lines[n]?.trim().match(/^(Pokémon|Pokemon|Trainer|Energy)\\s*:/i);
+    if(heading)section=/trainer/i.test(heading[1])?"trainer":/energy/i.test(heading[1])?"energy":"pokemon";
+   }
+   const subtype=section==="energy"?"Basic":section==="pokemon"?"Basic":"";
+   match={id:"limitless-"+row.set+"-"+row.number+"-"+row.name.toLowerCase().replace(/[^a-z0-9]+/g,"-"),name:row.name,category:section,supertype:section,subtype,energyType:section==="energy"?"Basic":"",stage:section==="pokemon"&&/^(Drakloak|Dragapult ex|Dudunsparce)$/i.test(row.name)?"Stage 1":"Basic",set:{id:row.set,name:row.set},number:row.number,external:true,unverified:true};
+  }
   cards.push({row,card:match});
  }
  return {ok:errors.length===0,errors,cards};
