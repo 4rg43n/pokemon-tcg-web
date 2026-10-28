@@ -120,6 +120,7 @@ else if(payload.target==="active"&&s.phase==="setup"&&!p.active){p.active=pokemo
 else if(payload.target==="bench"){if(!p.active)return err(state,"Choose your Active Pokémon first.");if(p.bench.length>=5)return err(state,"Your Bench is full.");const added=pokemon(card.species);added.playedTurn=s.round;p.bench.push(added);message="Benched "+species[card.species].name+".";}
 else return err(state,s.phase==="setup"?"Tap the empty Active slot or an empty Bench slot.":"Basic Pokémon must be played to the Bench.");
 }else if(card.kind==="energy"){
+if(s.phase!=="playing")return err(state,"Energy cannot be attached during setup. Choose your Active and Bench Pokémon, then press Ready.");
 if(p.attached)return err(state,"You can attach only one Energy per turn.");
 const target=payload.target==="active"?p.active:payload.target==="bench"&&Number.isInteger(payload.slot)?p.bench[payload.slot]:null;
 if(!target)return err(state,"Tap your Active Pokémon or a Benched Pokémon to attach Energy.");
@@ -163,6 +164,7 @@ const idx=p.hand.findIndex(c=>c.kind==="pokemon");if(idx<0)return err(state,"No 
 if(p.bench.length>=5)return err(state,"Bench full.");
 p.bench.push(pokemon(p.hand[idx].species));p.hand.splice(idx,1);message="Benched a Basic Pokémon.";
 }else if(action==="energy"){
+if(s.phase!=="playing")return err(state,"Energy cannot be attached during setup.");
 const idx=p.hand.findIndex(c=>c.kind==="energy");if(idx<0)return err(state,"No Energy in hand.");
 if(p.attached)return err(state,"Already attached Energy this turn.");
 const card=p.hand.splice(idx,1)[0];p.active.energies.push(card.type);p.active.energy=p.active.energies.length;p.attached=true;message="Attached Energy to Active Pokémon.";
