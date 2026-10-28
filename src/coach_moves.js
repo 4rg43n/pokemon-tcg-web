@@ -1,6 +1,6 @@
 // Next-move finder: asks the engine which actions are legal right now and turns the best one into an instruction.
-import {species,canPay,retreatCost} from "./cards.js?v=41";
-import {dispatch} from "./engine.js?v=41";
+import {species,canPay,retreatCost} from "./cards.js?v=43";
+import {dispatch} from "./engine.js?v=44";
 
 const RESEARCH="Professor's Research";
 

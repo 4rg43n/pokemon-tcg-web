@@ -1,11 +1,11 @@
-import {species,energyTypes} from "./cards.js?v=41";
+import {species,energyTypes} from "./cards.js?v=43";
 export const pokemonCard=species=>({kind:"pokemon",species});
 export const energyCard=type=>({kind:"energy",type,name:type+" Energy"});
-export const trainerCard=name=>({image:name==="Quick Ball"?"assets/cards/quick-ball.jpg":name==="Ultra Ball"?"assets/cards/ultra-ball.jpg":undefined,kind:"trainer",name,subtype:name==="Air Balloon"?"Pokémon Tool":name==="Professor's Research"?"Supporter":"Item"});
+export const trainerCard=name=>({image:name==="Quick Ball"?"assets/cards/quick-ball.jpg":name==="Ultra Ball"?"assets/cards/ultra-ball.jpg":undefined,kind:"trainer",name,subtype:name==="Air Balloon"?"Pokémon Tool":(name==="Professor's Research"||name==="Lillie's Determination")?"Supporter":"Item"});
 export const catalog=[
  ...species.map((s,i)=>({id:`pokemon-${i}`,name:s.name,category:"pokemon",detail:`${s.stage?`Stage ${s.stage} · evolves from ${s.evolvesFrom}`:"Basic"} · ${s.type} · ${s.hp} HP`,card:pokemonCard(i)})),
  ...energyTypes.map(type=>({id:`energy-${type}`,name:type+" Energy",category:"energy",detail:"Basic Energy · unlimited copies",card:energyCard(type)})),
- ...["Potion","Quick Ball","Ultra Ball","Professor's Research","Air Balloon"].map(name=>({id:`trainer-${name}`,name,category:"trainer",detail:name==="Air Balloon"?"Pokémon Tool · attach to a Pokémon · retreat costs 2 less":name==="Potion"?"Item · heal 30 damage":name==="Quick Ball"?"Item · discard 1 other card; search for a Basic Pokémon":name==="Ultra Ball"?"Item · discard 2 other cards; search for any Pokémon":"Supporter · discard hand, draw up to 7",card:trainerCard(name)}))
+ ...["Potion","Quick Ball","Ultra Ball","Professor's Research","Lillie's Determination","Air Balloon"].map(name=>({id:`trainer-${name}`,name,category:"trainer",detail:name==="Air Balloon"?"Pokémon Tool · attach to a Pokémon · retreat costs 2 less":name==="Potion"?"Item · heal 30 damage":name==="Quick Ball"?"Item · discard 1 other card; search for a Basic Pokémon":name==="Ultra Ball"?"Item · discard 2 other cards; search for any Pokémon" :name==="Lillie's Determination"?"Supporter · shuffle hand into deck; draw 6 (8 if six Prize cards remain)":"Supporter · discard hand, draw up to 7",card:trainerCard(name)}))
 ];
 // Register external printings without claiming their effects are supported by the engine.
 export function registerExternalCard(raw){
@@ -34,14 +34,14 @@ export function defaultDeck(player){
  if(player===0){
   // Lightning: Pikachu/Raichu and Voltorb/Electrode; 16 Pokémon, 32 Energy, 12 Trainers.
   for(const [i,n] of [[2,4],[6,3],[0,2],[15,4],[16,3]])add(`pokemon-${i}`,n);
-  add("energy-Lightning",32);
+  add("energy-Lightning",24);
  }else{
   // Fire: Charmander/Charizard, Growlithe/Arcanine, Ponyta/Rapidash.
   // 22 Pokémon, 26 Energy, 12 Trainers.
   for(const [i,n] of [[12,4],[13,3],[14,2],[5,4],[7,3],[9,4],[10,2]])add(`pokemon-${i}`,n);
-  add("energy-Fire",26);
+  add("energy-Fire",18);
  }
- for(const name of ["Potion","Quick Ball","Professor's Research"])add("trainer-"+name,4);
+ for(const name of ["Potion","Quick Ball","Professor's Research","Ultra Ball","Lillie's Determination"])add("trainer-"+name,4);
  return {name:player===0?"Lightning Learner · Pikachu & Electrode":"Fire Learner · Charizard & Arcanine",counts};
 }
 export function validateDeck(deck){

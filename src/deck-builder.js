@@ -1,8 +1,10 @@
-import {catalog,registerExternalCard,defaultDeck,validateDeck,migrateDeck} from "./decks.js?v=41";
+import {catalog,registerExternalCard,defaultDeck,validateDeck,migrateDeck} from "./decks.js?v=44";
 import {importLimitlessDeck} from "./limitless-resolver.js?v=35";
 import {searchCardDatabase,getCardDetail} from "./external-cards.js?v=31";
 const storageKey="pokemon-tcg-decks-v1";
 const externalKey="pokemon-tcg-external-cards-v1";
+const starterVersionKey="pokemon-tcg-starter-version";
+const starterVersion="44";
 const esc=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 export function mountDeckBuilder({start,inspect,onClose}){
  const root=document.querySelector("#deck-builder");
@@ -12,7 +14,7 @@ export function mountDeckBuilder({start,inspect,onClose}){
  let searchTimer=null,searchSeq=0;
  let externalCards=[],externalPage=1,externalTotal=0,externalMore=false,externalError="",externalLoading=false,externalQuery="",externalCategory="all";
  try{const cards=JSON.parse(localStorage.getItem(externalKey)||"[]");if(Array.isArray(cards))cards.slice(0,5000).forEach(registerExternalCard);}catch{}
- try{const raw=JSON.parse(localStorage.getItem(storageKey));const saved=Array.isArray(raw)?raw.map(migrateDeck):raw;if(Array.isArray(saved)&&saved.length===2&&saved.every(d=>typeof d?.name==="string"&&!validateDeck(d).errors.length))decks=saved;}catch{message="Saved decks could not be loaded. Starter decks are available.";}
+ try{const raw=JSON.parse(localStorage.getItem(storageKey));const saved=Array.isArray(raw)?raw.map(migrateDeck):raw;if(Array.isArray(saved)&&saved.length===2&&saved.every(d=>typeof d?.name==="string"&&!validateDeck(d).errors.length)){decks=saved;if(localStorage.getItem(starterVersionKey)!==starterVersion&&decks.every(d=>/^(Lightning starter|Fire starter|Lightning Learner|Fire Learner)/i.test(d.name))){decks=[defaultDeck(0),defaultDeck(1)];localStorage.setItem(storageKey,JSON.stringify(decks));message="Starter decks updated to the new iconic Fire and Lightning lists.";}}}catch{message="Saved decks could not be loaded. Starter decks are available.";}try{localStorage.setItem(starterVersionKey,starterVersion);}catch{}
  function render(){
  const deck=decks[player],check=validateDeck(deck);
  const visible=catalog.filter(c=>(category==="all"||c.category===category||(category==="item"&&c.card.subtype==="Item")||(category==="supporter"&&c.card.subtype==="Supporter")||(category==="tool"&&c.card.subtype==="Pokémon Tool")||(category==="stadium"&&c.card.subtype==="Stadium"))&&`${c.name} ${c.detail}`.toLowerCase().includes(query.toLowerCase()));
@@ -61,7 +63,7 @@ export function mountDeckBuilder({start,inspect,onClose}){
  if(action==="external-search"||action==="external-next"){runSearch(action==="external-next");return;}
  if(action==="import"){if(importing)return;importing=true;const text=importText;const target=player;message="Resolving Limitless printings…";render();importLimitlessDeck(text,{onProgress:(n,total)=>{const status=root.querySelector("#deck-message");if(status)status.textContent=`Resolving ${n}/${total} cards…`;}}).then(result=>{if(!result.ok){message=result.errors.join(" | ");return;}const counts={};for(const {row,card} of result.cards){const entry=registerExternalCard(card);counts[entry.id]=(counts[entry.id]||0)+row.quantity;}const candidate={name:decks[target].name,counts};const check=validateDeck(candidate);if(check.errors.length){message=check.errors.join(" | ");return;}decks[target]=candidate;try{const saved=JSON.parse(localStorage.getItem(externalKey)||"[]");for(const {card} of result.cards)if(!saved.some(c=>c.id===card.id))saved.push(card);localStorage.setItem(externalKey,JSON.stringify(saved));}catch{message="Imported, but card metadata could not be cached in this browser.";return;}message="Limitless deck imported; save your decks to keep it.";}).catch(error=>{message="Import failed: "+error.message;}).finally(()=>{importing=false;confirmStart=false;render();});return;}
  if(action==="clear")decks[player]={name:decks[player].name,counts:{}};
- if(action==="starter")decks[player]=defaultDeck(player);
+ if(action==="starter"){decks[player]=defaultDeck(player);message="Loaded the latest "+(player===0?"Lightning":"Fire")+" starter list."; }
  if(action==="save"){
  if(decks.some(d=>validateDeck(d).errors.length))return;
  decks.forEach((d,i)=>d.name=d.name.trim()||`Player ${i+1} deck`);
@@ -70,7 +72,7 @@ export function mountDeckBuilder({start,inspect,onClose}){
  if(action==="start"){if(!playable){message="Cannot start: "+decks.map((d,i)=>validateDeck(d).errors.map(e=>"Player "+(i+1)+": "+e).join(" | ")).filter(Boolean).join(" | ");confirmStart=false;}else{confirmStart=true;message="Confirm below to start the match.";}render();root.querySelector(".deck-confirm")?.scrollIntoView({block:"center",behavior:"smooth"});return;}
  if(action==="cancel")confirmStart=false;
  if(action==="confirm"){message="Starting match…";if(!playable){message="Both players need valid 60-card decks before starting.";render();return;}try{start(structuredClone(decks));confirmStart=false;close(true);}catch(error){message="Could not start match: "+(error?.message||String(error));confirmStart=false;render();}return;}
- if(action==="clear"||action==="starter"){confirmStart=false;message="";}
+ if(action==="clear"){confirmStart=false;message="";}if(action==="starter")confirmStart=false;
  render();
  });
  return {open(){document.querySelector("main").hidden=true;root.hidden=false;confirmStart=false;render();root.querySelector('[data-builder="close"]').focus();}};

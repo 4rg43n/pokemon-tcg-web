@@ -1,7 +1,7 @@
 // Lightweight two-player prototype; intentionally not a complete official TCG rules engine.
-import {species,canPay,retreatCost} from "./cards.js?v=41";
+import {species,canPay,retreatCost} from "./cards.js?v=43";
 export const pokemon=(i)=>({...species[i],speciesIndex:i,damage:0,energy:0,energies:[],evolvedThisTurn:false,playedTurn:0,under:[],tool:null});
-import {defaultDeck, expandDeck, validateDeck, energyCard as energy, pokemonCard as basic} from "./decks.js?v=41";
+import {defaultDeck, expandDeck, validateDeck, energyCard as energy, pokemonCard as basic} from "./decks.js?v=44";
 function shuffle(cards){for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]];}return cards;}
 function player(i,deck){
  const cards=shuffle(expandDeck(deck||defaultDeck(i)));
@@ -77,6 +77,15 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
  if(found)p.hand.push(found);shuffle(p.deck);s.selection=null;
  s.log.unshift("Player "+(s.turn+1)+": used "+card.name+", discarded "+required+" other card(s), "+(found?"revealed "+species[found.species].name+" and added it to hand":"found no Pokémon")+", then shuffled.");return {state:s};
  }
+ else if(card.name==="Lillie's Determination"){
+ const returned=p.hand.filter((_,i)=>i!==idx);
+ p.deck.push(...returned);shuffle(p.deck);
+ p.hand=[];const amount=p.prizes===6?8:6;
+ for(let n=0;n<amount&&p.deck.length;n++)p.hand.push(p.deck.shift());
+ p.supporterUsed=true;p.discard.push(card);s.selection=null;
+ s.log.unshift("Player "+(state.turn+1)+": Lillie's Determination shuffled "+returned.length+" hand cards into the deck, shuffled, then drew "+p.hand.length+" cards"+(amount===8?" (six Prize cards remaining).":"."));
+ return {state:s};
+ }
  else if(card.name==="Professor's Research"){p.discard.push(...p.hand.filter((_,i)=>i!==idx));p.hand=[];for(let n=0;n<7&&p.deck.length;n++)p.hand.push(p.deck.shift());p.supporterUsed=true;message="Professor's Research drew "+p.hand.length+" cards.";p.discard.push(card);s.selection=null;s.log.unshift("Player "+(state.turn+1)+": "+message);return {state:s};}
  else if(card.external){message=card.name+" played (prototype: no automated effect).";}
  else return err(state,"Unsupported Trainer.");
@@ -127,12 +136,8 @@ if(move.effect==="pickAndStick"){
 }
 else if(move.effect==="draw"){const drawn=p.deck.shift();if(drawn)p.hand.push(drawn);message=p.active.name+" used "+move.name+(drawn?" and drew a card.":"; no cards left to draw.");}
 else if(move.effect==="stoke"){let attached=0;for(let n=p.deck.length-1;n>=0&&attached<2;n--){if(p.deck[n].kind==="energy"&&p.deck[n].type==="Fire"){p.deck.splice(n,1);p.active.energies.push("Fire");attached++;}}p.active.energy=p.active.energies.length;shuffle(p.deck);message=p.active.name+" used Stoke and attached "+attached+" Fire Energy.";}
-else{o.active.damage+=move.damage;message=p.active.name+" used "+move.name+" for "+move.damage+" damage.";if(move.effect==="discardEnergy"){const type=p.active.energies.pop();p.active.energy=p.active.energies.length;p.discard.push(energy(type));message+=" Discarded "+type+" Energy.";}}
-if(o.active.damage>=o.active.hp){
-const prizeCount=o.active.name.endsWith(" ex")?2:1;for(let n=0;n<prizeCount&&p.prizeCards.length;n++)p.hand.push(p.prizeCards.pop());p.prizes=p.prizeCards.length;o.discard.push({kind:"pokemon",species:o.active.speciesIndex});for(const index of o.active.under)o.discard.push(basic(index));for(const type of o.active.energies)o.discard.push(energy(type));if(o.active.tool)o.discard.push(o.active.tool);message+=" Knockout! "+prizeCount+" Prize card(s) taken.";
-if(p.prizes===0||o.bench.length===0){s.winner=s.turn;s.winReason=p.prizes===0?"taking all Prize cards":"knocking out every opposing Pokémon";message+=" Game over!";}
-else{o.active=null;s.turn=1-s.turn;s.phase="replacement";s.selection=null;}
-}
+else{let damage=move.damage;if(move.effect==="braveWing"&&p.active.damage>0)damage+=100;if(move.effect==="coinBonus20"&&Math.random()<0.5)damage+=20;if(move.effect==="discardToolsBonus40"){const targets=[p.active,...p.bench];const removed=targets.filter(t=>t.tool);for(const t of removed){p.discard.push(t.tool);t.tool=null;}damage+=removed.length*40;}if(move.effect==="discardStadium"){message=p.active.name+" used "+move.name+" (no Stadium in play).";}else{o.active.damage+=damage;message=p.active.name+" used "+move.name+" for "+damage+" damage.";}if(move.effect==="discardEnergy"||move.effect==="discardThreeEnergy"){const count=move.effect==="discardThreeEnergy"?3:1;for(let n=0;n<count&&p.active.energies.length;n++){const type=p.active.energies.pop();p.discard.push(energy(type));}p.active.energy=p.active.energies.length;message+=" Discarded "+count+" Energy.";}}
+if(o.active.damage>=o.active.hp)message+=knockOut(s);
 if(s.winner===null&&s.phase!=="replacement")next(s);
 }else if(action==="end"){if(s.phase!=="playing")return err(state,"Finish the Pokémon switch first.");next(s);message="Turn ended.";}
 else if(action==="bench"){
@@ -146,7 +151,13 @@ const card=p.hand.splice(idx,1)[0];p.active.energies.push(card.type);p.active.en
 }else return err(state,"Unknown action.");
 s.log.unshift("Player "+(state.turn+1)+": "+message);return {state:s};
 }
-function next(s){s.turn=1-s.turn;s.round++;s.selection=null;s.players[s.turn].attached=false;s.players[s.turn].retreated=false;s.players[s.turn].supporterUsed=false;for(const mon of [s.players[s.turn].active,...s.players[s.turn].bench])if(mon){mon.evolvedThisTurn=false;mon.abilityUsed=false;}
+// Knocks out the opponent's Active for the current player: Prizes, discards, then a win or the opponent's replacement.
+export function knockOut(s){const p=s.players[s.turn],o=s.players[1-s.turn];let message="";
+const prizeCount=o.active.name.endsWith(" ex")?2:1;for(let n=0;n<prizeCount&&p.prizeCards.length;n++)p.hand.push(p.prizeCards.pop());p.prizes=p.prizeCards.length;o.discard.push({kind:"pokemon",species:o.active.speciesIndex});for(const index of o.active.under)o.discard.push(basic(index));for(const type of o.active.energies)o.discard.push(energy(type));if(o.active.tool)o.discard.push(o.active.tool);message+=" Knockout! "+prizeCount+" Prize card(s) taken.";
+if(p.prizes===0||o.bench.length===0){s.winner=s.turn;s.winReason=p.prizes===0?"taking all Prize cards":"knocking out every opposing Pokémon";message+=" Game over!";}
+else{o.active=null;s.turn=1-s.turn;s.phase="replacement";s.selection=null;}
+return message;}
+export function next(s){s.turn=1-s.turn;s.round++;s.selection=null;s.players[s.turn].attached=false;s.players[s.turn].retreated=false;s.players[s.turn].supporterUsed=false;for(const mon of [s.players[s.turn].active,...s.players[s.turn].bench])if(mon){mon.evolvedThisTurn=false;mon.abilityUsed=false;}
 if(s.players[s.turn].deck.length)s.players[s.turn].hand.push(s.players[s.turn].deck.shift());
 else{s.winner=1-s.turn;s.winReason="deck out";s.log.unshift("Deck out!");}}
 export function cardInfo(card){if(card.kind==="pokemon")return {...species[card.species],kind:"pokemon"};return card;}
