@@ -1,7 +1,7 @@
 import {retreatCost,species} from "./cards.js?v=27";
 import {cardStats} from "./card-stats.js?v=27";
 import {newGame,dispatch,cardInfo} from "./engine.js?v=27";
-import {mountDeckBuilder} from "./deck-builder.js?v=27";
+import {mountDeckBuilder} from "./deck-builder.js?v=28";
 import {createRecorder} from "./history.js?v=27";
 import {createPlanner} from "./planning/planner.js?v=27";
 let state=newGame(),preview=null,matchDecks=null;
