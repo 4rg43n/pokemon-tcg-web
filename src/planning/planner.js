@@ -1,5 +1,5 @@
 // Deterministic Player 2 planning experiment. All decisions use Player 2's visible information.
-import {canPay,retreatCost,species} from "../cards.js?v=23";
+import {canPay,retreatCost,species} from "../cards.js?v=24";
 const KEY="ptcg.ai.plans.v1";
 const identity=m=>m?m.name:null;
 const observed=s=>({active:identity(s.players[0].active),activeHp:s.players[0].active?Math.max(0,s.players[0].active.hp-s.players[0].active.damage):0,bench:s.players[0].bench.length,prizes:s.players[0].prizes});

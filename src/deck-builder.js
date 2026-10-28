@@ -1,4 +1,4 @@
-import {catalog,defaultDeck,validateDeck,migrateDeck} from "./decks.js?v=22";
+import {catalog,defaultDeck,validateDeck,migrateDeck} from "./decks.js?v=24";
 const storageKey="pokemon-tcg-decks-v1";
 const esc=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 export function mountDeckBuilder({start,inspect,onClose}){

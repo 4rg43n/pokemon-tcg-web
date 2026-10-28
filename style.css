@@ -5,3 +5,39 @@
 
 .pokemon-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;border-top:1px solid #483d3766;margin-top:2px;padding-top:2px;gap:1px}.pokemon-stat{display:flex;flex-direction:column;align-items:center;min-width:0;gap:1px}.stat-label{font-size:6px;line-height:1.2;letter-spacing:-.2px}.stat-value{display:flex;align-items:center;justify-content:center;gap:1px;font-size:9px;line-height:1.2;min-height:11px}.type-icon{display:inline-flex;align-items:center;justify-content:center;width:11px;height:11px;border:1px solid #322d35;border-radius:50%;background:#dedde0;color:#20212c;font-size:9px;font-weight:850;line-height:1;flex-shrink:0}.type-water{background:#8cc9f2}.type-fire{background:#f5aa71}.type-lightning{background:#ffe371}.type-grass{background:#a7d883}.type-psychic{background:#d7a2dd}.type-fighting{background:#d8a47e}.type-darkness{background:#546879;color:#fff}.type-metal{background:#aebcc7}.type-dragon{background:#d9c873}.type-fairy{background:#efb5d1}.retreat-count{font-weight:850}.modal-content>.tcg-card .pokemon-stats{padding-top:7px;margin-top:6px;gap:8px}.modal-content>.tcg-card .stat-label{font-size:10px;letter-spacing:normal}.modal-content>.tcg-card .stat-value{font-size:15px;min-height:22px;gap:4px}.modal-content>.tcg-card .type-icon{width:22px;height:22px;font-size:16px}.stat-legend{max-width:420px;color:#c5d5df;font-size:.8rem;line-height:1.5}.tcg-card.pokemon img{flex-basis:0}@media(max-width:700px){.tcg-card.small .stat-label{font-size:4px}.tcg-card.small .stat-value{font-size:7px;min-height:8px}.tcg-card.small .type-icon{width:8px;height:8px;font-size:6px}.tcg-card.small .pokemon-stats{padding-top:1px;margin-top:1px}}
 .attached-tool{width:100%;text-align:center;font-size:7px;font-weight:750;background:#f1c9de;color:#42263b;border-radius:3px;margin-top:2px;padding:1px}.tool-effect{font-size:8px;text-align:center}.modal-content>.tcg-card .attached-tool{font-size:12px;padding:4px}.modal-content>.tcg-card .tool-effect{font-size:16px}@media(max-width:700px){.tcg-card.small .attached-tool{font-size:4px}.tcg-card.small .tool-effect{font-size:5px}}
+main{padding-bottom:120px}
+main[hidden]~#coach{display:none}
+.coach-badge{display:inline-flex;align-items:center;gap:6px;font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:#bcd3d5;opacity:.85;white-space:nowrap}
+.coach-badge img{height:11px;display:block}
+#coach{position:fixed;right:14px;bottom:14px;z-index:9;display:flex;align-items:flex-end;gap:10px;max-width:min(400px,calc(100vw - 28px));font-size:.86rem}
+#coach[data-state=muted] .coach-bubble,#coach[data-state=muted] .coach-bird,#coach[data-state=min] .coach-bubble,#coach:not([data-state=muted]) .coach-unmute{display:none}
+.coach-bird{flex:none;width:64px;height:64px;border-radius:50%;background:#173547;border:2px solid #89b7c1;padding:0;margin:0;display:grid;place-items:center;color:#f9d36b;box-shadow:0 4px 14px #0008;position:relative;cursor:pointer;animation:coach-bob 3.2s ease-in-out infinite}
+.coach-bird-glyph{width:46px;height:34px;background:currentColor;-webkit-mask:url(assets/br_bird.svg) center/contain no-repeat;mask:url(assets/br_bird.svg) center/contain no-repeat}
+.coach-bird.flap{animation:coach-flap .6s ease-out}
+.coach-dot{position:absolute;top:-2px;right:-2px;width:14px;height:14px;border-radius:50%;background:#f9d36b;border:2px solid #0b1422;display:none}
+#coach[data-state=min] .coach-bird[data-has-tips=true] .coach-dot{display:block}
+.coach-bubble{background:#173547;border:2px solid #89b7c1;border-radius:14px 14px 4px 14px;padding:12px 14px;box-shadow:0 6px 20px #000a;color:#f4f6fb;animation:coach-in .25s ease-out;position:relative;max-height:min(60vh,420px);overflow:auto}
+.coach-bubble::after{content:"";position:absolute;right:-12px;bottom:14px;border:6px solid transparent;border-left-color:#89b7c1}
+.coach-head{display:flex;align-items:center;gap:8px;font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:#bcd3d5;margin-bottom:6px}
+.coach-kind{background:#f9d36b;color:#182334;border-radius:4px;padding:2px 6px;font-weight:800}
+.coach-kind.rule{background:#7fafe1}
+.coach-player{flex:1}
+.coach-head button{background:none;color:#bcd3d5;padding:0 4px;margin:0;font-size:.9rem;line-height:1;min-height:0}
+.coach-title{margin:0 0 4px;font-size:1rem;color:#ffdd72}
+.coach-text{margin:0 0 8px;line-height:1.4}
+.coach-source{display:block;font-size:.72rem;color:#9fd3c7;margin-bottom:8px;text-decoration:none}
+.coach-source:hover,.coach-review a:hover{text-decoration:underline}
+.coach-actions{display:flex;align-items:center;gap:6px}
+.coach-actions button{padding:6px 10px;margin:0;font-size:.78rem;min-height:0}
+.coach-count{margin-left:auto;font-size:.7rem;color:#bcd3d5}
+.coach-review h3{margin:0 0 6px;color:#ffdd72;font-size:1rem}
+.coach-review h4{margin:8px 0 4px;font-size:.8rem;color:#c5e1df}
+.coach-review ul{margin:0;padding-left:18px}
+.coach-review li{margin-bottom:5px;line-height:1.35}
+.coach-review a{color:#9fd3c7;font-size:.72rem;text-decoration:none}
+.coach-unmute{font-size:.7rem;padding:6px 10px;margin:0;opacity:.8}
+@keyframes coach-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes coach-flap{0%{transform:rotate(0) scale(1)}25%{transform:rotate(-10deg) scale(1.12)}50%{transform:rotate(8deg) scale(1.12)}75%{transform:rotate(-5deg)}100%{transform:rotate(0) scale(1)}}
+@keyframes coach-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.coach-bird,.coach-bird.flap,.coach-bubble{animation:none}}
+@media(max-width:700px){#coach{left:8px;right:8px;bottom:8px;max-width:none}.coach-bubble{flex:1}.coach-bird{width:50px;height:50px}.coach-bird-glyph{width:36px;height:26px}.coach-bubble::after{display:none}.coach-badge{margin-top:4px}}
