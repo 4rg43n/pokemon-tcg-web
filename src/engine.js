@@ -125,11 +125,7 @@ if(move.effect==="pickAndStick"){
 else if(move.effect==="draw"){const drawn=p.deck.shift();if(drawn)p.hand.push(drawn);message=p.active.name+" used "+move.name+(drawn?" and drew a card.":"; no cards left to draw.");}
 else if(move.effect==="stoke"){let attached=0;for(let n=p.deck.length-1;n>=0&&attached<2;n--){if(p.deck[n].kind==="energy"&&p.deck[n].type==="Fire"){p.deck.splice(n,1);p.active.energies.push("Fire");attached++;}}p.active.energy=p.active.energies.length;shuffle(p.deck);message=p.active.name+" used Stoke and attached "+attached+" Fire Energy.";}
 else{o.active.damage+=move.damage;message=p.active.name+" used "+move.name+" for "+move.damage+" damage.";if(move.effect==="discardEnergy"){const type=p.active.energies.pop();p.active.energy=p.active.energies.length;p.discard.push(energy(type));message+=" Discarded "+type+" Energy.";}}
-if(o.active.damage>=o.active.hp){
-const prizeCount=o.active.name.endsWith(" ex")?2:1;for(let n=0;n<prizeCount&&p.prizeCards.length;n++)p.hand.push(p.prizeCards.pop());p.prizes=p.prizeCards.length;o.discard.push({kind:"pokemon",species:o.active.speciesIndex});for(const index of o.active.under)o.discard.push(basic(index));for(const type of o.active.energies)o.discard.push(energy(type));if(o.active.tool)o.discard.push(o.active.tool);message+=" Knockout! "+prizeCount+" Prize card(s) taken.";
-if(p.prizes===0||o.bench.length===0){s.winner=s.turn;s.winReason=p.prizes===0?"taking all Prize cards":"knocking out every opposing Pokémon";message+=" Game over!";}
-else{o.active=null;s.turn=1-s.turn;s.phase="replacement";s.selection=null;}
-}
+if(o.active.damage>=o.active.hp)message+=knockOut(s);
 if(s.winner===null&&s.phase!=="replacement")next(s);
 }else if(action==="end"){if(s.phase!=="playing")return err(state,"Finish the Pokémon switch first.");next(s);message="Turn ended.";}
 else if(action==="bench"){
@@ -143,7 +139,13 @@ const card=p.hand.splice(idx,1)[0];p.active.energies.push(card.type);p.active.en
 }else return err(state,"Unknown action.");
 s.log.unshift("Player "+(state.turn+1)+": "+message);return {state:s};
 }
-function next(s){s.turn=1-s.turn;s.round++;s.selection=null;s.players[s.turn].attached=false;s.players[s.turn].retreated=false;s.players[s.turn].supporterUsed=false;for(const mon of [s.players[s.turn].active,...s.players[s.turn].bench])if(mon){mon.evolvedThisTurn=false;mon.abilityUsed=false;}
+// Knocks out the opponent's Active for the current player: Prizes, discards, then a win or the opponent's replacement.
+export function knockOut(s){const p=s.players[s.turn],o=s.players[1-s.turn];let message="";
+const prizeCount=o.active.name.endsWith(" ex")?2:1;for(let n=0;n<prizeCount&&p.prizeCards.length;n++)p.hand.push(p.prizeCards.pop());p.prizes=p.prizeCards.length;o.discard.push({kind:"pokemon",species:o.active.speciesIndex});for(const index of o.active.under)o.discard.push(basic(index));for(const type of o.active.energies)o.discard.push(energy(type));if(o.active.tool)o.discard.push(o.active.tool);message+=" Knockout! "+prizeCount+" Prize card(s) taken.";
+if(p.prizes===0||o.bench.length===0){s.winner=s.turn;s.winReason=p.prizes===0?"taking all Prize cards":"knocking out every opposing Pokémon";message+=" Game over!";}
+else{o.active=null;s.turn=1-s.turn;s.phase="replacement";s.selection=null;}
+return message;}
+export function next(s){s.turn=1-s.turn;s.round++;s.selection=null;s.players[s.turn].attached=false;s.players[s.turn].retreated=false;s.players[s.turn].supporterUsed=false;for(const mon of [s.players[s.turn].active,...s.players[s.turn].bench])if(mon){mon.evolvedThisTurn=false;mon.abilityUsed=false;}
 if(s.players[s.turn].deck.length)s.players[s.turn].hand.push(s.players[s.turn].deck.shift());
 else{s.winner=1-s.turn;s.winReason="deck out";s.log.unshift("Deck out!");}}
 export function cardInfo(card){if(card.kind==="pokemon")return {...species[card.species],kind:"pokemon"};return card;}

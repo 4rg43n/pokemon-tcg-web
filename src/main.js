@@ -1,4 +1,6 @@
-import {retreatCost,species} from "./cards.js?v=36";
+import {retreatCost,species,energyTypes} from "./cards.js?v=36";
+import {catalog} from "./decks.js?v=36";
+import {commands as debugCommands,pokemonRefs} from "./debug.js?v=36";
 import {cardStats} from "./card-stats.js?v=27";
 import {newGame,dispatch,cardInfo} from "./engine.js?v=36";
 import {mountDeckBuilder} from "./deck-builder.js?v=36";
@@ -69,6 +71,7 @@ function useAbilityFromPreview(){
 }
 }
 function renderModal(){const modal=$("#modal");if(!preview){modal.hidden=true;return;}modal.hidden=false;
+if(preview.type==="debug"){renderDebug();return;}
 if(preview.type==="card"){const c=preview.card;modal.querySelector(".modal-content").innerHTML=cardHtml(c)+`<p>${escape(c.name||"")}${c.attacks?.length?" · "+c.attacks.map(a=>a.name+" ("+a.cost.join(" + ")+"): "+a.damage+" damage").join(", "):""}</p>${c.hp?'<p class="stat-legend">★ = Colorless Energy for retreat · ? = data not yet recorded · — = no Weakness or Resistance. These stats are informational; Weakness and Resistance damage rules are not implemented.</p>':""}`;}
 if(preview.type==="card"&&preview.card.ability){
  const c=preview.card,p=state.players[state.turn],own=c===p.active||p.bench.includes(c);
@@ -121,3 +124,39 @@ $("#menu-play").addEventListener("click",showGame);
 $("#menu-decks").addEventListener("click",openBuilder);
 $("#open-menu").addEventListener("click",showMenu);
 showMenu();
+
+// Debug menu. "Me" is Player 1 when the AI plays Player 2, otherwise whoever's turn it is; the opponent is the other player.
+const debugMe=()=>aiEnabled?0:state.turn;
+const debugScenarios=[["prizesToOne","Set my Prizes to 1"],["emptyOpponentDeck","Empty opponent's deck"],["knockOutOpponentActive","Knock out opponent's Active"],["clearOpponentBench","Clear opponent's Bench"],["skipTurn","Skip to opponent's turn"],["resetTurnFlags","Reset my once-per-turn actions"]];
+function openDebug(){preview={type:"debug",view:"menu",message:""};renderModal();}
+function debugCards(cards,numbered){return cards.length?`<div class="pile-list">${cards.map((c,i)=>numbered?`<div class="debug-card"><small>#${i+1}</small>${cardHtml(c,{small:true})}</div>`:cardHtml(c,{small:true})).join("")}</div>`:"<p>No cards.</p>";}
+function debugPlan(){
+ const plan=planner.active;
+ if(!plan)return "<p>No active plan. The AI builds one when it takes Player 2's turn.</p>";
+ const list=(items,fmt)=>items.length?`<ol>${items.map(x=>`<li>${escape(fmt(x))}</li>`).join("")}</ol>`:"<p>None.</p>";
+ return `<p><strong>${escape(plan.goal)}</strong> · ${escape(plan.id)} · round ${plan.round} · ${escape(plan.status)}</p><h3>Next actions</h3>${list(plan.actions,a=>a.action+" — "+a.why)}<h3>Completed</h3>${list(plan.completed,a=>a.action+(a.round?" (round "+a.round+")":""))}<details><summary>Raw plan JSON</summary><pre class="debug-json">${escape(JSON.stringify(plan,null,2))}</pre></details>`;
+}
+function renderDebug(){
+ const content=$("#modal .modal-content"),me=debugMe(),opp=state.players[1-me],view=preview.view;
+ const back='<button type="button" data-debug="menu">← Debug menu</button>',note=preview.message?`<p class="debug-message">${escape(preview.message)}</p>`:"";
+ if(view==="deck"){content.innerHTML=`${back}<h2>Player ${2-me}'s deck · ${opp.deck.length} cards (top first)</h2>${debugCards(opp.deck,true)}`;return;}
+ if(view==="hand"){content.innerHTML=`${back}<h2>Player ${2-me}'s hand · ${opp.hand.length} cards</h2>${debugCards(opp.hand,false)}`;return;}
+ if(view==="plan"){content.innerHTML=`${back}<h2>AI current plan</h2>${debugPlan()}`;return;}
+ const options=items=>items.map(([v,l])=>`<option value="${escape(v)}">${escape(l)}</option>`).join("");
+ const mons=pokemonRefs(state).map(x=>[x.ref,x.label]);
+ content.innerHTML=`<h2>Debug · acting as Player ${me+1}</h2>${note}
+<h3>View</h3><div class="debug-row"><button type="button" data-debug="deck">Show opponent deck</button><button type="button" data-debug="hand">Show opponent hand</button><button type="button" data-debug="plan">Show AI current plan</button></div>
+<h3>Test scenarios</h3><div class="debug-row">${debugScenarios.map(([id,label])=>`<button type="button" data-debug="${id}">${escape(label)}</button>`).join("")}</div>
+<h3>Put a card in my hand</h3><div class="debug-row"><select id="debug-card">${options(catalog.map(c=>[c.id,c.name]))}</select><button type="button" data-debug="addCardToHand">Add to hand</button></div>
+<h3>Edit a Pokémon</h3>${mons.length?`<div class="debug-row"><select id="debug-mon">${options(mons)}</select></div><div class="debug-row"><select id="debug-energy">${options(energyTypes.map(t=>[t,t+" Energy"]))}</select><button type="button" data-debug="addEnergy">Add Energy</button></div><div class="debug-row"><input id="debug-damage" type="number" min="0" step="10" value="0" aria-label="Damage"><button type="button" data-debug="setDamage">Set damage</button><button type="button" data-debug="heal">Heal</button></div>`:"<p>No Pokémon in play yet.</p>"}`;
+}
+// Applies a scenario like a real move: recorded in turn history, seen by the AI planner, then the AI may act.
+function runDebug(name){
+ const val=id=>$("#"+id)?.value,args=name==="addCardToHand"?{id:val("debug-card")}:name==="addEnergy"?{ref:val("debug-mon"),type:val("debug-energy")}:name==="setDamage"?{ref:val("debug-mon"),damage:Number(val("debug-damage"))}:name==="heal"?{ref:val("debug-mon")}:{};
+ const prev=state,r=debugCommands[name](state,debugMe(),args);
+ if(r.error){preview.message=r.error;renderDebug();return;}
+ turnHistory.record(prev,r.state,"debug",{command:name,...args});planner.onChange(prev,r.state,"debug");
+ state=r.state;error.textContent="";preview.message=r.message;render();renderDebug();queueAI();
+}
+$("#modal").addEventListener("click",e=>{const b=e.target.closest("[data-debug]");if(!b||preview?.type!=="debug")return;const name=b.dataset.debug;if(["menu","deck","hand","plan"].includes(name)){preview.view=name;preview.message="";renderDebug();}else runDebug(name);});
+$("#open-debug").addEventListener("click",openDebug);
