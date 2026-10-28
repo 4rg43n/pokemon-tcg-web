@@ -30,22 +30,19 @@ export function registerExternalCard(raw){
  catalog.push(entry);return entry;
 }
 export function defaultDeck(player){
- const counts={};
- const add=(id,n)=>counts[id]=(counts[id]||0)+n;
- // Beginner decks use one Energy type each, simple evolutions, and shared Trainers.
+ const counts={};const add=(id,n)=>counts[id]=(counts[id]||0)+n;
  if(player===0){
-  // Lightning: 16 Pokémon + 32 Lightning Energy + 12 Trainers = 60.
-  for(const [index,n] of [[2,4],[6,4],[0,4],[11,4]])add(`pokemon-${index}`,n);
+  // Lightning: Pikachu/Raichu and Voltorb/Electrode; 16 Pokémon, 32 Energy, 12 Trainers.
+  for(const [i,n] of [[2,4],[6,3],[0,2],[15,4],[16,3]])add(`pokemon-${i}`,n);
   add("energy-Lightning",32);
  }else{
-  // Fire: 24 Pokémon + 24 Fire Energy + 12 Trainers = 60.
-  for(const [index,n] of [[3,4],[8,4],[5,4],[7,4],[9,4],[10,4]])add(`pokemon-${index}`,n);
-  add("energy-Fire",24);
+  // Fire: Charmander/Charizard, Growlithe/Arcanine, Ponyta/Rapidash.
+  // 22 Pokémon, 26 Energy, 12 Trainers.
+  for(const [i,n] of [[12,4],[13,3],[14,2],[5,4],[7,3],[9,4],[10,2]])add(`pokemon-${i}`,n);
+  add("energy-Fire",26);
  }
- add("trainer-Potion",4);
- add("trainer-Quick Ball",4);
- add("trainer-Professor's Research",4);
- return {name:player===0?"Lightning Learner · Pikachu & Raichu":"Fire Learner · Growlithe & Ponyta",counts};
+ for(const name of ["Potion","Quick Ball","Professor's Research"])add("trainer-"+name,4);
+ return {name:player===0?"Lightning Learner · Pikachu & Electrode":"Fire Learner · Charizard & Arcanine",counts};
 }
 export function validateDeck(deck){
  const errors=[],warnings=[];let total=0,basics=0;
