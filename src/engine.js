@@ -105,7 +105,29 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
  return {state:s};
  }
  else if(card.name==="Professor's Research"){p.discard.push(...p.hand.filter((_,i)=>i!==idx));p.hand=[];for(let n=0;n<7&&p.deck.length;n++)p.hand.push(p.deck.shift());p.supporterUsed=true;message="Professor's Research drew "+p.hand.length+" cards.";p.discard.push(card);s.selection=null;s.log.unshift("Player "+(state.turn+1)+": "+message);return {state:s};}
- else if(card.external){message=card.name+" played (prototype: no automated effect).";}
+ else if(card.name==="Energy Retrieval"||card.name==="Fire Crystal"){
+  const max=card.name==="Fire Crystal"?3:2;
+  const eligible=p.discard.map((c,i)=>({c,i})).filter(({c})=>c.kind==="energy"&&(card.name!=="Fire Crystal"||c.type==="Fire")).slice(0,max);
+  for(const {i} of eligible.slice().reverse())p.hand.push(p.discard.splice(i,1)[0]);
+  message=card.name+" returned "+eligible.length+" Basic Energy card(s) from discard to hand.";
+ }
+ else if(card.name==="Professor's Letter"){
+  let found=0;
+  for(let i=p.deck.length-1;i>=0&&found<2;i--)if(p.deck[i].kind==="energy"){p.hand.push(p.deck.splice(i,1)[0]);found++;}
+  shuffle(p.deck);message="Professor's Letter searched for "+found+" Basic Energy card(s), then shuffled the deck.";
+ }
+ else if(card.name==="Pal Pad"){
+  const cards=p.discard.map((c,i)=>({c,i})).filter(({c})=>c.kind==="trainer"&&c.subtype==="Supporter").slice(0,2);
+  for(const {i} of cards.slice().reverse())p.deck.push(p.discard.splice(i,1)[0]);
+  shuffle(p.deck);message="Pal Pad shuffled "+cards.length+" Supporter card(s) from discard into the deck.";
+ }
+ else if(card.name==="VS Seeker"){
+  const index=p.discard.findIndex(c=>c.kind==="trainer"&&c.subtype==="Supporter");
+  if(index<0)return err(state,"VS Seeker requires a Supporter in the discard pile.");
+  const recovered=p.discard.splice(index,1)[0];p.hand.push(recovered);
+  message="VS Seeker returned "+recovered.name+" from discard to hand.";
+ }
+ else if(card.external){return err(state,card.name+" is not implemented yet. This card will remain in your hand until its effect is supported.");}
  else return err(state,"Unsupported Trainer.");
  p.hand.splice(idx,1);p.discard.push(card);if(card.subtype==="Supporter")p.supporterUsed=true;s.selection=null;s.log.unshift("Player "+(state.turn+1)+": "+message);return {state:s};
 }
