@@ -13,7 +13,6 @@ return dispatch(base,action,payload);
 const legal=(state,action,payload,handIndex)=>!probe(state,action,payload,handIndex).error;
 
 const boardTargets=player=>[{target:"active",slot:undefined,mon:player.active},...player.bench.map((mon,slot)=>({target:"bench",slot,mon}))].filter(entry=>entry.mon);
-const hpLeftOf=mon=>Math.max(0,mon.hp-(mon.damage||0));
 const payableAttacks=mon=>(mon.attacks||[]).map((attack,index)=>({attack,index})).filter(entry=>canPay(mon.energies,entry.attack.cost));
 const strongestPayable=mon=>payableAttacks(mon).filter(entry=>entry.attack.damage>0).sort((left,right)=>right.attack.damage-left.attack.damage)[0]||null;
 
@@ -27,8 +26,8 @@ if(!before&&after)return {...entry,reason:` so it can attack`};
 }
 const activeNeedsMore=player.active&&(player.active.attacks||[]).some(attack=>attack.damage>0&&!canPay(player.active.energies,attack.cost));
 if(activeNeedsMore)return {target:"active",slot:undefined,mon:player.active,reason:" to build toward its attack"};
-const benchEmpty=candidates.filter(entry=>entry.target==="bench").sort((left,right)=>left.mon.energies.length-right.mon.energies.length)[0];
-if(benchEmpty)return {...benchEmpty,reason:" so your next attacker is ready when it's needed"};
+const leastChargedBench=candidates.filter(entry=>entry.target==="bench").sort((left,right)=>left.mon.energies.length-right.mon.energies.length)[0];
+if(leastChargedBench)return {...leastChargedBench,reason:" so your next attacker is ready when it's needed"};
 return candidates[0]?{...candidates[0],reason:""}:null;
 }
 
@@ -68,7 +67,7 @@ return;
 }
 if(card.name==="Quick Ball"||card.name==="Ultra Ball"){
 const required=card.name==="Quick Ball"?1:2;
-const others=hand.map((_,otherIndex)=>otherIndex).filter(otherIndex=>otherIndex!==index);
+const others=[...hand.keys()].filter(otherIndex=>otherIndex!==index);
 if(others.length<required||!legal(state,"trainer",{discardIndices:others.slice(-required),searchIndex:null},index))return;
 options.push({index,priority:player.bench.length<5?72:30,text:`Use ${card.name}: tap it, press Play Trainer, choose ${required} other card${required===1?"":"s"} to discard, then pick ${card.name==="Quick Ball"?"a Basic Pokémon":"any Pokémon"} from your deck to add to your hand.`});
 return;
@@ -95,7 +94,7 @@ const active=player.active;
 if(!active||!opponent.active)return options;
 const strongest=strongestPayable(active);
 if(strongest&&legal(state,"attack",{index:strongest.index})){
-const knockout=strongest.attack.damage>=hpLeftOf(opponent.active);
+const knockout=strongest.attack.damage>=Math.max(0,opponent.active.hp-(opponent.active.damage||0));
 options.push({index:null,priority:knockout?95:55,button:"attack",text:knockout?`Attack with ${strongest.attack.name}: ${strongest.attack.damage} damage Knocks Out ${opponent.active.name}. Press Attack${active.attacks.length>1?" and choose "+strongest.attack.name:""}.`:`Attack with ${strongest.attack.name} for ${strongest.attack.damage} damage: press Attack${active.attacks.length>1?" and choose "+strongest.attack.name:""}. Attacking ends your turn, so do everything else first.`});
 }else{
 const utility=payableAttacks(active).find(entry=>entry.attack.damage===0&&entry.attack.effect!=="pickAndStick");
@@ -103,7 +102,7 @@ if(utility&&legal(state,"attack",{index:utility.index}))options.push({index:null
 }
 const threat=strongestPayable(opponent.active);
 const benchAttacker=player.bench.find(mon=>strongestPayable(mon));
-if(threat&&threat.attack.damage>=hpLeftOf(active)&&benchAttacker&&legal(state,"retreat",{}))options.push({index:null,priority:82,button:"retreat",text:`${active.name} would be Knocked Out by ${opponent.active.name}'s next attack. Press Retreat, then tap ${benchAttacker.name} to switch it in.`});
+if(threat&&threat.attack.damage>=Math.max(0,active.hp-(active.damage||0))&&benchAttacker&&legal(state,"retreat",{}))options.push({index:null,priority:82,button:"retreat",text:`${active.name} would be Knocked Out by ${opponent.active.name}'s next attack. Press Retreat, then tap ${benchAttacker.name} to switch it in.`});
 return options;
 }
 
@@ -112,19 +111,19 @@ const player=state.players[state.turn];
 if(state.winner!==null)return null;
 if(state.phase==="replacement"){
 const ready=player.bench.find(mon=>strongestPayable(mon));
-return {text:`Your Active was Knocked Out. Tap a Benched Pokémon to promote it${ready?`: ${ready.name} can attack right away`:""}. Check its Retreat Cost first: you may want to switch out later.`,playable:[],focus:null,button:null,unsupported:[]};
+return {text:`Your Active was Knocked Out. Tap a Benched Pokémon to promote it${ready?`: ${ready.name} can attack right away`:""}. Check its Retreat Cost first: you may want to switch out later.`,playable:[],focus:null,button:null};
 }
-if(state.phase==="retreat")return {text:"Tap the Benched Pokémon you want to switch in. The Energy for the Retreat Cost is discarded from the Pokémon that leaves.",playable:[],focus:null,button:null,unsupported:[]};
+if(state.phase==="retreat")return {text:"Tap the Benched Pokémon you want to switch in. The Energy for the Retreat Cost is discarded from the Pokémon that leaves.",playable:[],focus:null,button:null};
 const {options,unsupported}=handOptions(state);
 options.push(...boardOptions(state));
 options.sort((left,right)=>right.priority-left.priority);
 const playable=options.map(option=>option.index).filter(index=>index!==null);
 const note=unsupported.length?` ${[...new Set(unsupported)].join(", ")} can't be played in this prototype yet.`:"";
 if(state.phase==="setup"){
-if(options.length)return {text:options[0].text,playable,focus:options[0].index,button:null,unsupported};
-return {text:`Nothing else to play during setup: Energy and Trainers wait until the game starts.${note} Press Ready.`,playable,focus:null,button:"ready",unsupported};
+if(options.length)return {text:options[0].text,playable,focus:options[0].index,button:null};
+return {text:`Nothing else to play during setup: Energy and Trainers wait until the game starts.${note} Press Ready.`,playable,focus:null,button:"ready"};
 }
-if(options.length)return {text:options[0].text+note,playable,focus:options[0].index,button:options[0].button||null,unsupported};
+if(options.length)return {text:options[0].text+note,playable,focus:options[0].index,button:options[0].button||null};
 const firstTurn=state.turn===0&&state.round===1;
-return {text:`${firstTurn?"The player who goes first can't attack on turn one, and you have":"You have"} no moves left this turn.${note} Press End Turn.`,playable,focus:null,button:"end",unsupported};
+return {text:`${firstTurn?"The player who goes first can't attack on turn one, and you have":"You have"} no moves left this turn.${note} Press End Turn.`,playable,focus:null,button:"end"};
 }

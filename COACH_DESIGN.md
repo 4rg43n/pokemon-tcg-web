@@ -58,7 +58,7 @@ src/main.js ──act()──▶ engine.dispatch ──▶ new state
 
 ### `src/coach_moves.js` (next move)
 
-- `nextMove(state)` → `{text, playable, focus, button, unsupported}`. It never returns an empty instruction during a game.
+- `nextMove(state)` → `{text, playable, focus, button}`. It never returns an empty instruction during a game.
 - Legality comes from the engine itself: each candidate (play a Basic, evolve, attach Energy, each Trainer with a plausible payload, each unused Ability, the strongest affordable attack, retreat) is probed with `dispatch()` on a copy of the state, so the coach can only recommend what the game will accept.
 - Priority order: Knock Out available > retreat out of KO range > evolve > Ability > Research on a thin hand > ball search > bench a Basic > heal > Energy attachment > plain attack > Air Balloon. Setup lists Basics, then "press Ready". With nothing legal it says to end the turn, and names any Trainer the prototype cannot play.
 - `playable` lists every hand index with a legal move, `focus` the recommended one, `button` the action button to press (`ready`, `end`, `attack`, `retreat`).
