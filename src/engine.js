@@ -43,8 +43,9 @@ if(action==="ready"){
 if(s.phase==="replacement"){
  if(action!=="promote")return err(state,"Choose a Benched Pokémon to promote.");
  const slot=payload.slot;if(!Number.isInteger(slot)||slot<0||slot>=p.bench.length)return err(state,"Tap one of your Benched Pokémon.");
- p.active=p.bench.splice(slot,1)[0];s.phase="playing";s.selection=null;s.log.unshift("Player "+(s.turn+1)+" promoted "+p.active.name+".");return {state:s};
+ p.active=p.bench.splice(slot,1)[0];s.phase="playing";s.selection=null;s.round++;p.attached=false;p.retreated=false;if(p.deck.length)p.hand.push(p.deck.shift());else{s.winner=1-s.turn;s.log.unshift("Deck out!");}s.log.unshift("Player "+(s.turn+1)+" promoted "+p.active.name+".");return {state:s};
 }
+if(s.phase==="retreat"&&action!=="switch")return err(state,"Tap one of your Benched Pokémon to complete retreat.");
 if(s.phase==="setup"&&action!=="play")return err(state,"Finish opening setup first.");
 if(action==="play"){
 const idx=s.selection,card=p.hand[idx];
