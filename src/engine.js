@@ -1,15 +1,16 @@
 // Lightweight two-player prototype; intentionally not a complete official TCG rules engine.
 import {species,canPay} from "./cards.js?v=10";
-const pokemon=(i)=>({...species[i],damage:0,energy:0,energies:[]});
+const pokemon=(i)=>({...species[i],speciesIndex:i,damage:0,energy:0,energies:[],evolvedThisTurn:false,playedTurn:0,under:[]});
 const basic=(i)=>({kind:"pokemon",species:i});
 const energy=(type="Fire")=>({kind:"energy",type,name:type+" Energy"});
 const trainer=()=>({kind:"trainer",name:"Trainer (coming soon)"});
 function shuffle(cards){for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]];}return cards;}
 function player(i){
- const base=i===0?2:3;
- const cards=shuffle([...Array.from({length:18},(_,n)=>basic([base,4,5][n%3])),...Array.from({length:22},(_,n)=>energy(i===0?(n%3===0?"Fire":"Lightning"):(n%3===0?"Lightning":"Fire"))),...Array.from({length:20},trainer)]);
+ const basics=i===0?[2,2,2,4,4,4,2,4,2,4,2,4,2,4]:[3,3,3,5,5,5,3,5,3,5,3,5,3,5];
+ const evolutions=i===0?[6,6,6,6]:[7,7,8,8];
+ const cards=shuffle([...basics.map(basic),...evolutions.map(basic),...Array.from({length:22},(_,n)=>energy(i===0?(n%3===0?"Fire":"Lightning"):(n%3===0?"Lightning":"Fire"))),...Array.from({length:20},trainer)]);
  let hand=[],mulligans=0;
- do{if(hand.length)cards.push(...hand);shuffle(cards);hand=cards.splice(0,7);mulligans++;}while(!hand.some(c=>c.kind==="pokemon"));
+ do{if(hand.length)cards.push(...hand);shuffle(cards);hand=cards.splice(0,7);mulligans++;}while(!hand.some(c=>c.kind==="pokemon"&&!species[c.species].stage));
  const prizes=cards.splice(0,6);
  return {hand,deck:cards,prizeCards:prizes,discard:[],active:null,bench:[],prizes:prizes.length,attached:false,retreated:false,mulligans:mulligans-1};
 }
@@ -45,8 +46,10 @@ const idx=s.selection,card=p.hand[idx];
 if(!card)return err(state,"Select a card from your hand first.");
 if(card.kind==="trainer")return err(state,"Trainer card effects aren't implemented yet.");
 if(card.kind==="pokemon"){
-if(payload.target==="active"&&s.phase==="setup"&&!p.active){p.active=pokemon(card.species);message="Chose "+p.active.name+" as Active Pokémon.";}
-else if(payload.target==="bench"){if(!p.active)return err(state,"Choose your Active Pokémon first.");if(p.bench.length>=5)return err(state,"Your Bench is full.");p.bench.push(pokemon(card.species));message="Benched "+species[card.species].name+".";}
+const def=species[card.species];
+if(def.stage){if(s.phase==="setup")return err(state,"Evolution cards cannot be played during setup.");const target=payload.target==="active"?p.active:payload.target==="bench"?p.bench[payload.slot]:null;if(!target||target.name!==def.evolvesFrom)return err(state,def.name+" must evolve from "+def.evolvesFrom+".");if(target.playedTurn===s.round||target.evolvedThisTurn)return err(state,"Cannot evolve a Pokémon played or evolved this turn.");const evolved=pokemon(card.species);evolved.damage=target.damage;evolved.energies=target.energies;evolved.energy=evolved.energies.length;evolved.under=[...target.under,target.speciesIndex];evolved.playedTurn=target.playedTurn;evolved.evolvedThisTurn=true;if(payload.target==="active")p.active=evolved;else p.bench[payload.slot]=evolved;message="Evolved "+target.name+" into "+def.name+".";}
+else if(payload.target==="active"&&s.phase==="setup"&&!p.active){p.active=pokemon(card.species);p.active.playedTurn=s.round;message="Chose "+p.active.name+" as Active Pokémon.";}
+else if(payload.target==="bench"){if(!p.active)return err(state,"Choose your Active Pokémon first.");if(p.bench.length>=5)return err(state,"Your Bench is full.");const added=pokemon(card.species);added.playedTurn=s.round;p.bench.push(added);message="Benched "+species[card.species].name+".";}
 else return err(state,s.phase==="setup"?"Tap the empty Active slot or an empty Bench slot.":"Basic Pokémon must be played to the Bench.");
 }else if(card.kind==="energy"){
 if(p.attached)return err(state,"You can attach only one Energy per turn.");
@@ -71,7 +74,7 @@ const move=p.active.attacks[payload.index??0];if(!move)return err(state,"Choose 
 if(move.effect==="stoke"){let attached=0;for(let n=p.deck.length-1;n>=0&&attached<2;n--){if(p.deck[n].kind==="energy"&&p.deck[n].type==="Fire"){p.deck.splice(n,1);p.active.energies.push("Fire");attached++;}}p.active.energy=p.active.energies.length;shuffle(p.deck);message=p.active.name+" used Stoke and attached "+attached+" Fire Energy.";}
 else{o.active.damage+=move.damage;message=p.active.name+" used "+move.name+" for "+move.damage+" damage.";if(move.effect==="discardEnergy"){const type=p.active.energies.pop();p.active.energy=p.active.energies.length;p.discard.push(energy(type));message+=" Discarded "+type+" Energy.";}}
 if(o.active.damage>=o.active.hp){
-const prizeCount=o.active.name.endsWith(" ex")?2:1;for(let n=0;n<prizeCount&&p.prizeCards.length;n++)p.hand.push(p.prizeCards.pop());p.prizes=p.prizeCards.length;o.discard.push({kind:"pokemon",species:species.findIndex(x=>x.name===o.active.name)});for(const type of o.active.energies)o.discard.push(energy(type));message+=" Knockout! "+prizeCount+" Prize card(s) taken.";
+const prizeCount=o.active.name.endsWith(" ex")?2:1;for(let n=0;n<prizeCount&&p.prizeCards.length;n++)p.hand.push(p.prizeCards.pop());p.prizes=p.prizeCards.length;o.discard.push({kind:"pokemon",species:o.active.speciesIndex});for(const index of o.active.under)o.discard.push(basic(index));for(const type of o.active.energies)o.discard.push(energy(type));message+=" Knockout! "+prizeCount+" Prize card(s) taken.";
 if(p.prizes===0||o.bench.length===0){s.winner=s.turn;message+=" Game over!";}
 else{o.active=null;s.turn=1-s.turn;s.phase="replacement";s.selection=null;}
 }
@@ -88,7 +91,7 @@ const card=p.hand.splice(idx,1)[0];p.active.energies.push(card.type);p.active.en
 }else return err(state,"Unknown action.");
 s.log.unshift("Player "+(state.turn+1)+": "+message);return {state:s};
 }
-function next(s){s.turn=1-s.turn;s.round++;s.selection=null;s.players[s.turn].attached=false;s.players[s.turn].retreated=false;
+function next(s){s.turn=1-s.turn;s.round++;s.selection=null;s.players[s.turn].attached=false;s.players[s.turn].retreated=false;for(const mon of [s.players[s.turn].active,...s.players[s.turn].bench])if(mon)mon.evolvedThisTurn=false;
 if(s.players[s.turn].deck.length)s.players[s.turn].hand.push(s.players[s.turn].deck.shift());
 else{s.winner=1-s.turn;s.log.unshift("Deck out!");}}
 export function cardInfo(card){if(card.kind==="pokemon")return {...species[card.species],kind:"pokemon"};return card;}
