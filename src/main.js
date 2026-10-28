@@ -1,4 +1,4 @@
-import {newGame,dispatch,cardInfo} from "./engine.js?v=14";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=15";
 let state=newGame(),preview=null;
 const $=s=>document.querySelector(s),board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log");
 const escape=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -8,7 +8,7 @@ const {small=false,selected=false,back=false,empty=false,attrs=""}=opts;
 if(empty)return `<div class="tcg-card empty">${escape(data||"Empty")}</div>`;
 if(back)return '<div class="tcg-card back"><span>Pokémon</span></div>';
 if(data.kind==="energy")return `<div class="tcg-card energy ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="energy-symbol">⚡</div><strong>${escape(data.type||"Basic")} Energy</strong></div>`;
-if(data.kind==="trainer")return `<div class="tcg-card trainer ${small?"small":""} ${selected?"selected":""}" ${attrs}><span class="card-type">TRAINER</span><strong>Trainer</strong><small>Effect pending</small></div>`;
+if(data.kind==="trainer")return `<div class="tcg-card trainer ${small?"small":""} ${selected?"selected":""}" ${attrs}><span class="card-type">TRAINER</span><strong>${escape(data.name)}</strong><small>${escape(data.subtype||"Item")}</small></div>`;
 const c=data.kind==="pokemon"&&data.species!==undefined?cardInfo(data):data;
 return `<div class="tcg-card pokemon ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="card-top"><strong>${escape(c.name)}</strong><span>${c.hp} HP</span></div><img src="${c.printing?`https://images.pokemontcg.io/${c.printing.split("-")[0]}/${c.printing.split("-")[1]}.png`:sprite(c.id)}" alt="" loading="lazy"><div class="card-bottom"><span>${escape((c.energies||[]).map(x=>x==="Fire"?"🔥":"⚡").join("")||"—")}</span><span>${Math.max(0,c.hp-(c.damage||0))} HP</span></div></div>`;
 }
@@ -26,6 +26,7 @@ log.replaceChildren(...state.log.slice(0,15).map(x=>{const li=document.createEle
 document.querySelectorAll("button[data-action=attack],button[data-action=end]").forEach(b=>b.disabled=state.phase!=="playing"||state.winner!==null);
 const attack=document.querySelector("button[data-action=attack]");attack.textContent=p.active?.attacks?.length>1?"Choose Attack":"Attack";
 const retreat=document.querySelector("button[data-action=retreat]");retreat.textContent=`Retreat (${p.active?.retreat??1} Energy)`;retreat.hidden=state.phase!=="playing";retreat.disabled=state.phase!=="playing"||!state.players[state.turn].bench.length||state.players[state.turn].retreated||!p.active||p.active.energy<p.active.retreat;
+const playTrainer=document.querySelector("button[data-action=trainer]");playTrainer.hidden=state.phase!=="playing"||p.hand[state.selection]?.kind!=="trainer";
 const ready=document.querySelector("button[data-action=ready]");ready.hidden=state.phase!=="setup";ready.disabled=state.phase!=="setup"||!state.players[state.turn].active;
 }
 function act(action,payload){const r=dispatch(state,action,payload);state=r.state;error.textContent=r.error||"";render();}
@@ -37,7 +38,8 @@ if(target){if((state.phase==="replacement"||state.phase==="retreat")&&target.dat
 if(state.phase==="replacement"||state.phase==="retreat"){error.textContent="Tap one of your Benched Pokémon.";return;}
 if(state.selection!==null){if(target.dataset.target==="other"){error.textContent="Play cards on the current player's side.";return;}act("play",{target:target.dataset.target,slot:Number(target.dataset.slot)});}
 else{const i=target.closest(".side").classList.contains("opponent")?1:0;const p=state.players[i],c=target.classList.contains("active-slot")?p.active:p.bench[Number(target.dataset.slot)];if(c)showPreview(c);}return;}
-const pile=e.target.closest("[data-pile]");if(pile){const p=state.players[Number(pile.dataset.player)],cards=p[pile.dataset.pile];showPile(pile.dataset.pile,cards);}
+const pile=e.target.closest("[data-pile]");if(pile){const p=state.players[Number(pile.dataset.player)],cards=p[pile.dataset.pile];showPile(pile.dataset.pile,cards);return;}
+if(state.selection!==null)act("deselect");
 });
 function showPreview(c){const d=c.kind==="pokemon"&&c.species!==undefined?cardInfo(c):c;preview={type:"card",card:d};renderModal();}
 function showPile(type,cards){preview={type:"pile",name:type,cards};renderModal();}
@@ -48,5 +50,5 @@ else modal.querySelector(".modal-content").innerHTML=`<h2>${escape(preview.name)
 function showAttacks(){const moves=state.players[state.turn].active.attacks;preview={type:"attacks"};const modal=$("#modal");modal.hidden=false;modal.querySelector(".modal-content").innerHTML="<h2>Choose an attack</h2>"+moves.map((a,i)=>`<button type="button" data-attack="${i}" style="display:block;margin:12px 0;padding:12px;width:100%;text-align:left">${escape(a.name)} — ${escape(a.cost.join(" + "))} — ${a.damage} damage</button>`).join("");}
 $("#modal").addEventListener("click",e=>{const attack=e.target.closest("[data-attack]");if(attack){act("attack",{index:Number(attack.dataset.attack)});$("#modal").hidden=true;preview=null;return;}});
 $("#modal").addEventListener("click",e=>{if(e.target.id==="modal"||e.target.closest(".close-modal")){$("#modal").hidden=true;preview=null;}});
-document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.action==="attack"&&state.players[state.turn].active?.attacks?.length>1){showAttacks();return;}act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
+document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.action==="attack"&&state.players[state.turn].active?.attacks?.length>1){showAttacks();return;}if(b.dataset.action==="trainer"){const card=state.players[state.turn].hand[state.selection];if(card?.name==="Potion"){error.textContent="Tap a damaged Pokémon to use Potion.";return;}act("trainer");}else act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
 render();
