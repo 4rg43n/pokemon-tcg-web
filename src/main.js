@@ -1,7 +1,7 @@
-import {retreatCost,species} from "./cards.js?v=36";
+import {retreatCost,species} from "./cards.js?v=37";
 import {cardStats} from "./card-stats.js?v=27";
-import {newGame,dispatch,cardInfo} from "./engine.js?v=36";
-import {mountDeckBuilder} from "./deck-builder.js?v=36";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=37";
+import {mountDeckBuilder} from "./deck-builder.js?v=37";
 import {createRecorder} from "./history.js?v=27";
 import {createPlanner} from "./planning/planner.js?v=29";
 import {update as coachUpdate} from "./coach_ui.js?v=1";
