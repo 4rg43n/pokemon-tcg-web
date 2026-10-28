@@ -15,10 +15,17 @@ format decklists. The card pool and simplified effects remain unchanged.
 
 **Save both decks** stores both completed decks on the current browser only.
 **Start new game with these decks** asks before replacing the current match.
-**Back to game** preserves the match and keeps edits in memory until reload.
+**Back to menu** preserves the match and keeps edits in memory until reload.
 **New Game** restarts with the decks chosen for the current match. On a fresh
 page load, open the builder and start a match to use saved decks.
 
 To check the engine and deck validation, run `node --test tests/decks.test.mjs`.
 Serve the repository with `python -m http.server 8765` for local browser testing.
-All browser module and stylesheet cache keys are v16.
+All browser module and stylesheet cache keys are v17.
+
+## Main menu (v17)
+
+The page opens on a main menu. Choose **Play** to open the playmat or
+**Deck Builder** to edit decks. **Main Menu** on the playmat returns without
+resetting the match. The builder's **Back to menu** also preserves edits
+and the match. Starting a match from the builder opens the playmat directly.

@@ -1,7 +1,7 @@
-import {catalog,defaultDeck,validateDeck} from "./decks.js?v=16";
+import {catalog,defaultDeck,validateDeck} from "./decks.js?v=17";
 const storageKey="pokemon-tcg-decks-v1";
 const esc=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
-export function mountDeckBuilder({start,inspect}){
+export function mountDeckBuilder({start,inspect,onClose}){
  const root=document.querySelector("#deck-builder");
  let decks=[defaultDeck(0),defaultDeck(1)],player=0,query="",category="all",message="",confirmStart=false;
  try{const saved=JSON.parse(localStorage.getItem(storageKey));if(Array.isArray(saved)&&saved.length===2&&saved.every(d=>typeof d?.name==="string"&&!validateDeck(d).errors.length))decks=saved;}catch{message="Saved decks could not be loaded. Starter decks are available.";}
@@ -10,7 +10,7 @@ export function mountDeckBuilder({start,inspect}){
  const visible=catalog.filter(c=>(category==="all"||c.category===category)&&`${c.name} ${c.detail}`.toLowerCase().includes(query.toLowerCase()));
  const totals=Object.fromEntries(["pokemon","trainer","energy"].map(type=>[type,catalog.filter(c=>c.category===type).reduce((sum,c)=>sum+(deck.counts[c.id]||0),0)]));
  const bothReady=decks.every(d=>!validateDeck(d).errors.length);
- root.innerHTML=`<div class="builder-shell"><div class="builder-heading"><div><p class="builder-eyebrow">YOUR CARDS. YOUR STRATEGY.</p><h2>Build your deck</h2></div><button type="button" data-builder="close">Back to game</button></div>
+ root.innerHTML=`<div class="builder-shell"><div class="builder-heading"><div><p class="builder-eyebrow">YOUR CARDS. YOUR STRATEGY.</p><h2>Build your deck</h2></div><button type="button" data-builder="close">Back to menu</button></div>
  <p class="builder-note">Educational prototype · Only cards supported by this game are available. Card data and effects are incomplete; this editor does not certify official format legality. Copy-limit warnings are allowed for prototype play.</p>
  <div class="builder-players" role="group" aria-label="Choose player">${decks.map((d,i)=>`<button type="button" data-player="${i}" aria-pressed="${player===i}">Player ${i+1} · ${esc(d.name)}</button>`).join("")}</div>
  <div class="builder-layout"><div class="builder-library"><h3>Card library</h3><div class="builder-filters"><label>Search cards<input id="deck-search" type="search" value="${esc(query)}" placeholder="Name, type, or evolution…"></label><label>Card type<select id="deck-category">${[["all","All cards"],["pokemon","Pokémon"],["trainer","Trainers"],["energy","Energy"]].map(([id,label])=>`<option value="${id}" ${category===id?"selected":""}>${label}</option>`).join("")}</select></label></div>
@@ -20,7 +20,7 @@ export function mountDeckBuilder({start,inspect}){
  <div class="deck-tools"><button type="button" data-builder="starter">Load starter</button><button type="button" data-builder="clear">Clear deck</button></div><p class="builder-note">Edits are kept while this page is open. Save both decks to keep them on this browser. Starting a new game ends the current match.</p><button type="button" data-builder="save" ${bothReady?"":"disabled"}>Save both decks</button><button type="button" data-builder="start" ${bothReady?"":"disabled"}>Start new game with these decks</button>
  ${confirmStart?'<div class="deck-confirm"><p>End the current match and deal these decks?</p><button type="button" data-builder="confirm">Start new match</button><button type="button" data-builder="cancel">Keep editing</button></div>':""}<p id="deck-message" role="status">${esc(message)}</p></aside></div></div>`;
  }
- function close(){root.hidden=true;document.querySelector("main").hidden=false;document.querySelector("#open-decks").focus();}
+ function close(started=false){root.hidden=true;if(onClose){onClose(started);return;}document.querySelector("main").hidden=false;document.querySelector("#open-decks").focus();}
  root.addEventListener("input",e=>{
  if(e.target.id==="deck-name"){decks[player].name=e.target.value;confirmStart=false;return;}
  if(e.target.id==="deck-search"){query=e.target.value;const pos=e.target.selectionStart;render();const input=root.querySelector("#deck-search");input.focus();input.setSelectionRange(pos,pos);}
@@ -42,7 +42,7 @@ export function mountDeckBuilder({start,inspect}){
  }
  if(action==="start")confirmStart=true;
  if(action==="cancel")confirmStart=false;
- if(action==="confirm"){if(decks.some(d=>validateDeck(d).errors.length))return;start(structuredClone(decks));close();confirmStart=false;return;}
+ if(action==="confirm"){if(decks.some(d=>validateDeck(d).errors.length))return;start(structuredClone(decks));close(true);confirmStart=false;return;}
  if(action==="clear"||action==="starter"){confirmStart=false;message="";}
  render();
  });

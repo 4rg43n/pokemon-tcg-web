@@ -1,5 +1,5 @@
-import {newGame,dispatch,cardInfo} from "./engine.js?v=16";
-import {mountDeckBuilder} from "./deck-builder.js?v=16";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=17";
+import {mountDeckBuilder} from "./deck-builder.js?v=17";
 let state=newGame(),preview=null,matchDecks=null;
 const $=s=>document.querySelector(s),board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log");
 const escape=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -54,5 +54,22 @@ $("#modal").addEventListener("click",e=>{if(e.target.id==="modal"||e.target.clos
 document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.action==="attack"&&state.players[state.turn].active?.attacks?.length>1){showAttacks();return;}if(b.dataset.action==="trainer"){const card=state.players[state.turn].hand[state.selection];if(card?.name==="Potion"){error.textContent="Tap a damaged Pokémon to use Potion.";return;}act("trainer");}else act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
 render();
 
-const deckBuilder=mountDeckBuilder({start(decks){matchDecks=structuredClone(decks);state=newGame(matchDecks);error.textContent="";preview=null;$("#modal").hidden=true;render();},inspect:showPreview});
+const deckBuilder=mountDeckBuilder({start(decks){matchDecks=structuredClone(decks);state=newGame(matchDecks);error.textContent="";preview=null;$("#modal").hidden=true;render();},inspect:showPreview,onClose:started=>started?showGame():showMenu()});
 $("#open-decks").addEventListener("click",()=>deckBuilder.open());
+
+function hideModal(){preview=null;$("#modal").hidden=true;}
+function showMenu(){
+ hideModal();$("main").hidden=true;$("#deck-builder").hidden=true;$("#main-menu").hidden=false;
+ $("#menu-play").textContent="";
+ const title=document.createElement("strong");title.textContent=state.winner!==null?"View finished game":state.phase==="setup"?"Play":"Resume Game";
+ const hint=document.createElement("span");hint.textContent="Return to the current playmat";
+ $("#menu-play").append(title,hint);$("#menu-play").focus();window.scrollTo(0,0);
+}
+function showGame(){hideModal();$("#main-menu").hidden=true;$("#deck-builder").hidden=true;$("main").hidden=false;render();$("#open-menu").focus();window.scrollTo(0,0);}
+function openBuilder(){hideModal();$("#main-menu").hidden=true;deckBuilder.open();window.scrollTo(0,0);}
+$("#menu-play").disabled=false;$("#menu-decks").disabled=false;
+$("#menu-message").textContent="Your match stays in memory while you visit the menu. Save decks to keep them after reloading.";
+$("#menu-play").addEventListener("click",showGame);
+$("#menu-decks").addEventListener("click",openBuilder);
+$("#open-menu").addEventListener("click",showMenu);
+showMenu();
