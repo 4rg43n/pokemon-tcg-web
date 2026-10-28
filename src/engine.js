@@ -247,7 +247,7 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
  else if(card.name==="Rare Candy"){
   const target=payload.target==="bench"?p.bench[payload.slot]:p.active;
   const evolution=p.hand[payload.evolutionIndex];
-  if(!target||!evolution||evolution.kind!=="pokemon"||species[evolution.species]?.stage!==2||species[evolution.species]?.evolvesFrom===target.name||target.playedTurn===s.round||target.evolvedThisTurn)return err(state,"Select a Basic Pokémon and a compatible Stage 2 Rare Candy evolution.");
+  if(!target||!evolution||evolution.kind!=="pokemon"||species[evolution.species]?.stage!==2||!target.name||!!species[target.speciesIndex]?.stage||!species.some(x=>x.name===species[evolution.species]?.evolvesFrom&&x.evolvesFrom===target.name)||target.playedTurn===s.round||target.evolvedThisTurn)return err(state,"Select a Basic Pokémon and a compatible Stage 2 Rare Candy evolution.");
   const evolved=pokemon(evolution.species);evolved.energies=target.energies;evolved.energy=target.energy;evolved.damage=target.damage;evolved.tool=target.tool;evolved.under=[...target.under,target.speciesIndex];evolved.playedTurn=target.playedTurn;evolved.evolvedThisTurn=true;
   if(payload.target==="bench")p.bench[payload.slot]=evolved;else p.active=evolved;
   p.hand.splice(payload.evolutionIndex,1);message="Rare Candy evolved "+target.name+" into "+evolved.name+".";
