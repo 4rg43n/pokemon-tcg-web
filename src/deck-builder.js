@@ -69,7 +69,7 @@ export function mountDeckBuilder({start,inspect,onClose}){
  }
  if(action==="start"&&playable)confirmStart=true;
  if(action==="cancel")confirmStart=false;
- if(action==="confirm"){if(!playable)return;start(structuredClone(decks));close(true);confirmStart=false;return;}
+ if(action==="confirm"){if(!playable){message="Both players need valid 60-card decks before starting.";render();return;}try{start(structuredClone(decks));confirmStart=false;close(true);}catch(error){message="Could not start match: "+(error?.message||String(error));confirmStart=false;render();}return;}
  if(action==="clear"||action==="starter"){confirmStart=false;message="";}
  render();
  });
