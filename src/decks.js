@@ -18,7 +18,7 @@ export function registerExternalCard(raw){
  const subtype=subtypes.find(t=>/item|supporter|stadium|tool/i.test(t))||"";
  const card={kind:category,name:raw.name,subtype,set:raw.set?.tcgOnline||raw.set?.id||raw.setCode||"",number:String(raw.number||""),printing:raw.id,image:raw.imageUrl||"",external:true};
  if(category==="pokemon"){
-  const stage=/stage\\s*2/i.test(raw.stage||"")||/^(Dragapult ex)$/i.test(raw.name)?2:/stage\\s*1/i.test(raw.stage||"")||/^(Drakloak|Dudunsparce)$/i.test(raw.name)?1:0;
+  const stage=/stage\s*2/i.test(raw.stage||"")||/^(Dragapult ex)$/i.test(raw.name)?2:/stage\s*1/i.test(raw.stage||"")||/^(Drakloak|Dudunsparce)$/i.test(raw.name)?1:0;
   const evolvesFrom=raw.evolveFrom||raw.evolvesFrom||({"Drakloak":"Dreepy","Dragapult ex":"Drakloak","Dudunsparce":"Dunsparce"})[raw.name]||"";
   const index=species.length;
   species.push({name:raw.name,hp:Number(raw.hp)|| (stage===2?280:stage===1?120:80),id:0,type:"Colorless",stage,evolvesFrom,retreat:1,attacks:[{name:"Prototype Attack",cost:["Colorless"],damage:30}],image:raw.imageUrl||"",printing:raw.id,external:true});
@@ -55,7 +55,7 @@ export function validateDeck(deck){
  if(total!==60)errors.push(`Needs exactly 60 cards (${total}/60).`);
  if(!basics)errors.push("Add at least one Basic Pokémon.");
  for(const [name,n] of names)if(n>4)errors.push(`${name}: maximum four copies across printings.`);
- if(Object.entries(deck.counts).some(([id,n])=>n>0&&catalog.find(c=>c.id===id)?.external))warnings.push("External cards can be saved but cannot yet be played in the automated simulator.");
+ if(Object.entries(deck.counts).some(([id,n])=>n>0&&catalog.find(c=>c.id===id)?.external))warnings.push("Imported cards use simplified prototype rules; official card effects may be unavailable.");
  return {errors,warnings,total,basics};
 }
 export function expandDeck(deck){
