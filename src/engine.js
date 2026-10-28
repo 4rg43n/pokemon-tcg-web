@@ -1,12 +1,5 @@
 // Lightweight two-player prototype; intentionally not a complete official TCG rules engine.
-const species=[
-{name:"Pikachu ex",hp:200,attack:60,id:25},
-{name:"Armarouge ex",hp:260,attack:70,id:936},
-{name:"Pikachu",hp:70,attack:20,id:25},
-{name:"Charcadet",hp:70,attack:20,id:935},
-{name:"Eevee",hp:70,attack:20,id:133},
-{name:"Growlithe",hp:80,attack:30,id:58}
-];
+import {species} from "./cards.js?v=9";
 const pokemon=(i)=>({...species[i],damage:0,energy:0});
 const basic=(i)=>({kind:"pokemon",species:i});
 const energy=()=>({kind:"energy",name:"Basic Energy"});
@@ -65,17 +58,17 @@ p.hand.splice(idx,1);s.selection=null;
 }else if(action==="retreat"){
  if(p.retreated)return err(state,"You can retreat only once per turn.");
  if(!p.bench.length)return err(state,"You need a Benched Pokémon to retreat.");
- if(p.active.energy<1)return err(state,"Retreat requires discarding one attached Energy.");
+ if(p.active.energy<p.active.retreat)return err(state,"Retreat requires "+p.active.retreat+" attached Energy.");
  s.phase="retreat";s.selection=null;s.log.unshift("Player "+(s.turn+1)+": choose a Benched Pokémon to switch in.");return {state:s};
 }else if(action==="switch"){
  if(s.phase!=="retreat")return err(state,"You are not retreating.");
  const slot=payload.slot;if(!Number.isInteger(slot)||slot<0||slot>=p.bench.length)return err(state,"Choose a Benched Pokémon.");
- const outgoing=p.active;outgoing.energy--;p.discard.push(energy());p.active=p.bench.splice(slot,1)[0];p.bench.push(outgoing);p.retreated=true;s.phase="playing";s.selection=null;message="Retreated "+outgoing.name+" and promoted "+p.active.name+".";
+ const outgoing=p.active;outgoing.energy-=outgoing.retreat;for(let n=0;n<outgoing.retreat;n++)p.discard.push(energy());p.active=p.bench.splice(slot,1)[0];p.bench.push(outgoing);p.retreated=true;s.phase="playing";s.selection=null;message="Retreated "+outgoing.name+" and promoted "+p.active.name+".";
 }else if(action==="attack"){
 if(s.phase!=="playing")return err(state,"Finish the current Pokémon switch first.");
 if(s.turn===0&&s.round===1)return err(state,"Player 1 cannot attack on the first turn.");
-if(p.active.energy<1)return err(state,"Your Active Pokémon needs at least one Energy.");
-o.active.damage+=p.active.attack;message=p.active.name+" dealt "+p.active.attack+" damage.";
+const move=p.active.attacks[0];if(p.active.energy<move.cost)return err(state,move.name+" requires "+move.cost+" Energy (attached: "+p.active.energy+").");
+o.active.damage+=move.damage;message=p.active.name+" used "+move.name+" for "+move.damage+" damage.";
 if(o.active.damage>=o.active.hp){
 const prizeCount=o.active.name.endsWith(" ex")?2:1;for(let n=0;n<prizeCount&&p.prizeCards.length;n++)p.hand.push(p.prizeCards.pop());p.prizes=p.prizeCards.length;o.discard.push({kind:"pokemon",species:species.findIndex(x=>x.name===o.active.name)});for(let n=0;n<o.active.energy;n++)o.discard.push(energy());message+=" Knockout! "+prizeCount+" Prize card(s) taken.";
 if(p.prizes===0||o.bench.length===0){s.winner=s.turn;message+=" Game over!";}
