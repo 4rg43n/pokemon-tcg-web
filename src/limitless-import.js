@@ -20,7 +20,7 @@ export function parseLimitless(text, catalog) {
  for(const row of rows){
   const matches=catalog.filter(c=>c.name.toLocaleLowerCase()===row.name.toLocaleLowerCase() &&
    String(c.card?.set||c.card?.printing?.split("-")[0]||"").toUpperCase()===row.set &&
-   String(c.card?.number||"").replace(/^0+/,"").toUpperCase()===row.number.replace(/^0+/,"").toUpperCase());
+   String(c.card?.number||"").split("/")[0].replace(/^0+/,"").toUpperCase()===row.number.replace(/^0+/,"").toUpperCase());
   if(matches.length!==1){errors.push(`Line ${row.line}: ${row.name} ${row.set} ${row.number} ${matches.length?"ambiguous":"not in playable catalog"}; no replacement made.`);continue;}
   counts[matches[0].id]=(counts[matches[0].id]||0)+row.quantity;
  }
