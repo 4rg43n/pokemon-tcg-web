@@ -1,19 +1,45 @@
-import {newGame,dispatch} from "./engine.js";
-let state=newGame();
-const board=document.querySelector("#board"),status=document.querySelector("#status"),error=document.querySelector("#error"),log=document.querySelector("#log");
-const safe=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
-const card=(label,kind="empty",extra="")=>`<div class="card ${kind}"><span class="name">${safe(label)}</span>${extra?`<small>${safe(extra)}</small>`:""}</div>`;
+import {newGame,dispatch,cardInfo} from "./engine.js";
+let state=newGame(),preview=null;
+const $=s=>document.querySelector(s),board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log");
+const escape=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+const sprite=id=>`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+function cardHtml(data,opts={}){
+const {small=false,selected=false,back=false,empty=false,attrs=""}=opts;
+if(empty)return `<div class="tcg-card empty">${escape(data||"Empty")}</div>`;
+if(back)return '<div class="tcg-card back"><span>Pokémon</span></div>';
+if(data.kind==="energy")return `<div class="tcg-card energy ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="energy-symbol">⚡</div><strong>Energy</strong></div>`;
+if(data.kind==="trainer")return `<div class="tcg-card trainer ${small?"small":""} ${selected?"selected":""}" ${attrs}><span class="card-type">TRAINER</span><strong>Trainer</strong><small>Effect pending</small></div>`;
+const c=data.kind==="pokemon"&&data.species!==undefined?cardInfo(data):data;
+return `<div class="tcg-card pokemon ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="card-top"><strong>${escape(c.name)}</strong><span>${c.hp} HP</span></div><img src="${sprite(c.id)}" alt="" loading="lazy"><div class="card-bottom"><span>⚡ ${c.energy||0}</span><span>${Math.max(0,c.hp-(c.damage||0))} HP</span></div></div>`;
+}
 function side(p,i){
-const opponent=i===1,bench=[...p.bench];while(bench.length<5)bench.push(null);
-const prizes=Array.from({length:6},(_,n)=>`<div class="card tiny ${n<p.prizes?"back":"empty"}">${n<p.prizes?"★":""}</div>`).join("");
-const active=card(p.active.name,"pokemon active-card",`${Math.max(0,p.active.hp-p.active.damage)}/${p.active.hp} HP · ⚡ ${p.active.energy}`);
-const benchHtml=bench.map(x=>x?card(x.name,"pokemon",`${x.hp-x.damage} HP`):card("Bench")).join("");
-return `<section class="side ${opponent?"opponent":"self"} ${state.turn===i?"current":""}"><div class="prize-area"><p class="zone-label">Prizes · ${p.prizes}</p><div class="prizes">${prizes}</div></div><div class="field"><div class="player-label">Player ${i+1} · ${opponent?"Armarouge ex":"Pikachu ex"}</div><div class="bench-zone"><p class="zone-label">Bench</p><div class="bench-row">${benchHtml}</div></div><div class="active-row"><div><p class="zone-label">Active Pokémon</p>${active}</div></div></div><div class="pile-area"><div><p class="zone-label">Deck · ${p.deck.length}</p>${card("Deck","back tiny")}</div><div><p class="zone-label">Discard · ${p.discard?.length||0}</p>${card("Discard","empty tiny")}</div></div></section>`;
+const own=i===state.turn;
+const bench=Array.from({length:5},(_,n)=>`<div class="slot" data-target="${own?"bench":"other"}" data-slot="${n}">${p.bench[n]?cardHtml(p.bench[n],{small:true}):cardHtml("Bench",{empty:true})}</div>`).join("");
+const prizes=Array.from({length:6},(_,n)=>`<div class="prize">${n<p.prizes?cardHtml(null,{back:true}):'<div class="prize-taken"></div>'}</div>`).join("");
+return `<section class="side ${i===1?"opponent":"self"} ${own?"current":""}"><div class="prize-area"><div class="zone-label">Prizes · ${p.prizes}</div><div class="prizes">${prizes}</div></div><div class="field"><div class="player-label">Player ${i+1} ${own?"• CURRENT TURN":""}</div><div class="bench-row">${bench}</div><div class="active-row"><div class="slot active-slot" data-target="${own?"active":"other"}">${cardHtml(p.active)}</div></div></div><div class="pile-area"><div class="pile" data-pile="deck" data-player="${i}"><div class="zone-label">Deck · ${p.deck.length}</div>${cardHtml(null,{back:true})}</div><div class="pile" data-pile="discard" data-player="${i}"><div class="zone-label">Discard · ${p.discard.length}</div>${p.discard.length?cardHtml(p.discard[p.discard.length-1],{small:true}):cardHtml("Discard",{empty:true})}</div></div></section>`;
 }
 function render(){
+const p=state.players[state.turn];
 status.textContent=state.winner===null?`Player ${state.turn+1}'s turn · Turn ${state.round}`:`Player ${state.winner+1} wins!`;
-board.innerHTML=`<div class="mat">${side(state.players[1],1)}<div class="divider"></div>${side(state.players[0],0)}<div class="hand"><p class="zone-label">Current player's hand · ${state.players[state.turn].hand.length} cards</p><div class="hand-cards">${state.players[state.turn].hand.map(x=>`<span class="hand-chip">${safe(x)}</span>`).join("")}</div></div></div>`;
+board.innerHTML=`<div class="mat">${side(state.players[1],1)}<div class="divider"></div>${side(state.players[0],0)}<div class="hand"><div class="zone-label">Player ${state.turn+1}'s hand · ${p.hand.length} cards</div><div class="hand-cards">${p.hand.map((c,i)=>cardHtml(c,{small:true,selected:i===state.selection,attrs:`data-hand="${i}"`})).join("")}</div><p class="hint">Tap a hand card, then a Bench slot or Pokémon to play it. Tap a card again to inspect.</p></div></div>`;
 log.replaceChildren(...state.log.slice(0,15).map(x=>{const li=document.createElement("li");li.textContent=x;return li;}));
 document.querySelectorAll("button:not([data-action=reset])").forEach(b=>b.disabled=state.winner!==null);
 }
-document.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{const result=dispatch(state,b.dataset.action);state=result.state;error.textContent=result.error||"";render();}));render();
+function act(action,payload){const r=dispatch(state,action,payload);state=r.state;error.textContent=r.error||"";render();}
+board.addEventListener("click",e=>{
+const hand=e.target.closest("[data-hand]");
+if(hand){const idx=Number(hand.dataset.hand);if(state.selection===idx){showPreview(state.players[state.turn].hand[idx]);}else act("select",{index:idx});return;}
+const target=e.target.closest("[data-target]");
+if(target){if(state.selection!==null){if(target.dataset.target==="other"){error.textContent="Play cards on the current player's side.";return;}act("play",{target:target.dataset.target,slot:Number(target.dataset.slot)});}
+else{const i=target.closest(".side").classList.contains("opponent")?1:0;const p=state.players[i],c=target.dataset.target==="active"?p.active:p.bench[Number(target.dataset.slot)];if(c)showPreview(c);}return;}
+const pile=e.target.closest("[data-pile]");if(pile){const p=state.players[Number(pile.dataset.player)],cards=p[pile.dataset.pile];showPile(pile.dataset.pile,cards);}
+});
+function showPreview(c){const d=c.kind==="pokemon"&&c.species!==undefined?cardInfo(c):c;preview={type:"card",card:d};renderModal();}
+function showPile(type,cards){preview={type:"pile",name:type,cards};renderModal();}
+function renderModal(){const modal=$("#modal");if(!preview){modal.hidden=true;return;}modal.hidden=false;
+if(preview.type==="card"){const c=preview.card;modal.querySelector(".modal-content").innerHTML=cardHtml(c)+`<p>${escape(c.name||"")}${c.attack?" · Attack: "+c.attack+" damage":""}</p>`;}
+else modal.querySelector(".modal-content").innerHTML=`<h2>${escape(preview.name)} · ${preview.cards.length} cards</h2><div class="pile-list">${preview.name==="deck"?"Deck contents are hidden during play.":preview.cards.length?preview.cards.map(c=>cardHtml(c,{small:true})).join(""):"No cards yet."}</div>`;
+}
+$("#modal").addEventListener("click",e=>{if(e.target.id==="modal"||e.target.closest(".close-modal")){$("#modal").hidden=true;preview=null;}});
+document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
+render();
