@@ -1,4 +1,4 @@
-import {species,energyTypes} from "./cards.js?v=36";
+import {species,energyTypes} from "./cards.js?v=43";
 export const pokemonCard=species=>({kind:"pokemon",species});
 export const energyCard=type=>({kind:"energy",type,name:type+" Energy"});
 export const trainerCard=name=>({image:name==="Quick Ball"?"assets/cards/quick-ball.jpg":name==="Ultra Ball"?"assets/cards/ultra-ball.jpg":undefined,kind:"trainer",name,subtype:name==="Air Balloon"?"Pokémon Tool":name==="Professor's Research"?"Supporter":"Item"});
@@ -18,7 +18,7 @@ export function registerExternalCard(raw){
  const subtype=subtypes.find(t=>/item|supporter|stadium|tool/i.test(t))||"";
  const card={kind:category,name:raw.name,subtype,set:raw.set?.tcgOnline||raw.set?.id||raw.setCode||"",number:String(raw.number||""),printing:raw.id,image:raw.imageUrl||"",external:true};
  if(category==="pokemon"){
-  const stage=/stage\\s*2/i.test(raw.stage||"")||/^(Dragapult ex)$/i.test(raw.name)?2:/stage\\s*1/i.test(raw.stage||"")||/^(Drakloak|Dudunsparce)$/i.test(raw.name)?1:0;
+  const stage=/stage\s*2/i.test(raw.stage||"")||/^(Dragapult ex)$/i.test(raw.name)?2:/stage\s*1/i.test(raw.stage||"")||/^(Drakloak|Dudunsparce)$/i.test(raw.name)?1:0;
   const evolvesFrom=raw.evolveFrom||raw.evolvesFrom||({"Drakloak":"Dreepy","Dragapult ex":"Drakloak","Dudunsparce":"Dunsparce"})[raw.name]||"";
   const index=species.length;
   species.push({name:raw.name,hp:Number(raw.hp)|| (stage===2?280:stage===1?120:80),id:0,type:"Colorless",stage,evolvesFrom,retreat:1,attacks:[{name:"Prototype Attack",cost:["Colorless"],damage:30}],image:raw.imageUrl||"",printing:raw.id,external:true});
@@ -30,15 +30,19 @@ export function registerExternalCard(raw){
  catalog.push(entry);return entry;
 }
 export function defaultDeck(player){
- const counts={};
- const add=(id,n)=>counts[id]=(counts[id]||0)+n;
- // Exactly 60 cards, with no more than four copies of any non-Basic Energy name.
- const pokemon=player===0?[[2,4],[4,4],[6,3],[10,3],[11,2]]:[[3,4],[5,4],[7,3],[8,3],[9,2]];
- for(const [index,n] of pokemon)add(`pokemon-${index}`,n);
- add("energy-Fire",player===0?12:20);
- add("energy-Lightning",player===0?20:12);
- add("trainer-Potion",4);add("trainer-Quick Ball",4);add("trainer-Professor's Research",4);
- return {name:player===0?"Lightning starter":"Fire starter",counts};
+ const counts={};const add=(id,n)=>counts[id]=(counts[id]||0)+n;
+ if(player===0){
+  // Lightning: Pikachu/Raichu and Voltorb/Electrode; 16 Pokémon, 32 Energy, 12 Trainers.
+  for(const [i,n] of [[2,4],[6,3],[0,2],[15,4],[16,3]])add(`pokemon-${i}`,n);
+  add("energy-Lightning",32);
+ }else{
+  // Fire: Charmander/Charizard, Growlithe/Arcanine, Ponyta/Rapidash.
+  // 22 Pokémon, 26 Energy, 12 Trainers.
+  for(const [i,n] of [[12,4],[13,3],[14,2],[5,4],[7,3],[9,4],[10,2]])add(`pokemon-${i}`,n);
+  add("energy-Fire",26);
+ }
+ for(const name of ["Potion","Quick Ball","Professor's Research"])add("trainer-"+name,4);
+ return {name:player===0?"Lightning Learner · Pikachu & Electrode":"Fire Learner · Charizard & Arcanine",counts};
 }
 export function validateDeck(deck){
  const errors=[],warnings=[];let total=0,basics=0;
@@ -55,7 +59,7 @@ export function validateDeck(deck){
  if(total!==60)errors.push(`Needs exactly 60 cards (${total}/60).`);
  if(!basics)errors.push("Add at least one Basic Pokémon.");
  for(const [name,n] of names)if(n>4)errors.push(`${name}: maximum four copies across printings.`);
- if(Object.entries(deck.counts).some(([id,n])=>n>0&&catalog.find(c=>c.id===id)?.external))warnings.push("External cards can be saved but cannot yet be played in the automated simulator.");
+ if(Object.entries(deck.counts).some(([id,n])=>n>0&&catalog.find(c=>c.id===id)?.external))warnings.push("Imported cards use simplified prototype rules; official card effects may be unavailable.");
  return {errors,warnings,total,basics};
 }
 export function expandDeck(deck){

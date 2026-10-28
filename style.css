@@ -45,3 +45,22 @@ main[hidden]~#coach{display:none}
 #open-debug{position:fixed;left:12px;bottom:12px;z-index:5;margin:0;padding:6px 12px;min-height:0;font-size:.8rem;background:#3a2a4a;color:#e6d4ff;border:1px dashed #b89ee0;opacity:.85}
 .debug-row{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;margin:6px 0}.debug-row button{margin:0}
 .debug-message{color:#f9d36b;font-weight:700}.debug-card{display:inline-flex;flex-direction:column;align-items:center}.debug-json{text-align:left;font-size:.75rem;max-height:40vh;overflow:auto}
+/* Player 2 plan timeline: circles are actions, squares are opponent checkpoints. */
+#ai-graph{margin:12px 0;color:#e9eaf4}
+.plan-legend{display:flex;gap:10px;flex-wrap:wrap;font-size:.78rem;margin-bottom:14px}
+.plan-key{display:inline-flex;align-items:center;gap:6px}
+.plan-key:before{content:"";width:11px;height:11px;border-radius:50%;background:#8a909d;display:inline-block}
+.plan-key.pending:before{background:#9c74e8}.plan-key.matched:before{background:#46b87d;border-radius:2px}.plan-key.tolerated:before{background:#e4bc4d;border-radius:2px}.plan-key.invalidated:before{background:#e56568;border-radius:2px}
+.plan-group{border:1px solid #596273;border-radius:10px;padding:12px;margin:12px 0;background:#151d2c}
+.plan-group-head{font-size:.86rem;font-weight:700;margin-bottom:14px;overflow-wrap:anywhere}
+.plan-flow{display:flex;align-items:flex-start;overflow-x:auto;gap:0;padding:4px 0 12px}
+.plan-node{flex:0 0 100px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:7px;font-size:.74rem}
+.plan-shape{width:40px;height:40px;display:grid;place-items:center;border-radius:50%;background:#858b98;color:#101724;font-weight:800;border:2px solid #c6c9d0}
+.plan-node.opponent .plan-shape{border-radius:7px}
+.plan-node.pending .plan-shape{background:#9c74e8;border-color:#c6aff8}
+.plan-node.opponent.matched .plan-shape{background:#46b87d;border-color:#a0e6bb}
+.plan-node.opponent.tolerated .plan-shape{background:#e4bc4d;border-color:#ffe39a}
+.plan-node.opponent.invalidated .plan-shape{background:#e56568;border-color:#ffb0ae}
+.plan-node-label{line-height:1.25;overflow-wrap:anywhere}
+.plan-line{height:2px;min-width:22px;flex:1;background:#6d7789;margin-top:19px}
+.plan-reason{font-size:.8rem;color:#e6b2b2;margin:4px 0}

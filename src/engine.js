@@ -1,12 +1,15 @@
 // Lightweight two-player prototype; intentionally not a complete official TCG rules engine.
-import {species,canPay,retreatCost} from "./cards.js?v=36";
+import {species,canPay,retreatCost} from "./cards.js?v=43";
 export const pokemon=(i)=>({...species[i],speciesIndex:i,damage:0,energy:0,energies:[],evolvedThisTurn:false,playedTurn:0,under:[],tool:null});
-import {defaultDeck, expandDeck, validateDeck, energyCard as energy, pokemonCard as basic} from "./decks.js?v=36";
+import {defaultDeck, expandDeck, validateDeck, energyCard as energy, pokemonCard as basic} from "./decks.js?v=43";
 function shuffle(cards){for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]];}return cards;}
 function player(i,deck){
  const cards=shuffle(expandDeck(deck||defaultDeck(i)));
  let hand=[],mulligans=0;
- do{if(hand.length)cards.push(...hand);shuffle(cards);hand=cards.splice(0,7);mulligans++;}while(!hand.some(c=>c.kind==="pokemon"&&!species[c.species].stage));
+ const basicCard=c=>c.kind==="pokemon"&&species[c.species]&&!species[c.species].stage;
+ if(!cards.some(basicCard))throw new Error("This deck has no playable Basic Pokémon. Check the imported card stages.");
+ do{if(hand.length)cards.push(...hand);shuffle(cards);hand=cards.splice(0,7);mulligans++;}while(!hand.some(basicCard)&&mulligans<100);
+ if(!hand.some(basicCard)){cards.push(...hand);hand=[];shuffle(cards);const basicIndex=cards.findIndex(basicCard);hand.push(cards.splice(basicIndex,1)[0]);hand.push(...cards.splice(0,6));}
  const prizes=cards.splice(0,6);
  return {hand,deck:cards,prizeCards:prizes,discard:[],active:null,bench:[],prizes:prizes.length,attached:false,retreated:false,supporterUsed:false,mulligans:mulligans-1};
 }
@@ -124,7 +127,7 @@ if(move.effect==="pickAndStick"){
 }
 else if(move.effect==="draw"){const drawn=p.deck.shift();if(drawn)p.hand.push(drawn);message=p.active.name+" used "+move.name+(drawn?" and drew a card.":"; no cards left to draw.");}
 else if(move.effect==="stoke"){let attached=0;for(let n=p.deck.length-1;n>=0&&attached<2;n--){if(p.deck[n].kind==="energy"&&p.deck[n].type==="Fire"){p.deck.splice(n,1);p.active.energies.push("Fire");attached++;}}p.active.energy=p.active.energies.length;shuffle(p.deck);message=p.active.name+" used Stoke and attached "+attached+" Fire Energy.";}
-else{o.active.damage+=move.damage;message=p.active.name+" used "+move.name+" for "+move.damage+" damage.";if(move.effect==="discardEnergy"){const type=p.active.energies.pop();p.active.energy=p.active.energies.length;p.discard.push(energy(type));message+=" Discarded "+type+" Energy.";}}
+else{let damage=move.damage;if(move.effect==="braveWing"&&p.active.damage>0)damage+=100;if(move.effect==="coinBonus20"&&Math.random()<0.5)damage+=20;if(move.effect==="discardToolsBonus40"){const targets=[p.active,...p.bench];const removed=targets.filter(t=>t.tool);for(const t of removed){p.discard.push(t.tool);t.tool=null;}damage+=removed.length*40;}if(move.effect==="discardStadium"){message=p.active.name+" used "+move.name+" (no Stadium in play).";}else{o.active.damage+=damage;message=p.active.name+" used "+move.name+" for "+damage+" damage.";}if(move.effect==="discardEnergy"||move.effect==="discardThreeEnergy"){const count=move.effect==="discardThreeEnergy"?3:1;for(let n=0;n<count&&p.active.energies.length;n++){const type=p.active.energies.pop();p.discard.push(energy(type));}p.active.energy=p.active.energies.length;message+=" Discarded "+count+" Energy.";}}
 if(o.active.damage>=o.active.hp)message+=knockOut(s);
 if(s.winner===null&&s.phase!=="replacement")next(s);
 }else if(action==="end"){if(s.phase!=="playing")return err(state,"Finish the Pokémon switch first.");next(s);message="Turn ended.";}
