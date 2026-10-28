@@ -82,6 +82,28 @@ if(preview.type==="card"&&preview.card.ability){
 }
 else if(preview.type!=="card") modal.querySelector(".modal-content").innerHTML=`<h2>${escape(preview.name)} · ${preview.cards.length} cards</h2><div class="pile-list">${preview.name==="deck"?"Deck contents are hidden during play.":preview.cards.length?preview.cards.map(c=>cardHtml(c,{small:true})).join(""):"No cards yet."}</div>`;
 }
+function showFireTrainerChoices(card){
+ const p=state.players[state.turn],panel=$("#modal .modal-content");
+ preview={type:"fire-trainer"};$("#modal").hidden=false;
+ panel.innerHTML="<h2>"+escape(card.name)+"</h2><p>Select eligible cards and targets to use this Trainer.</p>";
+ const search=["Buddy-Buddy Poffin","Evolution Incense","Level Ball","Poké Pad","Trainers' Mail","Earthen Vessel","Arven","Gloria","Hisuian Heavy Ball"].includes(card.name);
+ const recover=["Night Stretcher","Rescue Stretcher","Lana's Aid"].includes(card.name);
+ const welder=card.name==="Welder";
+ const pool=search?(card.name==="Hisuian Heavy Ball"?p.prizeCards:p.deck):recover?p.discard:welder?p.hand:[];
+ const eligible=c=>search?(card.name==="Buddy-Buddy Poffin"?c.kind==="pokemon"&&!species[c.species]?.stage&&species[c.species]?.hp<=70:card.name==="Evolution Incense"?c.kind==="pokemon"&&!!species[c.species]?.stage:card.name==="Level Ball"?c.kind==="pokemon"&&species[c.species]?.hp<=90:card.name==="Arven"?c.kind==="trainer"&&(c.subtype==="Item"||c.subtype==="Pokémon Tool"):card.name==="Trainers' Mail"?c.kind==="trainer":card.name==="Earthen Vessel"?c.kind==="energy":card.name==="Gloria"||card.name==="Hisuian Heavy Ball"?c.kind==="pokemon"&&!species[c.species]?.stage:true):recover?c.kind==="pokemon"||c.kind==="energy":welder?c.kind==="energy"&&c.type==="Fire":false;
+ const checks=[];
+ pool.forEach((c,i)=>{if(welder&&i===state.selection||!eligible(c))return;const label=document.createElement("label"),check=document.createElement("input");check.type="checkbox";label.style.display="block";label.append(check,document.createTextNode(" "+(c.kind==="pokemon"?species[c.species]?.name:c.name||c.type)));panel.append(label);checks.push({check,i});});
+ const needsTarget=welder||["Float Stone","Muscle Band","Vitality Band","Bird Keeper"].includes(card.name);
+ const target=document.createElement("select");target.setAttribute("aria-label","Target Pokémon");
+ if(needsTarget){target.innerHTML='<option value="active">Active</option>'+p.bench.map((c,i)=>'<option value="bench-'+i+'">Bench '+(i+1)+': '+escape(c.name)+'</option>').join("");panel.append(target);}
+ const status=document.createElement("p"),done=document.createElement("button");done.textContent="Play "+card.name;
+ done.onclick=()=>{const selected=checks.filter(x=>x.check.checked).map(x=>x.i),value=needsTarget?target.value:"active";
+ const payload={searchIndices:selected,discardIndices:selected,target:value.startsWith("bench-")?"bench":"active",slot:value.startsWith("bench-")?Number(value.slice(6)):undefined};
+ if(card.name==="Bird Keeper"&&value==="active"){status.textContent="Choose a Benched Pokémon.";return;}
+ const result=dispatch(state,"trainer",payload);if(result.error){status.textContent=result.error;return;}
+ turnHistory.record(state,result.state,"trainer",payload);const prev=state;state=result.state;render();coachUpdate({prev,state,action:"trainer"});error.textContent="";preview=null;$("#modal").hidden=true;};
+ panel.append(status,done);
+}
 function showNestBallSearch(){
  const p=state.players[state.turn],panel=$("#modal .modal-content");
  preview={type:"nest-search"};$("#modal").hidden=false;
@@ -113,7 +135,7 @@ function chooseAttack(index){
 function showAttacks(){const moves=state.players[state.turn].active.attacks;preview={type:"attacks"};const modal=$("#modal");modal.hidden=false;modal.querySelector(".modal-content").innerHTML="<h2>Choose an attack</h2>"+moves.map((a,i)=>`<button type="button" data-attack="${i}" style="display:block;margin:12px 0;padding:12px;width:100%;text-align:left">${escape(a.name)} — ${escape(a.cost.join(" + "))} — ${a.damage} damage</button>`).join("");}
 $("#modal").addEventListener("click",e=>{const attack=e.target.closest("[data-attack]");if(attack){chooseAttack(Number(attack.dataset.attack));return;}});
 $("#modal").addEventListener("click",e=>{if(e.target.id==="modal"||e.target.closest(".close-modal")){$("#modal").hidden=true;preview=null;}});
-document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.action==="attack"){if(state.players[state.turn].active?.attacks?.length>1)showAttacks();else chooseAttack(0);return;}if(b.dataset.action==="trainer"){const card=state.players[state.turn].hand[state.selection];if(card?.name==="Quick Ball"||card?.name==="Ultra Ball"){showBallSearch();return;}if(card?.name==="Nest Ball"){showNestBallSearch();return;}if(card?.name==="Potion"||card?.name==="Air Balloon"){error.textContent=card.name==="Air Balloon"?"Tap your Active or a Benched Pokémon to attach Air Balloon.":"Tap a damaged Pokémon to use Potion.";return;}act("trainer");}else act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
+document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.action==="attack"){if(state.players[state.turn].active?.attacks?.length>1)showAttacks();else chooseAttack(0);return;}if(b.dataset.action==="trainer"){const card=state.players[state.turn].hand[state.selection];if(card?.name==="Quick Ball"||card?.name==="Ultra Ball"){showBallSearch();return;}if(card?.name==="Nest Ball"){showNestBallSearch();return;}if(["Buddy-Buddy Poffin","Evolution Incense","Level Ball","Poké Pad","Trainers' Mail","Earthen Vessel","Arven","Gloria","Hisuian Heavy Ball","Night Stretcher","Rescue Stretcher","Lana's Aid","Welder","Float Stone","Muscle Band","Vitality Band","Bird Keeper"].includes(card?.name)){showFireTrainerChoices(card);return;}if(card?.name==="Potion"||card?.name==="Air Balloon"){error.textContent=card.name==="Air Balloon"?"Tap your Active or a Benched Pokémon to attach Air Balloon.":"Tap a damaged Pokémon to use Potion.";return;}act("trainer");}else act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
 render();
 
 coachUpdate({state,action:"init"});
