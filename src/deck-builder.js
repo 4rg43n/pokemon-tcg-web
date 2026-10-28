@@ -1,10 +1,10 @@
-import {catalog,registerExternalCard,defaultDeck,validateDeck,migrateDeck} from "./decks.js?v=44";
+import {catalog,registerExternalCard,defaultDeck,validateDeck,migrateDeck} from "./decks.js?v=49";
 import {importLimitlessDeck} from "./limitless-resolver.js?v=35";
 import {searchCardDatabase,getCardDetail} from "./external-cards.js?v=31";
 const storageKey="pokemon-tcg-decks-v1";
 const externalKey="pokemon-tcg-external-cards-v1";
 const starterVersionKey="pokemon-tcg-starter-version";
-const starterVersion="44";
+const starterVersion="49";
 const esc=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 export function mountDeckBuilder({start,inspect,onClose}){
  const root=document.querySelector("#deck-builder");
