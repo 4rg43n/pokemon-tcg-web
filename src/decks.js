@@ -1,49 +1,10 @@
-import {species,energyTypes} from "./cards.js?v=43";
-export const pokemonCard=species=>({kind:"pokemon",species});
-export const energyCard=type=>({kind:"energy",type,name:type+" Energy"});
-export const trainerCard=name=>({image:name==="Quick Ball"?"assets/cards/quick-ball.jpg":name==="Ultra Ball"?"assets/cards/ultra-ball.jpg":undefined,kind:"trainer",name,subtype:name==="Air Balloon"?"Pokémon Tool":(name==="Professor's Research"||name==="Lillie's Determination"||name==="Nemona")?"Supporter":"Item"});
-export const catalog=[
- ...species.map((s,i)=>({id:`pokemon-${i}`,name:s.name,category:"pokemon",detail:`${s.stage?`Stage ${s.stage} · evolves from ${s.evolvesFrom}`:"Basic"} · ${s.type} · ${s.hp} HP`,card:pokemonCard(i)})),
- ...energyTypes.map(type=>({id:`energy-${type}`,name:type+" Energy",category:"energy",detail:"Basic Energy · unlimited copies",card:energyCard(type)})),
- ...["Potion","Quick Ball","Ultra Ball","Professor's Research","Lillie's Determination","Nemona","Nest Ball","Air Balloon"].map(name=>({id:`trainer-${name}`,name,category:"trainer",detail:name==="Air Balloon"?"Pokémon Tool · attach to a Pokémon · retreat costs 2 less":name==="Potion"?"Item · heal 30 damage":name==="Quick Ball"?"Item · discard 1 other card; search for a Basic Pokémon":name==="Ultra Ball"?"Item · discard 2 other cards; search for any Pokémon":name==="Nest Ball"?"Item · search for a Basic Pokémon and put it on the Bench":name==="Nemona"?"Supporter · draw 3 cards" :name==="Lillie's Determination"?"Supporter · shuffle hand into deck; draw 6 (8 if six Prize cards remain)":"Supporter · discard hand, draw up to 7",card:trainerCard(name)}))
-];
-// Register external printings without claiming their effects are supported by the engine.
-export function registerExternalCard(raw){
- if(!raw?.id||!raw?.name)return null;
- const id="external-"+String(raw.id);
- const existing=catalog.find(c=>c.id===id);if(existing)return existing;
- const kind=String(raw.supertype||raw.type||raw.category||"").toLowerCase();
- const category=kind.includes("pok")?"pokemon":kind.includes("energy")?"energy":"trainer";
- const subtypes=Array.isArray(raw.subtypes)?raw.subtypes:[raw.subtype].filter(Boolean);
- const subtype=subtypes.find(t=>/item|supporter|stadium|tool/i.test(t))||"";
- const card={kind:category,name:raw.name,subtype,set:raw.set?.tcgOnline||raw.set?.id||raw.setCode||"",number:String(raw.number||""),printing:raw.id,image:raw.imageUrl||"",external:true};
- if(category==="pokemon"){
-  const stage=/stage\s*2/i.test(raw.stage||"")||/^(Dragapult ex)$/i.test(raw.name)?2:/stage\s*1/i.test(raw.stage||"")||/^(Drakloak|Dudunsparce)$/i.test(raw.name)?1:0;
-  const evolvesFrom=raw.evolveFrom||raw.evolvesFrom||({"Drakloak":"Dreepy","Dragapult ex":"Drakloak","Dudunsparce":"Dunsparce"})[raw.name]||"";
-  const index=species.length;
-  species.push({name:raw.name,hp:Number(raw.hp)|| (stage===2?280:stage===1?120:80),id:0,type:"Colorless",stage,evolvesFrom,retreat:1,attacks:[{name:"Prototype Attack",cost:["Colorless"],damage:30}],image:raw.imageUrl||"",printing:raw.id,external:true});
-  card.species=index;
- }
- if(category==="energy")card.type=raw.name.replace(/^(Basic )?/i,"").replace(/ Energy$/i,"");
-
- const entry={id,name:raw.name,category,detail:[raw.set?.name||raw.setName||raw.set?.id||"",raw.number||"",subtypes.join(", ")].filter(Boolean).join(" · "),card,external:true,basic:category==="pokemon"&&(!/stage\s*[12]|vmax|vstar|break/i.test(String(raw.stage||"Basic"))),unlimited:category==="energy"&&/basic/i.test(String(raw.energyType||raw.subtype||""))};
- catalog.push(entry);return entry;
-}
-export function defaultDeck(player){
- const counts={};const add=(id,n)=>counts[id]=(counts[id]||0)+n;
- if(player===0){
-  // Lightning: Pikachu/Raichu and Voltorb/Electrode; 16 Pokémon, 32 Energy, 12 Trainers.
-  for(const [i,n] of [[2,4],[6,3],[0,2],[15,4],[16,3]])add(`pokemon-${i}`,n);
-  add("energy-Lightning",18);
  }else{
-  // Fire: Charmander/Charizard, Growlithe/Arcanine, Ponyta/Rapidash.
-  // 22 Pokémon, 26 Energy, 12 Trainers.
-  for(const [i,n] of [[12,4],[13,3],[14,2],[5,4],[7,3],[9,4],[10,2]])add(`pokemon-${i}`,n);
-  add("energy-Fire",12);
+  // Exact 60-card Fire collection: 14 Pokémon, 39 Trainers, 7 Fire Energy.
+  for(const printing of fireStarterPrintings)add("external-"+printing.id,printing.supertype==="Energy"?7:1);
  }
  for(const name of ["Potion","Quick Ball","Professor's Research","Ultra Ball","Lillie's Determination"])add("trainer-"+name,4);
  for(const name of ["Nemona","Nest Ball","Air Balloon"])add("trainer-"+name,2);
- return {name:player===0?"Lightning Learner · Pikachu & Electrode":"Fire Learner · Charizard & Arcanine",counts};
+ return {name:player===0?"Lightning Learner · Pikachu & Electrode":"Fire Collection · 60 unique-printing cards",counts};
 }
 export function validateDeck(deck){
  const errors=[],warnings=[];let total=0,basics=0;
