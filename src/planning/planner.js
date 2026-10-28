@@ -29,8 +29,8 @@ export function createPlanner(storage=(()=>{try{return localStorage;}catch{retur
   if(!active.actions.length){close("completed","All planned actions performed");active=build(s);}
   let step=active.actions[0];
   // Re-resolve selected hand cards by identity because previous plays shift indices.
-  if(step.select!==undefined){const wanted=step.action==="play"?(step.payload.target==="bench"?"pokemon":"pokemon"):null;
-   if(s.players[1].hand[step.select]?.kind!==wanted){const i=s.players[1].hand.findIndex(c=>c.kind===wanted&&!species[c.species].stage);if(i<0){active.actions.shift();return next(s);}step={...step,select:i};}
+  if(step.select!==undefined){const wanted=step.payload.target==="active"&&s.phase==="playing"?"energy":"pokemon";
+   if(s.players[1].hand[step.select]?.kind!==wanted){const i=s.players[1].hand.findIndex(c=>c.kind===wanted&&(wanted!=="pokemon"||!species[c.species].stage));if(i<0){active.actions.shift();return next(s);}step={...step,select:i};}
   }
   if(step.action==="attackOrEnd"){
    const p=s.players[1],index=p.active?.attacks.findIndex(a=>a.effect!=="pickAndStick"&&canPay(p.active.energies,a.cost))??-1;
