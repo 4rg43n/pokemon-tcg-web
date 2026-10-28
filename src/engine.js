@@ -83,7 +83,7 @@ p.bench.push(pokemon(p.hand[idx].species));p.hand.splice(idx,1);message="Benched
 }else if(action==="energy"){
 const idx=p.hand.findIndex(c=>c.kind==="energy");if(idx<0)return err(state,"No Energy in hand.");
 if(p.attached)return err(state,"Already attached Energy this turn.");
-p.hand.splice(idx,1);p.active.energies.push(p.hand[idx].type);p.active.energy=p.active.energies.length;p.attached=true;message="Attached Energy to Active Pokémon.";
+const card=p.hand.splice(idx,1)[0];p.active.energies.push(card.type);p.active.energy=p.active.energies.length;p.attached=true;message="Attached Energy to Active Pokémon.";
 }else return err(state,"Unknown action.");
 s.log.unshift("Player "+(state.turn+1)+": "+message);return {state:s};
 }
