@@ -1,5 +1,5 @@
 // Pure coach logic: derive a context from game state, pick tips, track turns, review the game. No DOM.
-import {species,canPay,retreatCost} from "./cards.js?v=36";
+import {species,canPay,retreatCost} from "./cards.js?v=37";
 import {TIPS,REVIEW_RULES,CLEAN_GAME,SOURCES} from "./coach_knowledge.js?v=1";
 
 const RESEARCH="Professor's Research";
