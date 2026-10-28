@@ -1,10 +1,11 @@
 // Per-turn game history for AI review: compact true-state snapshots in localStorage, current game only.
-import {pokemon,basic,energy,trainer} from "./engine.js?v=16";
+import {pokemon} from "./engine.js?v=22";
+import {pokemonCard,energyCard,trainerCard} from "./decks.js?v=22";
 const GAME_KEY="ptcg.game",TURN_PREFIX="ptcg.turn.";
 const cardCode=c=>c.kind==="pokemon"?"P:"+c.species:c.kind==="energy"?"E:"+c.type:"T:"+c.name;
-function fromCode(id){const i=id.indexOf(":"),kind=id.slice(0,i),value=id.slice(i+1);return kind==="P"?basic(Number(value)):kind==="E"?energy(value):trainer(value);}
-function encodeMon(m){const c={s:m.speciesIndex};if(m.damage)c.d=m.damage;if(m.energies.length)c.e=[...m.energies];if(m.playedTurn)c.t=m.playedTurn;if(m.evolvedThisTurn)c.ev=true;if(m.under.length)c.u=[...m.under];return c;}
-function decodeMon(c){const e=c.e?[...c.e]:[];return {...pokemon(c.s),damage:c.d??0,energies:e,energy:e.length,playedTurn:c.t??0,evolvedThisTurn:!!c.ev,under:c.u?[...c.u]:[]};}
+function fromCode(id){const i=id.indexOf(":"),kind=id.slice(0,i),value=id.slice(i+1);return kind==="P"?pokemonCard(Number(value)):kind==="E"?energyCard(value):trainerCard(value);}
+function encodeMon(m){const c={s:m.speciesIndex};if(m.damage)c.d=m.damage;if(m.energies.length)c.e=[...m.energies];if(m.playedTurn)c.t=m.playedTurn;if(m.evolvedThisTurn)c.ev=true;if(m.under.length)c.u=[...m.under];if(m.tool)c.o=cardCode(m.tool);if(m.abilityUsed!==undefined)c.ab=m.abilityUsed;return c;}
+function decodeMon(c){const e=c.e?[...c.e]:[];return {...pokemon(c.s),damage:c.d??0,energies:e,energy:e.length,playedTurn:c.t??0,evolvedThisTurn:!!c.ev,under:c.u?[...c.u]:[],tool:c.o?fromCode(c.o):null,...(c.ab!==undefined&&{abilityUsed:c.ab})};}
 export function encodeState(s){
  return {v:1,round:s.round,turn:s.turn,phase:s.phase,winner:s.winner,players:s.players.map(p=>({deck:p.deck.map(cardCode),hand:p.hand.map(cardCode),prizeCards:p.prizeCards.map(cardCode),discard:p.discard.map(cardCode),active:p.active&&encodeMon(p.active),bench:p.bench.map(encodeMon),attached:p.attached,retreated:p.retreated,supporterUsed:p.supporterUsed,mulligans:p.mulligans}))};
 }
@@ -35,10 +36,12 @@ export function createRecorder(storage=defaultStorage()){
   record(before,after,action,payload={}){
    if(action==="select"||action==="deselect")return;
    const rec=turns[turns.length-1],entry={p:before.turn,a:action};
-   if(action==="play"||action==="trainer"){const card=before.players[before.turn].hand[before.selection];if(card)entry.card=cardCode(card);}
-   if(payload.target!==undefined)entry.target=payload.target;
-   if(Number.isInteger(payload.slot))entry.slot=payload.slot;
-   if(Number.isInteger(payload.index))entry.index=payload.index;
+   const p=before.players[before.turn];
+   if(action==="play"||action==="trainer"){const card=p.hand[before.selection];if(card)entry.card=cardCode(card);}
+   for(const [k,v] of Object.entries(payload))if(v!==undefined&&!(typeof v==="number"&&!Number.isInteger(v)))entry[k]=structuredClone(v);
+   // Hand and deck positions can't be resolved later (the deck is reshuffled), so keep the chosen cards themselves.
+   if(Array.isArray(payload.discardIndices))entry.discarded=payload.discardIndices.map(i=>p.hand[i]&&cardCode(p.hand[i]));
+   if(Number.isInteger(payload.searchIndex)&&p.deck[payload.searchIndex])entry.found=cardCode(p.deck[payload.searchIndex]);
    // The engine unshifts log lines, so this action's lines are the newest few; store them oldest first.
    rec.actions.push(entry);rec.log.push(...after.log.slice(0,after.log.length-before.log.length).reverse());save(rec);
    if(after.winner!==null){final=encodeState(after);saveMeta();}
