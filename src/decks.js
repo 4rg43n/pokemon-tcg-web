@@ -26,8 +26,8 @@ export function defaultDeck(player){
  // Exactly 60 cards, with no more than four copies of any non-Basic Energy name.
  const pokemon=player===0?[[2,4],[4,4],[6,3],[10,3],[11,2]]:[[3,4],[5,4],[7,3],[8,3],[9,2]];
  for(const [index,n] of pokemon)add(`pokemon-${index}`,n);
- add("energy-Fire",player===0?10:18);
- add("energy-Lightning",player===0?18:10);
+ add("energy-Fire",player===0?11:19);
+ add("energy-Lightning",player===0?19:11);
  add("trainer-Potion",4);add("trainer-Quick Ball",4);add("trainer-Professor's Research",4);
  return {name:player===0?"Lightning starter":"Fire starter",counts};
 }
