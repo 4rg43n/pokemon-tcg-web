@@ -55,15 +55,15 @@ export async function importLimitlessDeck(text,{onProgress}={}){
   if(!match&&mapped)match=await resolveBySearch(row).catch(()=>null);
   if(!match&&/^(?:basic )?(?:fire|water|grass|lightning|psychic|fighting|darkness|metal) energy$/i.test(row.name)){
    // Basic Energy is unlimited; a local placeholder preserves the requested name and printing.
-   match={id:"limitless-"+row.set+"-"+row.number+"-"+row.name.toLowerCase().replace(/\\s+/g,"-"),name:row.name,category:"energy",supertype:"Energy",subtype:"Basic",energyType:"Basic",set:{id:row.set,name:row.set},number:row.number,stage:"",external:true};
+   match={id:"limitless-"+row.set+"-"+row.number+"-"+row.name.toLowerCase().replace(/\s+/g,"-"),name:row.name,category:"energy",supertype:"Energy",subtype:"Basic",energyType:"Basic",set:{id:row.set,name:row.set},number:row.number,stage:"",external:true};
   }
   if(!match){
    // Preserve the exact Limitless printing as an explicitly unverified reference,
    // rather than rejecting a valid 60-card list or substituting another printing.
-   const lines=String(text).replace(/\\r\\n?/g,"\\n").split("\\n");
+   const lines=String(text).replace(/\r\n?/g,"\n").split("\n");
    let section="pokemon";
    for(let n=0;n<row.line;n++){
-    const heading=lines[n]?.trim().match(/^(Pokémon|Pokemon|Trainer|Energy)\\s*:/i);
+    const heading=lines[n]?.trim().match(/^(Pokémon|Pokemon|Trainer|Energy)\s*:/i);
     if(heading)section=/trainer/i.test(heading[1])?"trainer":/energy/i.test(heading[1])?"energy":"pokemon";
    }
    const subtype=section==="energy"?"Basic":section==="pokemon"?"Basic":"";
