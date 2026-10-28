@@ -52,7 +52,7 @@ export async function importLimitlessDeck(text,{onProgress}={}){
    const brief=(full.cards||[]).find(c=>sameNumber(c.localId,row.number)&&sameName(c.name,row.name));
    if(brief){match=await getCardDetail(brief.id);break;}
   }
-  if(!match)match=await resolveBySearch(row);
+  if(!match&&mapped)match=await resolveBySearch(row).catch(()=>null);
   if(!match&&/^(?:basic )?(?:fire|water|grass|lightning|psychic|fighting|darkness|metal) energy$/i.test(row.name)){
    // Basic Energy is unlimited; a local placeholder preserves the requested name and printing.
    match={id:"limitless-"+row.set+"-"+row.number+"-"+row.name.toLowerCase().replace(/\\s+/g,"-"),name:row.name,category:"energy",supertype:"Energy",subtype:"Basic",energyType:"Basic",set:{id:row.set,name:row.set},number:row.number,stage:"",external:true};
