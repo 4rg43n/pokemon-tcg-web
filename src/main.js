@@ -6,7 +6,7 @@ import {newGame,dispatch,cardInfo} from "./engine.js?v=44";
 import {mountDeckBuilder} from "./deck-builder.js?v=44";
 import {createRecorder} from "./history.js?v=27";
 import {createPlanner} from "./planning/planner.js?v=40";
-import {renderPlanGraph} from "./planning/plan-graph.js?v=40";
+import {renderPlanGraph} from "./planning/plan-graph.js?v=47";
 import {update as coachUpdate} from "./coach_ui.js?v=1";
 let state=newGame(),preview=null,matchDecks=null;
 const turnHistory=createRecorder();turnHistory.start(state);
