@@ -1,4 +1,4 @@
-import {newGame,dispatch,cardInfo} from "./engine.js?v=12";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=13";
 let state=newGame(),preview=null;
 const $=s=>document.querySelector(s),board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log");
 const escape=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -45,6 +45,8 @@ function renderModal(){const modal=$("#modal");if(!preview){modal.hidden=true;re
 if(preview.type==="card"){const c=preview.card;modal.querySelector(".modal-content").innerHTML=cardHtml(c)+`<p>${escape(c.name||"")}${c.attacks?.length?" · "+c.attacks.map(a=>a.name+" ("+a.cost.join(" + ")+"): "+a.damage+" damage").join(", "):""}</p>`;}
 else modal.querySelector(".modal-content").innerHTML=`<h2>${escape(preview.name)} · ${preview.cards.length} cards</h2><div class="pile-list">${preview.name==="deck"?"Deck contents are hidden during play.":preview.cards.length?preview.cards.map(c=>cardHtml(c,{small:true})).join(""):"No cards yet."}</div>`;
 }
+function showAttacks(){const moves=state.players[state.turn].active.attacks;preview={type:"attacks"};const modal=$("#modal");modal.hidden=false;modal.querySelector(".modal-content").innerHTML="<h2>Choose an attack</h2>"+moves.map((a,i)=>`<button type="button" data-attack="${i}" style="display:block;margin:12px 0;padding:12px;width:100%;text-align:left">${escape(a.name)} — ${escape(a.cost.join(" + "))} — ${a.damage} damage</button>`).join("");}
+$("#modal").addEventListener("click",e=>{const attack=e.target.closest("[data-attack]");if(attack){act("attack",{index:Number(attack.dataset.attack)});$("#modal").hidden=true;preview=null;return;}});
 $("#modal").addEventListener("click",e=>{if(e.target.id==="modal"||e.target.closest(".close-modal")){$("#modal").hidden=true;preview=null;}});
-document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.action==="attack"&&state.players[state.turn].active?.attacks?.length>1){const moves=state.players[state.turn].active.attacks;const choice=window.prompt(moves.map((a,i)=>(i+1)+". "+a.name+" ("+a.cost.join("+")+")").join("\n")+"\nEnter attack number:","1");if(choice===null)return;act("attack",{index:Number(choice)-1});}else act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
+document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.action==="attack"&&state.players[state.turn].active?.attacks?.length>1){showAttacks();}else act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
 render();
