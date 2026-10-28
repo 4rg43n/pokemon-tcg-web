@@ -12,7 +12,7 @@ function player(i,deck){
 }
 export function newGame(decks){
  if(decks&&(!Array.isArray(decks)||decks.length!==2||decks.some(d=>validateDeck(d).errors.length)))throw new Error("Choose two complete 60-card decks containing a Basic Pokémon.");
- const players=[player(0,decks?.[0]),player(1,decks?.[1])];return {players,turn:0,round:1,phase:"setup",winner:null,log:["Each player: choose an Active Pokémon and optionally Bench Basics, then press Ready.","Shuffled 60-card decks and set six Prize cards per player."],selection:null};}
+ const players=[player(0,decks?.[0]),player(1,decks?.[1])];return {players,turn:0,round:1,phase:"setup",winner:null,winReason:null,log:["Each player: choose an Active Pokémon and optionally Bench Basics, then press Ready.","Shuffled 60-card decks and set six Prize cards per player."],selection:null};}
 const err=(state,error)=>({state,error});
 export function dispatch(state,action,payload={}){
 if(action==="reset")return {state:newGame()};
@@ -36,7 +36,7 @@ if(action==="ready"){
 if(s.phase==="replacement"){
  if(action!=="promote")return err(state,"Choose a Benched Pokémon to promote.");
  const slot=payload.slot;if(!Number.isInteger(slot)||slot<0||slot>=p.bench.length)return err(state,"Tap one of your Benched Pokémon.");
- p.active=p.bench.splice(slot,1)[0];s.phase="playing";s.selection=null;s.round++;p.attached=false;p.retreated=false;p.supporterUsed=false;if(p.deck.length)p.hand.push(p.deck.shift());else{s.winner=1-s.turn;s.log.unshift("Deck out!");}s.log.unshift("Player "+(s.turn+1)+" promoted "+p.active.name+".");return {state:s};
+ p.active=p.bench.splice(slot,1)[0];s.phase="playing";s.selection=null;s.round++;p.attached=false;p.retreated=false;p.supporterUsed=false;if(p.deck.length)p.hand.push(p.deck.shift());else{s.winner=1-s.turn;s.winReason="deck out";s.log.unshift("Deck out!");}s.log.unshift("Player "+(s.turn+1)+" promoted "+p.active.name+".");return {state:s};
 }
 if(s.phase==="retreat"&&action!=="switch")return err(state,"Tap one of your Benched Pokémon to complete retreat.");
 if(s.phase==="setup"&&action!=="play")return err(state,"Finish opening setup first.");
@@ -126,7 +126,7 @@ else if(move.effect==="stoke"){let attached=0;for(let n=p.deck.length-1;n>=0&&at
 else{o.active.damage+=move.damage;message=p.active.name+" used "+move.name+" for "+move.damage+" damage.";if(move.effect==="discardEnergy"){const type=p.active.energies.pop();p.active.energy=p.active.energies.length;p.discard.push(energy(type));message+=" Discarded "+type+" Energy.";}}
 if(o.active.damage>=o.active.hp){
 const prizeCount=o.active.name.endsWith(" ex")?2:1;for(let n=0;n<prizeCount&&p.prizeCards.length;n++)p.hand.push(p.prizeCards.pop());p.prizes=p.prizeCards.length;o.discard.push({kind:"pokemon",species:o.active.speciesIndex});for(const index of o.active.under)o.discard.push(basic(index));for(const type of o.active.energies)o.discard.push(energy(type));if(o.active.tool)o.discard.push(o.active.tool);message+=" Knockout! "+prizeCount+" Prize card(s) taken.";
-if(p.prizes===0||o.bench.length===0){s.winner=s.turn;message+=" Game over!";}
+if(p.prizes===0||o.bench.length===0){s.winner=s.turn;s.winReason=p.prizes===0?"taking all Prize cards":"knocking out every opposing Pokémon";message+=" Game over!";}
 else{o.active=null;s.turn=1-s.turn;s.phase="replacement";s.selection=null;}
 }
 if(s.winner===null&&s.phase!=="replacement")next(s);
@@ -144,5 +144,5 @@ s.log.unshift("Player "+(state.turn+1)+": "+message);return {state:s};
 }
 function next(s){s.turn=1-s.turn;s.round++;s.selection=null;s.players[s.turn].attached=false;s.players[s.turn].retreated=false;s.players[s.turn].supporterUsed=false;for(const mon of [s.players[s.turn].active,...s.players[s.turn].bench])if(mon){mon.evolvedThisTurn=false;mon.abilityUsed=false;}
 if(s.players[s.turn].deck.length)s.players[s.turn].hand.push(s.players[s.turn].deck.shift());
-else{s.winner=1-s.turn;s.log.unshift("Deck out!");}}
+else{s.winner=1-s.turn;s.winReason="deck out";s.log.unshift("Deck out!");}}
 export function cardInfo(card){if(card.kind==="pokemon")return {...species[card.species],kind:"pokemon"};return card;}
