@@ -59,7 +59,7 @@ Morpeko (TWM 072/167) is available in the builder with the supplied image. Tap y
 
 Quick Ball replaces Poké Ball in the card library and starters; saved decks automatically migrate those copies. Ultra Ball is also available. Select either in hand and press Play Trainer to choose the required other hand cards to discard and the Pokémon to find (Quick Ball: Basic only; Ultra Ball: any Pokémon). The found card is revealed in the log and the deck is shuffled. Search may finish without finding a card; discard costs still apply.
 
-## Battle Bird coach (v32)
+## Battle Bird coach (v36)
 
 The BattleRoad battle bird sits in the bottom-right corner of the playmat and coaches whoever's turn it is: it explains a rule the moment you bump into it, points out Knock Outs, Energy, evolution and Ability plays, and warns about deck-out and bad prize trades. Every tip links to its source (official rules references and articles by competitive players). When the game ends it reviews both players' habits.
 
