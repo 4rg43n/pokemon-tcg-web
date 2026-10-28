@@ -1,4 +1,4 @@
-import {catalog,registerExternalCard,defaultDeck,validateDeck,migrateDeck} from "./decks.js?v=26";
+import {catalog,registerExternalCard,defaultDeck,validateDeck,migrateDeck} from "./decks.js?v=27";
 import {parseLimitless} from "./limitless-import.js?v=24";
 import {importLimitlessDeck} from "./limitless-resolver.js?v=27";
 import {searchCardDatabase,getCardDetail} from "./external-cards.js?v=27";
