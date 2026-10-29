@@ -274,6 +274,33 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   }
   message="Cynthia & Caitlin "+(i===null||i===undefined?"recovered no Supporter":"recovered a Supporter")+(cost===null||cost===undefined?".":" and drew up to three cards.");
  }
+ else if(card.name==="Acro Bike"){
+  const top=p.deck.splice(0,2);if(top.length){
+   const chosen=payload.searchIndex??0;
+   if(!Number.isInteger(chosen)||chosen<0||chosen>=top.length)return err(state,"Choose one of the top two cards.");
+   p.hand.push(top[chosen]);top.forEach((c,i)=>{if(i!==chosen)p.discard.push(c);});
+  }
+  message="Acro Bike looked at the top two cards, kept one, and discarded the other.";
+ }
+ else if(card.name==="Special Charge"||card.name==="Super Rod"){
+  const indices=payload.searchIndices??[],max=card.name==="Special Charge"?2:3;
+  const eligible=c=>card.name==="Special Charge"?c.kind==="energy"&&/^(Capture Energy|Recycle Energy|Speed Lightning Energy)$/.test(c.name||""):c.kind==="pokemon"||c.kind==="energy"&&!/^(Capture Energy|Recycle Energy|Speed Lightning Energy)$/.test(c.name||"");
+  if(!Array.isArray(indices)||indices.length>max||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||!eligible(p.discard[i])))return err(state,"Choose up to "+max+" eligible cards in your discard pile.");
+  for(const i of [...indices].sort((a,b)=>b-a))p.deck.push(p.discard.splice(i,1)[0]);
+  shuffle(p.deck);message=card.name+" shuffled "+indices.length+" selected cards into the deck.";
+ }
+ else if(card.name==="Tag Call"){
+  const indices=payload.searchIndices??[];
+  const eligible=c=>c.kind==="trainer"&&/^(Cynthia & Caitlin|Guzma & Hala|Bellelba & Brycen-Man)$/.test(c.name)||c.kind==="pokemon"&&/TAG TEAM/i.test(c.name);
+  if(!Array.isArray(indices)||indices.length>2||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||!eligible(p.deck[i])))return err(state,"Choose up to two TAG TEAM cards from your deck.");
+  for(const i of [...indices].sort((a,b)=>b-a))p.hand.push(p.deck.splice(i,1)[0]);
+  shuffle(p.deck);message="Tag Call found "+indices.length+" TAG TEAM cards and shuffled the deck.";
+ }
+ else if(card.name==="Counter Catcher"){
+  if(p.prizes>=o.prizes)return err(state,"Counter Catcher requires you to have more Prize cards remaining than your opponent.");
+  const i=payload.targetBench;if(!Number.isInteger(i)||!o.bench[i])return err(state,"Choose an opponent's Benched Pokémon.");
+  [o.active,o.bench[i]]=[o.bench[i],o.active];message="Counter Catcher switched the opponent's Active Pokémon.";
+ }
  else if(card.name==="Pokégear 3.0"){
   const top=p.deck.slice(0,7),i=payload.searchIndex;
   if(i!==null&&i!==undefined&&(!Number.isInteger(i)||i<0||i>=top.length||top[i].kind!=="trainer"||top[i].subtype!=="Supporter"))return err(state,"Choose a Supporter from the top seven cards.");
