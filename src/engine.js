@@ -97,6 +97,16 @@ if(action==="ability"){
  if(!target?.ability)return err(state,"Choose a Pokémon with an Ability.");
  if(target.abilityUsed)return err(state,"This Pokémon already used its Ability this turn.");
  if(!p.deck.length)return err(state,"No cards left to draw.");
+ if(target.ability.name==="Call Signal"){
+  const indices=payload.searchIndices;
+  if(!Array.isArray(indices)||indices.length>3||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||p.deck[i]?.kind!=="trainer"||p.deck[i]?.subtype!=="Supporter"))return err(state,"Choose up to three Supporter cards from your deck.");
+  for(const i of [...indices].sort((a,b)=>b-a))p.hand.push(p.deck.splice(i,1)[0]);
+  shuffle(p.deck);
+  if(payload.target==="active")p.active=null;else p.bench.splice(payload.slot,1);
+  discardKnockOut(s,s.turn,target);
+  if(s.winner===null&&payload.target==="active"){s.resumeTurn=s.turn;s.phase="replacement";}
+  s.selection=null;s.log.unshift("Magneton used Call Signal, found "+indices.length+" Supporter(s), then was Knocked Out. Opponent took a Prize.");return {state:s};
+ }
  if(target.ability.name==="Snack Seek"){
   if(typeof payload.discard!=="boolean")return err(state,"Choose whether to keep or discard the top card.");
   if(payload.discard)p.discard.push(p.deck.shift());
