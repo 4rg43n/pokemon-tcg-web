@@ -104,8 +104,9 @@ else if(mechanic.kind==="search"){
 if(mechanic.coin&&!flip()){message=`${card.name}: tails, nothing found.`;}
 else{
 const pool=mechanic.look?player.deck.slice(0,mechanic.look):player.deck;
-const picks=pickFromPile(pool,mechanic.filter,1,payload.choices,context);
-if(!picks.length&&!mechanic.look)return {state,error:`No ${filterText(mechanic.filter)} left in your deck.`};
+const requested=payload.choices;
+if(requested!==undefined&&(!Array.isArray(requested)||requested.length>1||new Set(requested).size!==requested.length||requested.some(i=>!Number.isInteger(i)||i<0||i>=pool.length||!matches(pool[i],mechanic.filter,context))))return {state,error:"Select up to one eligible card from the searched cards."};
+const picks=pickFromPile(pool,mechanic.filter,1,requested,context);
 const found=removeIndices(player.deck,picks.map(pick=>pick.index));
 player.hand.push(...found);shuffle(player.deck);
 message=`${card.name}: ${found.length?`found ${found.map(foundCard=>cardLabel(foundCard,helpers.species)).join(", ")}`:"found nothing"} and shuffled the deck.`;
@@ -123,7 +124,7 @@ if(mechanic.target==="self"){
 if(!player.bench.length||!player.active)return {state,error:"You need a Benched Pokémon to switch into."};
 const slot=Number.isInteger(payload.slot)&&player.bench[payload.slot]?payload.slot:player.bench.map((mon,index)=>({mon,index})).sort((left,right)=>right.mon.energies.length-left.mon.energies.length)[0].index;
 const outgoing=player.active;player.active=player.bench.splice(slot,1)[0];player.bench.push(outgoing);
-if(mechanic.heal&&outgoing.damage)outgoing.damage=Math.max(0,outgoing.damage-mechanic.heal);
+if(mechanic.heal&&!helpers.species[player.active.speciesIndex]?.stage&&player.active.damage)player.active.damage=Math.max(0,player.active.damage-mechanic.heal);
 message=`${card.name}: ${player.active.name} switched in for ${outgoing.name}.`;
 }else{
 if(!opponent.bench.length||!opponent.active)return {state,error:"Your opponent has no Benched Pokémon to switch in."};
@@ -139,6 +140,7 @@ else if(mechanic.kind==="heal"){
 const targets=[{target:"active",mon:player.active},...player.bench.map((mon,slot)=>({target:"bench",slot,mon}))].filter(entry=>entry.mon&&entry.mon.damage>0);
 if(!targets.length)return {state,error:"None of your Pokémon have damage to heal."};
 const chosen=targets.find(entry=>entry.target===payload.target&&(entry.target==="active"||entry.slot===payload.slot))||targets.sort((left,right)=>right.mon.damage-left.mon.damage)[0];
+if(mechanic.discardEnergy&&chosen.mon.energies.length<mechanic.discardEnergy)return {state,error:"This Pokémon does not have enough attached Energy to discard."};
 const mon=chosen.mon;
 const heads=mechanic.coins?Array.from({length:mechanic.coins},flip).filter(Boolean).length:1;
 const healed=Math.min(mon.damage,mechanic.amount*heads);
