@@ -306,6 +306,21 @@ if(move.effect==="pickAndStick"){
  message=p.active.name+" used Pick and Stick and attached "+choices.length+" Basic Energy.";
 }
 else if(move.effect==="draw"){const drawn=p.deck.shift();if(drawn)p.hand.push(drawn);message=p.active.name+" used "+move.name+(drawn?" and drew a card.":"; no cards left to draw.");}
+else if(move.effect==="regielekiSonar"){
+ const eligible=p.discard.map((card,i)=>({card,i})).filter(x=>x.card.kind==="trainer");
+ if(eligible.length){const chosen=eligible[0];p.hand.push(p.discard.splice(chosen.i,1)[0]);message=p.active.name+" used Electromagnetic Sonar and recovered "+chosen.card.name+" from the discard pile (automatic selection).";}
+ else message=p.active.name+" used Electromagnetic Sonar, but no Trainer was in the discard pile.";
+}
+else if(move.effect==="regielekiTargetedBolt"){
+ const lightning=p.active.energies.filter(x=>x==="Lightning").length;
+ if(lightning<2)return err(state,"Targeted Bolt requires discarding 2 Lightning Energy.");
+ if(!o.bench.length)return err(state,"Targeted Bolt requires an opposing Benched Pokémon.");
+ let discarded=0;p.active.energies=p.active.energies.filter(x=>{if(x==="Lightning"&&discarded<2){discarded++;p.discard.push(energy("Lightning"));return false;}return true;});p.active.energy=p.active.energies.length;
+ const targetIndex=Number.isInteger(payload.targetBench)?payload.targetBench:0;
+ const target=o.bench[targetIndex];if(!target)return err(state,"Invalid opposing Bench target.");
+ target.damage+=120;message=p.active.name+" used Targeted Bolt on opposing Benched "+target.name+" for 120 damage.";
+ if(target.damage>=target.hp){o.discard.push({kind:"pokemon",species:target.speciesIndex});for(const under of target.under)o.discard.push(basic(under));for(const type of target.energies)o.discard.push(energy(type));if(target.tool)o.discard.push(target.tool);o.bench.splice(targetIndex,1);if(p.prizeCards.length)p.hand.push(p.prizeCards.pop());p.prizes=p.prizeCards.length;message+=" Knockout! Took a Prize.";if(!p.prizes){s.winner=s.turn;s.winReason="taking all Prize cards";}}
+}
 else if(move.effect==="stoke"){let attached=0;for(let n=p.deck.length-1;n>=0&&attached<2;n--){if(p.deck[n].kind==="energy"&&p.deck[n].type==="Fire"){p.deck.splice(n,1);p.active.energies.push("Fire");attached++;}}p.active.energy=p.active.energies.length;shuffle(p.deck);message=p.active.name+" used Stoke and attached "+attached+" Fire Energy.";}
 else{let damage=move.damage;if(move.effect==="braveWing"&&p.active.damage>0)damage+=100;if(move.effect==="coinBonus20"&&Math.random()<0.5)damage+=20;if(move.effect==="discardToolsBonus40"){const targets=[p.active,...p.bench];const removed=targets.filter(t=>t.tool);for(const t of removed){p.discard.push(t.tool);t.tool=null;}damage+=removed.length*40;}if(move.effect==="discardStadium"){message=p.active.name+" used "+move.name+" (no Stadium in play).";}else{o.active.damage+=damage;message=p.active.name+" used "+move.name+" for "+damage+" damage.";}if(move.effect==="discardEnergy"||move.effect==="discardThreeEnergy"){const count=move.effect==="discardThreeEnergy"?3:1;for(let n=0;n<count&&p.active.energies.length;n++){const type=p.active.energies.pop();p.discard.push(energy(type));}p.active.energy=p.active.energies.length;message+=" Discarded "+count+" Energy.";}}
 if(o.active.damage>=o.active.hp)message+=knockOut(s);
