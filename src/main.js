@@ -192,6 +192,7 @@ function playSelected(player,target,slot){
   if(card.name==="Quick Ball"||card.name==="Ultra Ball"){showBallSearch();return;}
   if(card.name==="Nest Ball"){showNestBallSearch();return;}
   if(["Gladion","Clay","Cynthia & Caitlin"].includes(card.name)){showSupporterPrinting(card);return;}
+  if(["Energy Retrieval","Fire Crystal"].includes(card.name)){showEnergyRecovery(card);return;}
   if(card.name==="Field Blower"){showFieldBlower(card);return;}
   if(["Pal Pad","VS Seeker"].includes(card.name)){showSupporterRecovery(card);return;}
   if(card.name==="Lusamine"){showLusamine(card);return;}
@@ -396,6 +397,14 @@ function showTargetTrainer(card){
  const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(allowed?"":" search-ineligible");tile.disabled=!allowed;tile.innerHTML=cardHtml({kind:"pokemon",species:x.mon.speciesIndex},{small:true})+"<span>"+escape(x.mon.name)+"</span>";tile.onclick=()=>act("trainer",{target:x.target,slot:x.slot},{token});grid.append(tile);
  });panel.append(grid);
 }
+function showEnergyRecovery(card){
+ if(!canHuman()||state.phase!=="playing")return;
+ const p=state.players[state.turn],crystal=card.name==="Fire Crystal",max=crystal?3:2;
+ const token=openModal("energy-recovery",{card},"<h2>"+escape(card.name)+"</h2><p>"+(crystal?"Choose exactly three Fire Energy cards.":"Choose up to two Basic Energy cards.")+"</p>");
+ const selected=new Set(),grid=document.createElement("div");grid.className="search-deck-gallery";
+ p.discard.forEach((c,i)=>{const ok=c.kind==="energy"&&(crystal?c.type==="Fire":["Fire","Water","Grass","Lightning","Psychic","Fighting","Darkness","Metal","Colorless","Dragon","Fairy"].includes(c.type));const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(ok?"":" search-ineligible");tile.disabled=!ok;tile.innerHTML=cardHtml(c,{small:true})+"<span>"+escape(cardName(c))+"</span>";tile.onclick=()=>{if(selected.has(i)){selected.delete(i);tile.classList.remove("chosen");}else if(selected.size<max){selected.add(i);tile.classList.add("chosen");}else setError("Choose at most "+max+" cards.");};grid.append(tile);});panel.append(grid);
+ actionButton("Play "+card.name,()=>{if(crystal&&selected.size!==3){setError("Fire Crystal requires three Fire Energy cards.");return;}act("trainer",{discardIndices:[...selected]},{token});});
+}
 function showFieldBlower(card){
  if(!canHuman()||state.phase!=="playing")return;
  const token=openModal("field-blower",{card},"<h2>Field Blower</h2><p>Choose up to two Pokémon Tools or Stadium cards in play to discard.</p>");
@@ -587,6 +596,7 @@ for(const b of document.querySelectorAll("button[data-action]"))b.addEventListen
   if(c.name==="Quick Ball"||c.name==="Ultra Ball"){showBallSearch();return;}
   if(c.name==="Nest Ball"){showNestBallSearch();return;}
   if(["Gladion","Clay","Cynthia & Caitlin"].includes(c.name)){showSupporterPrinting(c);return;}
+  if(["Energy Retrieval","Fire Crystal"].includes(c.name)){showEnergyRecovery(c);return;}
   if(c.name==="Field Blower"){showFieldBlower(c);return;}
   if(["Pal Pad","VS Seeker"].includes(c.name)){showSupporterRecovery(c);return;}
   if(c.name==="Lusamine"){showLusamine(c);return;}
