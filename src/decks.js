@@ -16,12 +16,15 @@ export function registerExternalCard(raw){
  const category=kind.includes("pok")?"pokemon":kind.includes("energy")?"energy":"trainer";
  const subtypes=Array.isArray(raw.subtypes)?raw.subtypes:[raw.subtype].filter(Boolean);
  const subtype=subtypes.find(t=>/item|supporter|stadium|tool/i.test(t))||"";
- const card={kind:category,name:raw.name,subtype,set:raw.set?.tcgOnline||raw.set?.id||raw.setCode||"",number:String(raw.number||""),printing:raw.id,image:raw.imageUrl||"",external:true};
+ const setCode=String(raw.setCode||raw.set?.tcgOnline||raw.set?.id||"").toUpperCase();
+ const cardNumber=String(raw.number||"");
+ const officialPrintImage=setCode&&/^\\d+$/.test(cardNumber)?`https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/${encodeURIComponent(setCode)}/${encodeURIComponent(setCode)}_${cardNumber.padStart(3,"0")}_R_EN.png`:"";
+ const card={kind:category,name:raw.name,subtype,set:raw.set?.tcgOnline||raw.set?.id||raw.setCode||"",number:String(raw.number||""),printing:raw.id,image:raw.imageUrl||officialPrintImage,external:true};
  if(category==="pokemon"){
   const stage=/stage\s*2/i.test(raw.stage||"")||/^(Dragapult ex)$/i.test(raw.name)?2:/stage\s*1/i.test(raw.stage||"")||/^(Drakloak|Dudunsparce)$/i.test(raw.name)?1:0;
   const evolvesFrom=raw.evolveFrom||raw.evolvesFrom||({"Drakloak":"Dreepy","Dragapult ex":"Drakloak","Dudunsparce":"Dunsparce"})[raw.name]||"";
   const index=species.length;
-  species.push({name:raw.name,hp:Number(raw.hp)|| (stage===2?280:stage===1?120:80),id:0,type:raw.energyType||raw.pokemonType||(/starter-lightning/.test(raw.id)?"Lightning":/starter-fire/.test(raw.id)?"Fire":"Colorless"),stage,evolvesFrom,retreat:1,attacks:[{name:"Prototype Attack",cost:["Colorless"],damage:30}],image:raw.imageUrl||"",printing:raw.id,external:true});
+  species.push({name:raw.name,hp:Number(raw.hp)|| (stage===2?280:stage===1?120:80),id:0,type:raw.energyType||raw.pokemonType||(/starter-lightning/.test(raw.id)?"Lightning":/starter-fire/.test(raw.id)?"Fire":"Colorless"),stage,evolvesFrom,retreat:1,attacks:[{name:"Prototype Attack",cost:["Colorless"],damage:30}],image:raw.imageUrl||officialPrintImage,printing:raw.id,external:true});
   card.species=index;
  }
  if(category==="energy")card.type=raw.name.replace(/^(Basic )?/i,"").replace(/ Energy$/i,"");
