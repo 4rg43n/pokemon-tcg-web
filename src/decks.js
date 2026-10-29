@@ -18,7 +18,7 @@ export function registerExternalCard(raw){
  const subtype=subtypes.find(t=>/item|supporter|stadium|tool/i.test(t))||"";
  const setCode=String(raw.setCode||raw.set?.tcgOnline||raw.set?.id||"").toUpperCase();
  const cardNumber=String(raw.number||"");
- const officialPrintImage=setCode&&/^\\d+$/.test(cardNumber)?`https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/${encodeURIComponent(setCode)}/${encodeURIComponent(setCode)}_${cardNumber.padStart(3,"0")}_R_EN.png`:"";
+ const officialPrintImage=setCode&&/^\d+$/.test(cardNumber)?`https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/${encodeURIComponent(setCode)}/${encodeURIComponent(setCode)}_${cardNumber.padStart(3,"0")}_R_EN.png`:"";
  const card={kind:category,name:raw.name,subtype,set:raw.set?.tcgOnline||raw.set?.id||raw.setCode||"",number:String(raw.number||""),printing:raw.id,image:raw.imageUrl||officialPrintImage,external:true};
  if(category==="pokemon"){
   const stage=/stage\s*2/i.test(raw.stage||"")||/^(Dragapult ex)$/i.test(raw.name)?2:/stage\s*1/i.test(raw.stage||"")||/^(Drakloak|Dudunsparce)$/i.test(raw.name)?1:0;
