@@ -208,7 +208,16 @@ button.coach-cta::after{content:"PRESS THIS";background:var(--pk-yellow);color:v
 .hand-cards .tcg-card:hover + .tcg-card.selected,.hand-cards .tcg-card.hovered + .tcg-card.selected{transform:translate(14px,-8px)}
 }
 @media(hover:hover) and (max-width:700px){.hand-cards .tcg-card:hover,.hand-cards .tcg-card.hovered,.hand-cards .tcg-card.printed:hover,.hand-cards .tcg-card.printed.hovered{transform:translateY(-20px) scale(1.8)}}
-@media(hover:hover) and (prefers-reduced-motion:reduce){.hand-cards .tcg-card{transition:none}}
+/* Played Pokémon get the same raise as hand cards. Player 1's side grows upward and Player 2's (top) grows downward, so neither is clipped by the playmat. Listed with .printed to beat the board magnifier's .slot .tcg-card.printed:hover. */
+@media(hover:hover){
+.slot .tcg-card:not(.empty){transition:transform .16s ease-out,box-shadow .16s ease-out}
+.side.self .slot .tcg-card:not(.empty),.side.self .slot .tcg-card.printed:not(.empty){transform-origin:50% 100%}
+.side.opponent .slot .tcg-card:not(.empty),.side.opponent .slot .tcg-card.printed:not(.empty){transform-origin:50% 0}
+.side.self .slot .tcg-card:not(.empty):hover,.side.self .slot .tcg-card:not(.empty).hovered,.side.self .slot .tcg-card.printed:not(.empty):hover,.side.self .slot .tcg-card.printed:not(.empty).hovered{transform:translateY(-20px) scale(2.3);z-index:40;box-shadow:0 18px 50px #000c}
+.side.opponent .slot .tcg-card:not(.empty):hover,.side.opponent .slot .tcg-card:not(.empty).hovered,.side.opponent .slot .tcg-card.printed:not(.empty):hover,.side.opponent .slot .tcg-card.printed:not(.empty).hovered{transform:translateY(20px) scale(2.3);z-index:40;box-shadow:0 18px 50px #000c}
+}
+@media(hover:hover) and (max-width:700px){.side.self .slot .tcg-card:not(.empty):hover,.side.self .slot .tcg-card:not(.empty).hovered,.side.self .slot .tcg-card.printed:not(.empty):hover,.side.self .slot .tcg-card.printed:not(.empty).hovered{transform:translateY(-12px) scale(1.8)}.side.opponent .slot .tcg-card:not(.empty):hover,.side.opponent .slot .tcg-card:not(.empty).hovered,.side.opponent .slot .tcg-card.printed:not(.empty):hover,.side.opponent .slot .tcg-card.printed:not(.empty).hovered{transform:translateY(12px) scale(1.8)}}
+@media(hover:hover) and (prefers-reduced-motion:reduce){.hand-cards .tcg-card,.slot .tcg-card{transition:none}}
 
 /* Search dialogs show the actual inspected cards in a scrollable gallery. */
 .print-search-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:12px;max-height:380px;overflow-y:auto;padding:12px 4px;margin:12px 0;}
