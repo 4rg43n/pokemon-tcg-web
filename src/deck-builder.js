@@ -4,7 +4,7 @@ import {searchCardDatabase,getCardDetail} from "./external-cards.js?v=31";
 const storageKey="pokemon-tcg-decks-v1";
 const externalKey="pokemon-tcg-external-cards-v1";
 const starterVersionKey="pokemon-tcg-starter-version";
-const starterVersion="50";
+const starterVersion="54";
 const esc=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 export function mountDeckBuilder({start,inspect,onClose}){
  const root=document.querySelector("#deck-builder");
