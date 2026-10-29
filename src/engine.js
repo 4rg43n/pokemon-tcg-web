@@ -390,11 +390,21 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   message=card.name+" shuffled the opponent's hand into their deck and drew "+o.hand.length+" cards.";
  }
  else if(card.name==="Field Blower"){
-  const targets=[p.active,...p.bench,o.active,...o.bench].filter(Boolean);
-  const tools=targets.filter(mon=>mon.tool).slice(0,2);
-  for(const mon of tools){(targets.includes(mon)&&[p.active,...p.bench].includes(mon)?p:o).discard.push(mon.tool);mon.tool=null;}
-  if(tools.length<2&&s.stadium){s.players[s.stadiumOwner??s.turn].discard.push(s.stadium);s.stadium=null;}
-  message="Field Blower discarded "+tools.length+" Tool(s)"+(!s.stadium?" and cleared the Stadium if present.":".");
+  const choices=payload.targets??[];
+  if(!Array.isArray(choices)||choices.length>2)return err(state,"Choose up to two Pokémon Tools or Stadium cards.");
+  const used=new Set();
+  for(const choice of choices){
+   const key=choice?.kind==="stadium"?"stadium":choice?.player+":"+choice?.target+":"+choice?.slot;
+   if(used.has(key))return err(state,"Choose different cards.");used.add(key);
+   if(choice?.kind==="stadium"){if(!s.stadium)return err(state,"No Stadium to remove.");continue;}
+   const owner=s.players[choice?.player],mon=choice?.target==="active"?owner?.active:choice?.target==="bench"?owner?.bench[choice.slot]:null;
+   if(!mon?.tool)return err(state,"Choose an attached Pokémon Tool.");
+  }
+  for(const choice of choices){
+   if(choice.kind==="stadium"){s.players[s.stadiumOwner??s.turn].discard.push(s.stadium);s.stadium=null;s.stadiumOwner=null;}
+   else{const owner=s.players[choice.player],mon=choice.target==="active"?owner.active:owner.bench[choice.slot];owner.discard.push(mon.tool);mon.tool=null;}
+  }
+  message="Field Blower discarded "+choices.length+" selected Tool or Stadium card(s).";
  }
  else if(card.name==="Blacksmith"){
   const target=payload.target==="bench"?p.bench[payload.slot]:p.active;
