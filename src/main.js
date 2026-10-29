@@ -347,6 +347,15 @@ function useAbility(token){
  if(!modalHuman(token)||!token.field)return;
  const {target,slot,player}=token.field,c=target==="active"?state.players[player].active:state.players[player].bench[slot];
  if(player!==state.turn||!c?.ability)return;
+ if(c.ability.name==="Call Signal"){
+  panel.innerHTML="<h2>Magneton · Call Signal</h2><p>Search your deck for up to three Supporter cards, put them into your hand, and shuffle your deck. Magneton is then Knocked Out, and your opponent takes a Prize card.</p><p class='modal-error' role='alert'></p>";
+  const grid=document.createElement("div");grid.className="search-deck-gallery";const selected=new Set();
+  state.players[state.turn].deck.forEach((card,i)=>{
+   const allowed=card.kind==="trainer"&&card.subtype==="Supporter";const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(allowed?"":" search-ineligible");tile.disabled=!allowed;tile.innerHTML=cardHtml(card,{small:true})+"<span>"+escape(cardName(card))+"</span>";
+   tile.onclick=()=>{if(selected.has(i)){selected.delete(i);tile.classList.remove("chosen");return;}if(selected.size>=3){setError("Choose at most three Supporters.");return;}selected.add(i);tile.classList.add("chosen");};grid.append(tile);
+  });panel.append(grid);
+  actionButton("Use Call Signal (Knock Out Magneton)",()=>act("ability",{target,slot,searchIndices:[...selected]},{token}));return;
+ }
  if(c.ability.name!=="Snack Seek"){act("ability",{target,slot},{token});return;}
  if(c.abilityUsed){setError("This Ability has already been used this turn.");return;}
  const top=state.players[state.turn].deck[0];if(!top){setError("No cards left to inspect.");return;}
