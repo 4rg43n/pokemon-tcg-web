@@ -17,22 +17,19 @@ export const TRAINER_MECHANICS={
 "Evosoda":{kind:"search",filter:"evolutionOfMine"},
 "Guzma & Hala":{kind:"search",filter:["stadium","tool","specialEnergy"]},
 "Energy Search":{kind:"search",filter:"basicEnergy"},
-"Ordinary Rod":{kind:"recover",filter:["pokemon","basicEnergy"],count:2,to:"deck"},
-"Brock's Grit":{kind:"recover",filter:["pokemon","basicEnergy"],count:6,to:"deck"},
-"Energy Recycler":{kind:"recover",filter:"basicEnergy",count:5,to:"deck"},
-"Lana's Fishing Rod":{kind:"recover",filter:["pokemon","tool"],count:2,to:"deck"},
-"Lusamine":{kind:"recover",filter:["supporter","stadium"],count:2,to:"hand"},
+"Ordinary Rod":{kind:"recover",filter:["pokemon","basicEnergy"],count:2},
+"Brock's Grit":{kind:"recover",filter:["pokemon","basicEnergy"],count:6},
+"Energy Recycler":{kind:"recover",filter:"basicEnergy",count:5},
 "Switch":{kind:"switch",target:"self"},
 "Switch Cart":{kind:"switch",target:"self",heal:30},
 "Boss's Orders":{kind:"switch",target:"opponent"},
 "Pokémon Catcher":{kind:"switch",target:"opponent",coin:true},
-"Max Potion":{kind:"heal",amount:"all",discardEnergy:"all"},
 "Hyper Potion":{kind:"heal",amount:120,discardEnergy:2},
 "Super Potion":{kind:"heal",amount:60,discardEnergy:1},
 "Moomoo Milk":{kind:"heal",amount:30,coins:2}
 };
 
-const FILTER_TEXT={pokemon:"Pokémon",evolutionOfMine:"Evolution card for one of your Pokémon",stadium:"Stadium",tool:"Pokémon Tool",specialEnergy:"Special Energy",basicEnergy:"Basic Energy",supporter:"Supporter"};
+const FILTER_TEXT={pokemon:"Pokémon",evolutionOfMine:"Evolution card for one of your Pokémon",stadium:"Stadium",tool:"Pokémon Tool",specialEnergy:"Special Energy",basicEnergy:"Basic Energy"};
 const filterText=filter=>[].concat(filter).map(name=>FILTER_TEXT[name]||name).join(" or ");
 
 export function describeMechanic(name){
@@ -46,9 +43,9 @@ if(mechanic.kind==="search"){
 const where=mechanic.look?`Look at the top ${mechanic.look} cards of your deck and take`:"Search your deck for";
 return `${where} a ${filterText(mechanic.filter)} and put it into your hand${mechanic.coin?" (flip a coin first: tails does nothing)":""}, then shuffle.`;
 }
-if(mechanic.kind==="recover")return `Put up to ${mechanic.count} ${filterText(mechanic.filter)} card${mechanic.count>1?"s":""} from your discard pile ${mechanic.to==="deck"?"into your deck":"into your hand"}.`;
+if(mechanic.kind==="recover")return `Shuffle up to ${mechanic.count} ${filterText(mechanic.filter)} cards from your discard pile into your deck.`;
 if(mechanic.kind==="switch")return mechanic.target==="self"?`Switch your Active Pokémon with one of your Benched Pokémon${mechanic.heal?` and heal ${mechanic.heal} damage from it`:""}.`:`Switch one of your opponent's Benched Pokémon with their Active Pokémon${mechanic.coin?" if a coin flip is heads":""}.`;
-if(mechanic.kind==="heal")return mechanic.amount==="all"?"Heal all damage from one of your Pokémon and discard all Energy from it.":`Heal ${mechanic.coins?`${mechanic.amount} for each heads on ${mechanic.coins} coin flips`:`${mechanic.amount} damage`} from one of your Pokémon${mechanic.discardEnergy?`, then discard ${mechanic.discardEnergy} Energy from it`:""}.`;
+if(mechanic.kind==="heal")return `Heal ${mechanic.coins?`${mechanic.amount} for each heads on ${mechanic.coins} coin flips`:`${mechanic.amount} damage`} from one of your Pokémon${mechanic.discardEnergy?`, then discard ${mechanic.discardEnergy} Energy from it`:""}.`;
 }
 
 function matches(card,filter,context){
@@ -58,7 +55,6 @@ case "pokemon":return card.kind==="pokemon";
 case "evolutionOfMine":return !!definition&&!!definition.stage&&context.inPlayNames.includes(definition.evolvesFrom);
 case "stadium":return card.kind==="trainer"&&card.subtype==="Stadium";
 case "tool":return card.kind==="trainer"&&card.subtype==="Pokémon Tool";
-case "supporter":return card.kind==="trainer"&&card.subtype==="Supporter";
 case "specialEnergy":return card.kind==="energy"&&!BASIC_ENERGY_TYPES.has(card.type);
 case "basicEnergy":return card.kind==="energy"&&BASIC_ENERGY_TYPES.has(card.type);
 }});
@@ -119,8 +115,8 @@ else if(mechanic.kind==="recover"){
 const picks=pickFromPile(player.discard,mechanic.filter,mechanic.count,payload.choices,context);
 if(!picks.length)return {state,error:`No ${filterText(mechanic.filter)} cards in your discard pile.`};
 const recovered=removeIndices(player.discard,picks.map(pick=>pick.index));
-if(mechanic.to==="deck"){player.deck.push(...recovered);shuffle(player.deck);}else player.hand.push(...recovered);
-message=`${card.name}: returned ${recovered.map(recoveredCard=>cardLabel(recoveredCard,helpers.species)).join(", ")} to ${mechanic.to==="deck"?"the deck":"hand"}.`;
+player.deck.push(...recovered);shuffle(player.deck);
+message=`${card.name}: shuffled ${recovered.map(recoveredCard=>cardLabel(recoveredCard,helpers.species)).join(", ")} back into the deck.`;
 }
 else if(mechanic.kind==="switch"){
 if(mechanic.target==="self"){
@@ -145,10 +141,10 @@ if(!targets.length)return {state,error:"None of your Pokémon have damage to hea
 const chosen=targets.find(entry=>entry.target===payload.target&&(entry.target==="active"||entry.slot===payload.slot))||targets.sort((left,right)=>right.mon.damage-left.mon.damage)[0];
 const mon=chosen.mon;
 const heads=mechanic.coins?Array.from({length:mechanic.coins},flip).filter(Boolean).length:1;
-const healed=mechanic.amount==="all"?mon.damage:Math.min(mon.damage,mechanic.amount*heads);
+const healed=Math.min(mon.damage,mechanic.amount*heads);
 mon.damage-=healed;
 let energyNote="";
-if(mechanic.discardEnergy){const dropCount=mechanic.discardEnergy==="all"?mon.energies.length:Math.min(mechanic.discardEnergy,mon.energies.length);for(let dropped=0;dropped<dropCount;dropped++)player.discard.push(helpers.energyCard(mon.energies.shift()));mon.energy=mon.energies.length;energyNote=dropCount?` and discarded ${dropCount} Energy`:"";}
+if(mechanic.discardEnergy){const dropCount=Math.min(mechanic.discardEnergy,mon.energies.length);for(let dropped=0;dropped<dropCount;dropped++)player.discard.push(helpers.energyCard(mon.energies.shift()));mon.energy=mon.energies.length;energyNote=dropCount?` and discarded ${dropCount} Energy`:"";}
 message=`${card.name}: healed ${healed} damage from ${mon.name}${energyNote}.`;
 }
 player.hand.splice(handIndex,1);player.discard.push(card);
