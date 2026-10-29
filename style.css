@@ -245,3 +245,11 @@ button.coach-cta::after{content:"PRESS THIS";background:var(--pk-yellow);color:v
 .search-deck-tile.chosen{border-color:#f9d75b;background:#285574;}
 .search-deck-tile.search-ineligible{opacity:.48;cursor:not-allowed;}
 .cost-card.search-ineligible{opacity:.55;}
+
+/* Stadiums persist in the shared center play area until replaced or removed. */
+.divider:has(.stadium-zone){height:auto;min-height:140px;display:flex;justify-content:center;align-items:center;padding:12px 0;overflow:visible;}
+.stadium-zone{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:165px;padding:10px 18px;border:1px solid #d3ae48;border-radius:12px;background:rgba(10,34,60,.94);color:#fff;z-index:2;}
+.stadium-zone .tcg-card{width:88px;min-height:120px;max-height:132px;overflow:hidden;}
+.stadium-zone .zone-label{font-size:11px;letter-spacing:.08em;text-align:center;}
+.stadium-zone strong{font-size:13px;text-align:center;}
+.stadium-empty{font-size:12px;color:#b5cce0;padding:16px 0;}

@@ -194,10 +194,10 @@ The BattleRoad battle bird sits in the bottom-right corner of the playmat and co
 
 `src/trainer-mechanics.js` makes Trainers playable by effect family instead of one handler per card. A name table maps each card to one of five mechanics with parameters, and the engine consults it just before rejecting an unknown Trainer, so cards the engine already handles by name are unaffected:
 
-- **Draw**: draw N; shuffle hand into deck then draw N (optionally for both players, or one card per Prize left); look at the top cards and keep one; discard the top cards and take matching ones. Hop, Cheren, Hau, Tierno, Cynthia, Judge, Marnie, N, Acro Bike, Clay.
-- **Deck search**: find cards matching a filter (Pokémon, Basic, Evolution for one of your Pokémon, TAG TEAM, Stadium, Tool, Special or Basic Energy), optionally from the top few cards or behind a coin flip. Great Ball, Poké Ball, Evosoda, Tag Call, Guzma & Hala, Energy Search.
-- **Discard recovery**: return matching cards from the discard pile to hand or deck. Super Rod, Ordinary Rod, Brock's Grit, Energy Recycler, Lana's Fishing Rod, Special Charge, Lusamine, Cynthia & Caitlin.
-- **Switch**: swap your Active with a Benched Pokémon, or drag one of the opponent's Benched Pokémon into their Active spot, with optional prize-count or coin-flip conditions. Switch, Switch Cart, Boss's Orders, Counter Catcher, Pokémon Catcher.
+- **Draw**: draw N, or shuffle your hand into your deck then draw N, optionally for both players or one card per Prize left. Hop, Cheren, Hau, Tierno, Cynthia, Judge, Marnie, N.
+- **Deck search**: find cards matching a filter (Pokémon, Evolution for one of your Pokémon, Stadium, Tool, Special or Basic Energy), optionally from the top few cards or behind a coin flip. Great Ball, Poké Ball, Evosoda, Guzma & Hala, Energy Search.
+- **Discard recovery**: return matching cards from the discard pile to hand or deck. Ordinary Rod, Brock's Grit, Energy Recycler, Lana's Fishing Rod, Lusamine.
+- **Switch**: swap your Active with a Benched Pokémon, or drag one of the opponent's Benched Pokémon into their Active spot, optionally behind a coin flip. Switch, Switch Cart, Boss's Orders, Pokémon Catcher.
 - **Heal**: remove damage from one Pokémon, optionally discarding Energy from it or rolling coins. Max Potion, Hyper Potion, Super Potion, Moomoo Milk.
 
 Cards resolve without a dialog: when the player gives no choice the most useful default is picked (most charged Benched Pokémon to switch in, most damaged Pokémon to heal, lowest-HP opposing Pokémon to drag up) and the log says what happened. Trainers not in the table and not handled by name stay rejected with "not implemented yet". Add a card by adding one line to the table; the big card view describes it automatically.
