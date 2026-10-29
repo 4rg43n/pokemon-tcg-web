@@ -271,7 +271,12 @@ if(s.phase!=="playing")return err(state,"Energy cannot be attached during setup.
 if(p.attached)return err(state,"You can attach only one Energy per turn.");
 const target=payload.target==="active"?p.active:payload.target==="bench"&&Number.isInteger(payload.slot)?p.bench[payload.slot]:null;
 if(!target)return err(state,"Tap your Active Pokémon or a Benched Pokémon to attach Energy.");
-target.energies.push(card.type);target.energy=target.energies.length;p.attached=true;message="Attached "+card.type+" Energy to "+target.name+".";
+if(card.type==="Speed Lightning"&&target.type!=="Lightning")return err(state,"Speed Lightning Energy can only be attached to a Lightning Pokémon.");
+target.energies.push(card.type==="Speed Lightning"?"Lightning":card.type==="Capture"||card.type==="Recycle"?"Colorless":card.type);
+target.energy=target.energies.length;p.attached=true;
+if(card.type==="Speed Lightning"){let drawn=0;for(let n=0;n<2&&p.deck.length;n++){p.hand.push(p.deck.shift());drawn++;}message="Attached Speed Lightning Energy to "+target.name+" and drew "+drawn+" cards.";}
+else if(card.type==="Capture"){const choice=payload.searchIndex;if(Number.isInteger(choice)&&p.deck[choice]?.kind==="pokemon"&&!species[p.deck[choice].species]?.stage&&p.bench.length<5){const found=p.deck.splice(choice,1)[0];const added=pokemon(found.species);added.playedTurn=s.round;p.bench.push(added);}shuffle(p.deck);message="Attached Capture Energy to "+target.name+" and searched for a Basic Pokémon.";}
+else message="Attached "+card.type+" Energy to "+target.name+".";
 }else return err(state,"Unsupported card.");
 p.hand.splice(idx,1);s.selection=null;
 }else if(action==="retreat"){
