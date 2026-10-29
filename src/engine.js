@@ -364,13 +364,14 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   shuffle(p.deck);message="Professor's Letter searched for "+found+" Basic Energy card(s), then shuffled the deck.";
  }
  else if(card.name==="Pal Pad"){
-  const cards=p.discard.map((c,i)=>({c,i})).filter(({c})=>c.kind==="trainer"&&c.subtype==="Supporter").slice(0,2);
-  for(const {i} of cards.slice().reverse())p.deck.push(p.discard.splice(i,1)[0]);
-  shuffle(p.deck);message="Pal Pad shuffled "+cards.length+" Supporter card(s) from discard into the deck.";
+  const indices=payload.discardIndices??[];
+  if(!Array.isArray(indices)||indices.length>2||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||p.discard[i]?.kind!=="trainer"||p.discard[i]?.subtype!=="Supporter"))return err(state,"Choose up to two Supporter cards from your discard pile.");
+  for(const i of [...indices].sort((a,b)=>b-a))p.deck.push(p.discard.splice(i,1)[0]);
+  shuffle(p.deck);message="Pal Pad shuffled "+indices.length+" selected Supporter card(s) into the deck.";
  }
  else if(card.name==="VS Seeker"){
-  const index=p.discard.findIndex(c=>c.kind==="trainer"&&c.subtype==="Supporter");
-  if(index<0)return err(state,"VS Seeker requires a Supporter in the discard pile.");
+  const index=payload.discardIndex;
+  if(!Number.isInteger(index)||p.discard[index]?.kind!=="trainer"||p.discard[index]?.subtype!=="Supporter")return err(state,"Choose a Supporter in your discard pile.");
   const recovered=p.discard.splice(index,1)[0];p.hand.push(recovered);
   message="VS Seeker returned "+recovered.name+" from discard to hand.";
  }
