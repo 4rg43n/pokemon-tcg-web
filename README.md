@@ -3,14 +3,15 @@ Browser-based Pokémon TCG educational playmat and deck builder.
 
 https://4rg43n.github.io/pokemon-tcg-web/
 
-## Human playmat update (v48 release target)
+## Human playmat update (v54)
 
-The local v48 integration reconciles the human-to-human hotseat controls below
-with main's **v47** playmat, coach, imports, and planning/debug features.
-Observed validation is recorded below. Microsoft Edge UI smoke testing and
-user acceptance remain **unverified** pending browser-control approval.
-No deployment, iPad Safari acceptance, complete official-rules compliance, or
-Judge-panel review is claimed.
+The v54 integration combines the human-to-human hotseat controls below with
+coworkers' existing playmat, coach, imports, and planning/debug features.
+The user has requested publication for manual UI testing; browser testing is
+deferred, not awaiting browser-control approval or a prerequisite to publishing.
+Manual user acceptance, Microsoft Edge, and iPad Safari behavior remain
+**unverified**. This release does not certify complete official-rules
+compliance or a Judge-panel review.
 
 - Pass the device deliberately at the private-hand handoff before revealing
   the next player's hand. Starting Pokémon remain face down until setup reveal.
@@ -38,6 +39,12 @@ Judge-panel review is claimed.
 - Normal human-play controls provide no generic free peek, shuffle, or cut to
   avoid an unwanted draw. A cut requires an authorized shuffle of that same
   deck/Prize group; this is not a claim that a generic cut control exists.
+- Buddy-Buddy Poffin is present in the starter catalog and has a named engine
+  search: choose up to two Basic Pokémon with 70 HP or less, put them directly
+  onto the Bench, then shuffle. A full Bench blocks play; available spaces
+  constrain the selection. This implemented path is not a claim that every
+  imported printing's metadata or all Trainer interactions are official-text
+  complete.
 
 The retained **developer Debug** features can expose hidden cards and alter
 state. They are not legal gameplay permissions or privacy-safe normal-play
@@ -62,16 +69,19 @@ The existing deck builder includes **Validate and import deck** for pasted
 Limitless/PTCGL exports, plus live English-printing search through
 [TCGdex](https://www.tcgdex.net/). Its parser, resolver, and external-card support
 live in `src/limitless-import.js`, `src/limitless-resolver.js`, and
-`src/external-cards.js`. The resolver preserves unresolved rows as explicitly
-unverified references and may supply inferred/default prototype metadata.
+`src/external-cards.js`. The resolver may return unresolved rows marked
+`unverified`, with inferred/default prototype metadata; that flag is not carried
+through as a complete printing-verification status in the registered catalog.
 Import success is therefore **not proof of an identified printing**, a legal
-Standard/GLC deck, or working official card effects.
+Standard/GLC deck, or working official card effects. The builder validates a
+candidate deck before replacing the selected deck.
 
-External Pokémon may use a simplified Prototype Attack and inferred stats;
-external Trainers without implemented effects may be no-effect prototype
-actions. Check exact source text and supported automation before play. Live
-network resolution and real Limitless beta-export compatibility are not
-verified by this documentation task.
+External Pokémon may use a simplified Prototype Attack and inferred stats.
+Trainers with named engine implementations use those supported actions;
+unsupported external Trainers are rejected and remain in hand rather than
+being spent as no-effect actions. Check exact source text and supported
+automation before play. Live network resolution and real Limitless beta-export
+compatibility remain unverified.
 
 ## Existing AI, planning, and debug work
 
@@ -90,27 +100,30 @@ From the repository root, the available regression entry points are:
 node --experimental-default-type=module --test tests/limitless-import.test.mjs src/engine.test.mjs
 ```
 
-The integrated command passed **16 tests**: 12 engine regressions and four
-import-parser cases. The parser suite does not exercise live TCGdex resolution
-or browser import flow. JavaScript syntax checks passed for the changed modules;
-these checks do not establish that the browser interactions work.
+Validation of the reconciled v54 source: **33 regression tests passed** and
+syntax checks passed for all 18 JavaScript source files. A Node engine smoke
+run completed both players' default-deck setup, four passed turns, mandatory
+draws, and manual counter placement/removal. No browser interactions were
+verified. The parser suite uses local fixtures; it does not exercise live
+TCGdex resolution or browser import flow.
 
 ```sh
 python3 -m http.server 8765
 ```
 
-Open `http://127.0.0.1:8765/` for browser checks. Microsoft Edge UI checks are
-awaiting browser-control approval. Before claiming UI verification, exercise
-private handoff, scoped inspection/detail/back, search-cost settlement,
-drag/tap/keyboard placement, and counter Knock Out/Prize/promotion flows in Edge.
-iPad Safari remains a separate acceptance surface. The intended visible release
-and production module/stylesheet cache keys are **v48**; this target is not
-evidence of a committed or deployed release.
+Open `http://127.0.0.1:8765/` for manual browser checks. Publish v54 for the
+requested user testing without representing the deferred browser pass as
+complete. Manual acceptance should exercise private handoff, scoped
+inspection/detail/Back, search-cost settlement and cancellation,
+drag/tap/keyboard placement, and counter Knock Out/Prize/promotion flows.
+Microsoft Edge and iPad Safari remain separate, unverified acceptance surfaces.
+The visible release and production module/stylesheet cache keys are **v54**.
+Confirm the visible version before manual testing; Pages deployment may lag.
 
 ## Historical feature notes
 
 The v16–v22 notes preserve feature history, followed by the existing v36 coach
-documentation. They are not new browser-test or acceptance results for v48.
+documentation. They are not new browser-test or acceptance results for v54.
 
 ## Deck builder (v16)
 
@@ -143,8 +156,9 @@ and the match. Starting a match from the builder opens the playmat directly.
 Pokémon cards and their enlarged previews show Weakness, Resistance, and
 Retreat. Typed circles identify Weakness/Resistance; a Colorless star with a
 number identifies the retreat Energy cost. Unknown data is shown as `?`,
-and explicitly absent values as `—`. No missing card data is inferred.
-Weakness and Resistance are informational until their battle rules are added.
+and explicitly absent values as `—`. This stats-display convention is separate
+from external-card registration, which can supply inferred/default prototype
+stats as described above. Weakness and Resistance remain informational.
 
 ## Air Balloon (v19)
 
@@ -171,7 +185,8 @@ Quick Ball replaces Poké Ball in the card library and starters; saved decks aut
 
 The BattleRoad battle bird sits in the bottom-right corner of the playmat and coaches whoever's turn it is: it explains a rule the moment you bump into it, points out Knock Outs, Energy, evolution and Ability plays, and warns about deck-out and bad prize trades. Every tip links to its source (official rules references and articles by competitive players). When the game ends it reviews both players' habits.
 
-- **Next / Got it** cycle or dismiss tips; **—** minimizes to the bird; **✕** mutes (click **Coach** to bring it back).
+- The bubble always opens with **Do this now**: a concrete instruction built from the moves the engine will actually accept (which card to tap and where, which button to press). Playable hand cards glow green, the recommended one gold, and the suggested button pulses. When nothing is left it says so and tells you to end the turn; cards the prototype can't play yet are named as such.
+- **Next / Got it** cycle or dismiss the rule and strategy tips shown under the instruction; **—** minimizes to the bird; **✕** mutes (click **Coach** to bring it back).
 - Rules explanations show once per browser; strategy tips recur when the board calls for them.
 - Knowledge lives in `src/coach_knowledge.js`; each entry is a trigger over the game state plus a cited source. Add a source and a tip there to extend it. Design notes: [COACH_DESIGN.md](COACH_DESIGN.md).
 

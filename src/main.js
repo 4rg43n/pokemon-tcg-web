@@ -1,14 +1,14 @@
-import {retreatCost,species,energyTypes} from "./cards.js?v=48";
-import {catalog} from "./decks.js?v=48";
-import {commands as debugCommands,pokemonRefs} from "./debug.js?v=48";
-import {cardStats} from "./card-stats.js?v=48";
-import {newGame,dispatch,cardInfo} from "./engine.js?v=48";
-import {mountDeckBuilder} from "./deck-builder.js?v=48";
-import {createRecorder} from "./history.js?v=48";
-import {createPlanner} from "./planning/planner.js?v=48";
-import {renderPlanGraph} from "./planning/plan-graph.js?v=48";
-import {update as coachUpdate} from "./coach_ui.js?v=48";
-import {typeSymbol} from "./type-symbols.js?v=48";
+import {retreatCost,species,energyTypes} from "./cards.js?v=54";
+import {catalog} from "./decks.js?v=54";
+import {commands as debugCommands,pokemonRefs} from "./debug.js?v=54";
+import {cardStats} from "./card-stats.js?v=54";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=54";
+import {mountDeckBuilder} from "./deck-builder.js?v=54";
+import {createRecorder} from "./history.js?v=54";
+import {createPlanner} from "./planning/planner.js?v=54";
+import {renderPlanGraph} from "./planning/plan-graph.js?v=54";
+import {update as coachUpdate} from "./coach_ui.js?v=54";
+import {typeSymbol} from "./type-symbols.js?v=54";
 const $=s=>document.querySelector(s);
 const board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log"),modal=$("#modal"),panel=$("#modal .modal-content");
 const escape=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -47,6 +47,10 @@ function closeModal(){
   const token=preview;
   if(!act("trainer",{discardIndices:token.ballCost,searchIndex:null},{source:"settle",token}))return false;
   $("#action-notice").textContent="Closed search resolved without finding a Pokémon. Discard costs were paid and the deck shuffled.";
+ }else if(preview?.trainerPayload&&validToken(preview)){
+  const token=preview;
+  if(!act("trainer",token.trainerPayload,{source:"settle",token}))return false;
+  $("#action-notice").textContent="Closed search resolved without finding a card. Committed costs and the card effect were resolved.";
  }else if(preview?.snackPayload&&validToken(preview)){
   const token=preview;
   if(!act("ability",token.snackPayload,{source:"settle",token}))return false;
@@ -66,7 +70,7 @@ function act(action,payload={},options={}){
  if(source==="human"&&(!canHuman(!!token)||(token&&!validToken(token)))){setError("Only the acknowledged current player can make this choice.");return false;}
  if(source==="ai"&&!aiAllowed()){setError("AI action canceled: the playmat is not available.");return false;}
  if(source==="referee"&&(!canReferee()||!validToken(token))){setError("Counters can only change during the current player's turn after handoff.");return false;}
- if(source==="settle"&&(!validToken(token)||(!token.ballCost&&!token.snackPayload)||!humanTurn()))return false;
+ if(source==="settle"&&(!validToken(token)||(!token.ballCost&&!token.snackPayload&&!token.trainerPayload)||!humanTurn()))return false;
  let result;
  try{result=action==="reset"?{state:newGame(options.decks??matchDecks)}:dispatch(state,action,payload);}catch(cause){setError(cause.message||String(cause));return false;}
  if(result.error){setError(result.error);if(source!=="ai")updateCoach({prev:state,state,action,error:result.error});return false;}
@@ -79,10 +83,10 @@ function cardHtml(data,opts={}){
  const {small=false,selected=false,back=false,empty=false,attrs=""}=opts;
  if(empty)return `<div class="tcg-card empty">${escape(data||"Empty")}</div>`;
  if(back)return '<div class="tcg-card back" aria-label="Face-down card"><span>Pokémon</span></div>';
- if(data.kind==="energy")return `<div class="tcg-card energy ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="energy-symbol">${typeSymbol(data.type)}</div><strong>${escape(data.type||"Basic")} Energy</strong></div>`;
- if(data.kind==="trainer")return `<div class="tcg-card trainer ${small?"small":""} ${selected?"selected":""}" ${attrs}><span class="card-type">TRAINER</span><strong>${escape(data.name)}</strong><small>${escape(data.subtype||"Item")}</small>${data.image?`<img src="${escape(data.image)}" alt="" loading="lazy">`:""}${data.name==="Air Balloon"?'<span class="tool-effect">Retreat costs 2 less</span>':""}</div>`;
+ if(data.kind==="energy")return `<div class="tcg-card energy type-${escape(String(data.type||"colorless").toLowerCase())} ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="energy-symbol">${typeSymbol(data.type)}</div><strong>${escape(data.type||"Basic")} Energy</strong></div>`;
+ if(data.kind==="trainer")return `<div class="tcg-card trainer trainer-${escape(String(data.subtype||"Item").toLowerCase().replace(/[^a-z]+/g,"-"))} ${small?"small":""} ${selected?"selected":""}" ${attrs}><span class="card-type">TRAINER</span><strong>${escape(data.name)}</strong><small>${escape(data.subtype||"Item")}</small>${data.image?`<img src="${escape(data.image)}" alt="" loading="lazy">`:""}${data.name==="Air Balloon"?'<span class="tool-effect">Retreat costs 2 less</span>':data.name==="Float Stone"?'<span class="tool-effect">No retreat cost</span>':""}</div>`;
  const c=displayCard(data);
- return `<div class="tcg-card pokemon ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="card-top"><strong>${escape(c.name)}</strong><span>${typeSymbol(c.type)} ${c.hp} HP</span></div><img src="${escape(c.image||(c.printing?`https://images.pokemontcg.io/${c.printing.split("-")[0]}/${c.printing.split("-")[1]}.png`:sprite(c.id)))}" alt="" loading="lazy"><div class="card-bottom"><span class="attached-energies">${(c.energies||[]).map(type=>typeSymbol(type)).join("")||"—"}</span><span>${Math.max(0,c.hp-(c.damage||0))} HP</span></div><span class="damage-total">${c.damage||0} damage · ${(c.damage||0)/10} counters</span>${c.tool?'<div class="attached-tool">Air Balloon · retreat −2</div>':""}${cardStats(c)}</div>`;
+ return `<div class="tcg-card pokemon type-${escape(String(c.type||"colorless").toLowerCase())} ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="card-top"><strong>${escape(c.name)}</strong><span>${typeSymbol(c.type)} ${c.hp} HP</span></div><img src="${escape(c.image||(c.printing?`https://images.pokemontcg.io/${c.printing.split("-")[0]}/${c.printing.split("-")[1]}.png`:sprite(c.id)))}" alt="" loading="lazy"><div class="card-bottom"><span class="attached-energies">${(c.energies||[]).map(type=>typeSymbol(type)).join("")||"—"}</span><span>${Math.max(0,c.hp-(c.damage||0))} HP</span></div><span class="damage-total">${c.damage||0} damage · ${(c.damage||0)/10} counters</span>${c.tool?`<div class="attached-tool">${escape(c.tool.name||"Air Balloon")}${c.tool.name==="Float Stone"?" · no retreat cost":c.tool.name==="Air Balloon"?" · retreat −2":""}</div>`:""}${cardStats(c)}</div>`;
 }
 function fieldVisible(player){return state.phase!=="setup"||(player===state.turn&&humanTurn()&&!handoff()&&gameVisible());}
 function placementAllowed(card,player,target,slot){
@@ -96,7 +100,7 @@ function placementAllowed(card,player,target,slot){
  if(state.phase!=="playing")return false;
  if(card.kind==="energy")return !!mon&&!p.attached;
  if(card.name==="Potion")return !!mon&&mon.damage>0;
- if(card.name==="Air Balloon")return !!mon&&!mon.tool;
+ if(["Air Balloon","Float Stone","Muscle Band","Vitality Band"].includes(card.name))return !!mon&&!mon.tool;
  return false;
 }
 function fieldSlot(p,player,target,slot){
@@ -140,7 +144,9 @@ function playSelected(player,target,slot){
  if(card.kind==="pokemon"&&!species[card.species].stage&&mon){setError("A Basic Pokémon needs an empty slot; it cannot replace an occupied Pokémon.");return;}
  if(card.kind==="trainer"){
   if(card.name==="Quick Ball"||card.name==="Ultra Ball"){showBallSearch();return;}
-  act("trainer",card.name==="Potion"||card.name==="Air Balloon"?{target,slot}:{});return;
+  if(card.name==="Nest Ball"){showNestBallSearch();return;}
+  if(choiceTrainers.includes(card.name)&&!["Float Stone","Muscle Band","Vitality Band"].includes(card.name)){showFireTrainerChoices(card);return;}
+  act("trainer",["Potion","Air Balloon","Float Stone","Muscle Band","Vitality Band"].includes(card.name)?{target,slot}:{});return;
  }
  act("play",{target,slot});
 }
@@ -275,6 +281,68 @@ function useAbility(token){
  panel.innerHTML='<h2>Snack Seek · authorized top-card inspection</h2>'+cardHtml(top)+'<p>Privately choose whether to keep the top card or discard it. This does not authorize inspecting the rest of the deck. Closing keeps the card on top and uses this Ability.</p><p class="modal-error" role="alert"></p>';
  for(const discard of [false,true])actionButton(discard?"Discard top card":"Keep on top",()=>{if(modalHuman(token))act("ability",{target,slot,discard},{token});});
 }
+const choiceTrainers=["Buddy-Buddy Poffin","Evolution Incense","Level Ball","Poké Pad","Trainers' Mail","Earthen Vessel","Arven","Gloria","Hisuian Heavy Ball","Night Stretcher","Rescue Stretcher","Lana's Aid","Welder","Float Stone","Muscle Band","Vitality Band","Bird Keeper","Blacksmith","Raihan","Guzma","Escape Rope","Rare Candy","Scoop Up Net"];
+function showFireTrainerChoices(card){
+ if(!canHuman()||state.phase!=="playing")return;
+ const p=state.players[state.turn];if(p.hand[state.selection]!==card)return;
+ if(card.subtype==="Supporter"&&(p.supporterUsed||state.turn===0&&state.round===1)){setError("A Supporter cannot be used now.");return;}
+ if(["Buddy-Buddy Poffin","Gloria"].includes(card.name)&&p.bench.length>=5){setError("Your Bench is full.");return;}
+ if(card.name==="Raihan"&&!p.discard.some(c=>c.kind==="energy")){setError("Raihan requires a Basic Energy in the discard pile.");return;}
+ if(card.name==="Earthen Vessel"&&p.hand.length<2){setError("Earthen Vessel requires another hand card to discard.");return;}
+ const token=openModal("fire-trainer",{card},`<h2>${escape(card.name)}</h2>`);
+ if(card.name!=="Earthen Vessel"){renderFireTrainerChoices(token,card);return;}
+ panel.insertAdjacentHTML("beforeend","<p>Choose one other hand card to discard. The deck remains hidden until the cost is committed.</p>");
+ const select=document.createElement("select");select.id="trainer-discard-cost";select.setAttribute("aria-label","Earthen Vessel discard cost");
+ select.innerHTML=p.hand.map((c,i)=>i===state.selection?"":`<option value="${i}">${escape(cardName(c))}</option>`).join("");panel.append(select);
+ const commit=actionButton("Commit discard cost and search",()=>{if(!modalHuman(token))return;token.discardCostIndices=[Number(select.value)];renderFireTrainerChoices(token,card);});commit.id="trainer-commit-cost";
+}
+function renderFireTrainerChoices(token,card){
+ if(!modalHuman(token))return;
+ const p=state.players[state.turn],name=card.name;
+ const search=["Buddy-Buddy Poffin","Evolution Incense","Level Ball","Poké Pad","Trainers' Mail","Earthen Vessel","Arven","Gloria","Hisuian Heavy Ball","Raihan"].includes(name);
+ const settlePayload=search?{searchIndices:[],...(token.discardCostIndices?{discardCostIndices:token.discardCostIndices}:{}),...(name==="Raihan"?{target:"active"}:{})}:null;
+ if(search){const failure=dispatch(state,"trainer",settlePayload).error;if(failure){setError(failure);return;}}
+ const recover=["Night Stretcher","Rescue Stretcher","Lana's Aid"].includes(name),welder=name==="Welder",switchBoth=["Guzma","Escape Rope"].includes(name),candy=name==="Rare Candy";
+ const pool=search?(name==="Hisuian Heavy Ball"?p.prizeCards:p.deck):recover?p.discard:welder?p.hand:[];
+ const limit=name==="Gloria"||name==="Lana's Aid"?3:["Buddy-Buddy Poffin","Earthen Vessel","Arven","Welder"].includes(name)?2:1;
+ const eligible=c=>search?(name==="Buddy-Buddy Poffin"?c.kind==="pokemon"&&!species[c.species]?.stage&&species[c.species]?.hp<=70:name==="Evolution Incense"?c.kind==="pokemon"&&!!species[c.species]?.stage:name==="Level Ball"?c.kind==="pokemon"&&species[c.species]?.hp<=90:name==="Arven"?c.kind==="trainer"&&(c.subtype==="Item"||c.subtype==="Pokémon Tool"):name==="Trainers' Mail"?c.kind==="trainer"&&c.name!=="Trainers' Mail":name==="Earthen Vessel"?c.kind==="energy":name==="Gloria"||name==="Hisuian Heavy Ball"?c.kind==="pokemon"&&!species[c.species]?.stage:name==="Poké Pad"?c.kind==="pokemon":true):recover?c.kind==="pokemon"||name!=="Rescue Stretcher"&&c.kind==="energy":welder?c.kind==="energy"&&c.type==="Fire":false;
+ panel.innerHTML=`<h2>${escape(name)}</h2><p>${search?name==="Trainers' Mail"?"Authorized scope: only the top four Deck cards, in order.":"Authorized scope: your "+(name==="Hisuian Heavy Ball"?"Prize cards":"entire Deck")+".":recover?"Choose cards from your public Discard.":"Choose eligible cards and targets."} Choose up to ${limit} card(s).${search?" Closing resolves without finding a card; this is not a free peek.":""}</p><div id="trainer-choices" class="cost-grid"></div><p class="modal-error" role="alert"></p>`;
+ if(name==="Raihan")panel.insertAdjacentHTML("beforeend",'<p class="permission-note">Manual legality check: Raihan requires one of your Pokémon to have been Knocked Out during your opponent’s last turn. Players must verify this condition; this prototype does not establish permission.</p>');
+ if(search)token.trainerPayload=settlePayload;
+ const checks=[],grid=panel.querySelector("#trainer-choices");
+ const entries=pool.map((c,i)=>({c,i})).filter(({i})=>name!=="Trainers' Mail"||i<4);
+ if(search&&name!=="Trainers' Mail")entries.sort((a,b)=>cardName(a.c).localeCompare(cardName(b.c)));
+ for(const {c,i} of entries){
+  if(welder&&i===state.selection||name!=="Trainers' Mail"&&!eligible(c))continue;
+  const label=document.createElement("label");label.className="cost-card";const check=document.createElement("input");check.type="checkbox";check.disabled=!eligible(c);check.dataset.trainerIndex=String(i);check.setAttribute("aria-label",`Choose ${cardName(c)}${name==="Trainers' Mail"?` at Deck position ${i+1}`:""}`);
+  label.innerHTML=(name==="Trainers' Mail"?`<span>Deck position ${i+1}</span>`:"")+cardHtml(c,{small:true});label.prepend(check);grid.append(label);checks.push({check,i});
+ }
+ const needsTarget=welder||switchBoth||candy||["Blacksmith","Raihan","Scoop Up Net","Float Stone","Muscle Band","Vitality Band","Bird Keeper"].includes(name);
+ const target=document.createElement("select");target.id="trainer-target";target.setAttribute("aria-label","Target Pokémon");
+ if(needsTarget){target.innerHTML=(p.active&&!switchBoth&&name!=="Bird Keeper"?'<option value="active">Active: '+escape(p.active.name)+'</option>':"")+p.bench.map((c,i)=>`<option value="bench-${i}">Bench ${i+1}: ${escape(c.name)}</option>`).join("");panel.append(target);}
+ let opponent=null,evolution=null;
+ if(switchBoth){opponent=document.createElement("select");opponent.id="trainer-opponent";opponent.setAttribute("aria-label",name==="Escape Rope"?"Opponent chooses their Benched Pokémon":"Opponent Benched Pokémon");opponent.innerHTML=state.players[1-state.turn].bench.map((c,i)=>`<option value="${i}">Opponent Bench ${i+1}: ${escape(c.name)}</option>`).join("");panel.append(opponent);}
+ if(candy){evolution=document.createElement("select");evolution.id="trainer-evolution";evolution.setAttribute("aria-label","Stage 2 in hand");evolution.innerHTML=p.hand.map((c,i)=>({c,i})).filter(({c})=>c.kind==="pokemon"&&species[c.species]?.stage===2).map(({c,i})=>`<option value="${i}">${escape(cardName(c))}</option>`).join("");panel.append(evolution);}
+ const done=actionButton("Play "+name,()=>{
+  if(!modalHuman(token))return;
+  const selected=checks.filter(x=>x.check.checked).map(x=>x.i),value=needsTarget?target.value:"active";
+  if(selected.length>limit){setError(`Choose at most ${limit} cards.`);return;}
+  if(name==="Arven"&&new Set(selected.map(i=>pool[i].subtype)).size!==selected.length){setError("Choose at most one Item and one Pokémon Tool.");return;}
+  if(needsTarget&&!value||opponent&&!opponent.value||evolution&&!evolution.value){setError("Choose an available Pokémon target.");return;}
+  const payload={...(search?{searchIndices:selected}:{}),...(recover||welder?{discardIndices:selected}:{}),...(token.discardCostIndices?{discardCostIndices:token.discardCostIndices}:{}),...(needsTarget?{target:value.startsWith("bench-")?"bench":"active",...(value.startsWith("bench-")?{slot:Number(value.slice(6))}:{})}:{}),...(opponent?{opponentSlot:Number(opponent.value)}:{}),...(evolution?{evolutionIndex:Number(evolution.value)}:{})};
+  act("trainer",payload,{token});
+ });done.id="trainer-play";
+}
+function showNestBallSearch(){
+ if(!canHuman()||state.phase!=="playing")return;
+ const p=state.players[state.turn];if(p.hand[state.selection]?.name!=="Nest Ball")return;
+ if(p.bench.length>=5){setError("Your Bench is full.");return;}
+ const failure=dispatch(state,"trainer",{searchIndex:null}).error;if(failure){setError(failure);return;}
+ const token=openModal("nest-search",{trainerPayload:{searchIndex:null}},"<h2>Nest Ball</h2><p>Search your entire Deck for a Basic Pokémon, put it directly on your Bench, then shuffle. Closing resolves without finding a Pokémon.</p>");
+ const select=document.createElement("select");select.id="nest-ball-choice";select.setAttribute("aria-label","Basic Pokémon to Bench");
+ select.innerHTML='<option value="">Do not find a Pokémon</option>'+p.deck.map((c,i)=>({c,i})).filter(({c})=>c.kind==="pokemon"&&!species[c.species]?.stage).sort((a,b)=>cardName(a.c).localeCompare(cardName(b.c))).map(({c,i})=>`<option value="${i}">${escape(cardName(c))}</option>`).join("");
+ panel.append(select);const done=actionButton("Play Nest Ball",()=>{if(modalHuman(token))act("trainer",{searchIndex:select.value===""?null:Number(select.value)},{token});});done.id="nest-ball-play";
+}
 function showBallSearch(){
  if(!canHuman())return;
  const p=state.players[state.turn],index=state.selection,card=p.hand[index];if(!card||!["Quick Ball","Ultra Ball"].includes(card.name))return;
@@ -326,6 +394,8 @@ for(const b of document.querySelectorAll("button[data-action]"))b.addEventListen
  if(action==="trainer"){
   const c=state.players[state.turn].hand[state.selection];if(!c)return;
   if(c.name==="Quick Ball"||c.name==="Ultra Ball"){showBallSearch();return;}
+  if(c.name==="Nest Ball"){showNestBallSearch();return;}
+  if(choiceTrainers.includes(c.name)){showFireTrainerChoices(c);return;}
   if(c.name==="Potion"||c.name==="Air Balloon"){setError("Tap or drag onto an appropriate own Pokémon to use this Trainer.");return;}
  }
  act(action);

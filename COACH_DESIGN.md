@@ -56,10 +56,18 @@ src/main.js ──act()──▶ engine.dispatch ──▶ new state
 - `review(tracker)` → list of findings for the end-of-game card.
 - No DOM access; runnable in Node.
 
+### `src/coach_moves.js` (next move)
+
+- `nextMove(state)` → `{text, playable, focus, button}`. It never returns an empty instruction during a game.
+- Legality comes from the engine itself: each candidate (play a Basic, evolve, attach Energy, each Trainer with a plausible payload, each unused Ability, the strongest affordable attack, retreat) is probed with `dispatch()` on a copy of the state, so the coach can only recommend what the game will accept.
+- Priority order: Knock Out available > retreat out of KO range > evolve > Ability > Research on a thin hand > ball search > bench a Basic > heal > Energy attachment > plain attack > Air Balloon. Setup lists Basics, then "press Ready". With nothing legal it says to end the turn, and names any Trainer the prototype cannot play.
+- `playable` lists every hand index with a legal move, `focus` the recommended one, `button` the action button to press (`ready`, `end`, `attack`, `retreat`).
+
 ### `src/coach_ui.js` (presentation)
 
 - Fixed bottom-right widget: bird avatar + speech bubble.
-- Bubble shows one tip at a time: title, text, `Source: <name> ↗` link opening in a new tab, and a kind badge ("Rule" / "Pro tip").
+- Bubble always opens with "Do this now" and the `nextMove` text, then one rule or strategy tip at a time: title, text, `Source: <name> ↗` link opening in a new tab, and a kind badge ("Rule" / "Pro tip"). There is no idle state.
+- After each update it highlights the playable hand cards (`.coach-playable`), the recommended card (`.coach-focus`) and the button to press (`.coach-cta`).
 - Controls: **Next** (cycle through currently applicable tips), **Got it** (hide this tip for the rest of the game), **—** minimize to bird-only button (click bird to reopen), **Mute** in the minimized state persists to localStorage.
 - Animations: idle bob; short "flap" when a new tip appears; bubble fades in. `prefers-reduced-motion` disables them.
 - Game over: bubble switches to the review card listing findings with sources.
