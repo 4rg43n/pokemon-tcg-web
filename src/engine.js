@@ -331,7 +331,8 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
  }
  else if(card.name==="Special Charge"||card.name==="Super Rod"){
   const indices=payload.searchIndices??[],max=card.name==="Special Charge"?2:3;
-  const eligible=c=>card.name==="Special Charge"?c.kind==="energy"&&/^(Capture Energy|Recycle Energy|Speed Lightning Energy)$/.test(c.name||""):c.kind==="pokemon"||c.kind==="energy"&&!/^(Capture Energy|Recycle Energy|Speed Lightning Energy)$/.test(c.name||"");
+  const special=c=>c?.kind==="energy"&&(/^(Capture Energy|Recycle Energy|Speed Lightning Energy)$/.test(c.name||"")||/^(Capture|Recycle|Speed Lightning)$/.test(c.type||"")||c.subtype==="Special");
+  const eligible=c=>card.name==="Special Charge"?special(c):c?.kind==="pokemon"||c?.kind==="energy"&&!special(c);
   if(!Array.isArray(indices)||indices.length>max||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||!eligible(p.discard[i])))return err(state,"Choose up to "+max+" eligible cards in your discard pile.");
   for(const i of [...indices].sort((a,b)=>b-a))p.deck.push(p.discard.splice(i,1)[0]);
   shuffle(p.deck);message=card.name+" shuffled "+indices.length+" selected cards into the deck.";
