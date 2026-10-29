@@ -11,7 +11,7 @@ function player(i,deck){
  do{if(hand.length)cards.push(...hand);shuffle(cards);hand=cards.splice(0,7);mulligans++;}while(!hand.some(basicCard)&&mulligans<100);
  if(!hand.some(basicCard)){cards.push(...hand);hand=[];shuffle(cards);const basicIndex=cards.findIndex(basicCard);hand.push(cards.splice(basicIndex,1)[0]);hand.push(...cards.splice(0,6));}
  const prizes=cards.splice(0,6);
- return {hand,deck:cards,prizeCards:prizes,discard:[],lostZone:[],active:null,bench:[],prizes:prizes.length,attached:false,retreated:false,supporterUsed:false,stadiumPlayed:false,mulligans:mulligans-1};
+ return {hand,deck:cards,prizeCards:prizes,discard:[],lostZone:[],active:null,bench:[],prizes:prizes.length,attached:false,retreated:false,supporterUsed:false,extraSupporters:0,stadiumPlayed:false,mulligans:mulligans-1};
 }
 export function newGame(decks){
  if(decks&&(!Array.isArray(decks)||decks.length!==2||decks.some(d=>validateDeck(d).errors.length)))throw new Error("Choose two complete 60-card decks containing a Basic Pokémon.");
@@ -86,7 +86,7 @@ if(s.phase==="replacement"){
  const slot=payload.slot;if(!Number.isInteger(slot)||slot<0||slot>=p.bench.length)return err(state,"Tap one of your Benched Pokémon.");
  p.active=p.bench.splice(slot,1)[0];s.phase="playing";s.selection=null;
  if(s.resumeTurn!==undefined){s.turn=s.resumeTurn;delete s.resumeTurn;}
- else{s.round++;p.attached=false;p.retreated=false;p.supporterUsed=false;p.stadiumPlayed=false;for(const mon of [p.active,...p.bench]){mon.evolvedThisTurn=false;mon.abilityUsed=false;}if(p.deck.length)p.hand.push(p.deck.shift());else{s.winner=1-s.turn;s.winReason="deck out";s.log.unshift("Deck out!");}}
+ else{s.round++;p.attached=false;p.retreated=false;p.supporterUsed=false;p.extraSupporters=0;p.stadiumPlayed=false;for(const mon of [p.active,...p.bench]){mon.evolvedThisTurn=false;mon.abilityUsed=false;}if(p.deck.length)p.hand.push(p.deck.shift());else{s.winner=1-s.turn;s.winReason="deck out";s.log.unshift("Deck out!");}}
  s.log.unshift("Player "+(state.turn+1)+" promoted "+p.active.name+".");return {state:s};
 }
 if(s.phase==="retreat"&&action!=="switch")return err(state,"Tap one of your Benched Pokémon to complete retreat.");
@@ -117,7 +117,8 @@ if(action==="ability"){
 if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer")){
  if(s.phase!=="playing")return err(state,"Trainer cards cannot be played during setup.");
  let idx=s.selection;const card=p.hand[idx];if(!card||card.kind!=="trainer")return err(state,"Select a Trainer card first.");
- if(card.subtype==="Supporter"&&p.supporterUsed)return err(state,"Only one Supporter per turn.");
+ if(card.subtype==="Supporter"&&p.supporterUsed&&!(p.extraSupporters>0))return err(state,"Only one Supporter per turn.");
+ if(card.subtype==="Supporter"&&p.supporterUsed&&p.extraSupporters>0)p.extraSupporters--;
  if(card.subtype==="Supporter"&&s.turn===0&&s.round===1)return err(state,"The first player cannot play a Supporter on their first turn.");
  const isStadium=card.subtype==="Stadium"||["Magma Basin","PokéStop","Silent Lab","Stormy Mountains","Tropical Beach"].includes(card.name);
  if(isStadium&&p.stadiumPlayed)return err(state,"Only one Stadium may be played from hand per turn.");
