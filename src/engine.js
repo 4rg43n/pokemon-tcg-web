@@ -96,7 +96,7 @@ if(action==="ability"){
  const target=payload.target==="active"?p.active:payload.target==="bench"&&Number.isInteger(payload.slot)?p.bench[payload.slot]:null;
  if(!target?.ability)return err(state,"Choose a Pokémon with an Ability.");
  if(target.abilityUsed)return err(state,"This Pokémon already used its Ability this turn.");
- if(!p.deck.length)return err(state,"No cards left to draw.");
+ if(!p.deck.length&&target.ability.name!=="Call Signal")return err(state,"No cards left to draw.");
  if(target.ability.name==="Call Signal"){
   const indices=payload.searchIndices;
   if(!Array.isArray(indices)||indices.length>3||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||p.deck[i]?.kind!=="trainer"||p.deck[i]?.subtype!=="Supporter"))return err(state,"Choose up to three Supporter cards from your deck.");
