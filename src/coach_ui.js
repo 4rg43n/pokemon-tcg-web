@@ -1,6 +1,8 @@
 // Battle Bird coach widget: bird avatar + speech bubble, fed by coach.js after every game action.
-import {buildContext,advise,summarizeTurn,lastTurnOf,review} from "./coach.js?v=54";
-import {nextMove} from "./coach_moves.js?v=54";
+import {buildContext,advise,summarizeTurn,lastTurnOf,review,configure as configureCoach} from "./coach.js?v=60";
+import {nextMove,configure as configureMoves} from "./coach_moves.js?v=60";
+
+export function configure(deps){configureCoach(deps);configureMoves(deps);}
 
 const STORAGE_KEY="coach";
 const DEFAULT_SETTINGS={muted:false,minimized:false,seenOnce:[]};

@@ -8,7 +8,7 @@ This document records requested software features and implementation acceptance 
 
 The current work focuses on **human-to-human hotseat rules and UI**. AI-versus-human work belongs to coworkers: preserve main's existing AI toggle, planner algorithm, and debug/export features, but do not add new controller modes, AI policies, schedulers, or planning improvements as part of this work. iPad Safari via GitHub Pages remains a primary user-testing surface; another browser's result is not iPad acceptance.
 
-**v54 is the current integration/release target.** The user has requested publication for manual UI testing; a browser pass is deferred, not a prerequisite to publishing. The reconciled source passed 33 engine/parser regressions, syntax checks for 18 JavaScript source files, and a Node engine smoke of default-deck setup, four passed turns, mandatory draws, and counter corrections. Manual user acceptance and Edge/iPad Safari behavior remain unverified. These checks do not establish complete official-rules compliance or a Judge-panel review. Historical context: v14 was previously user-confirmed stable; v15 Trainer/deselection acceptance remained pending in the earlier handoff.
+**v60 is the current integration/release target.** The user has requested publication for manual UI testing; a browser pass is deferred, not a prerequisite to publishing. The reconciled source passed 33 engine/parser regressions, syntax checks for 18 JavaScript source files, and a Node engine smoke of default-deck setup, four passed turns, mandatory draws, and counter corrections. Manual user acceptance and Edge/iPad Safari behavior remain unverified. These checks do not establish complete official-rules compliance or a Judge-panel review. Historical context: v14 was previously user-confirmed stable; v15 Trainer/deselection acceptance remained pending in the earlier handoff.
 
 The current prototype retains its supported card pool, automated effects, deck builder, live external-card lookup, Limitless/PTCGL import, Battle Bird coach/design notes, and coworkers' existing AI/planning/graph/debug/export material. Human-facing work covers a deliberate private handoff, drag placement with tap/keyboard alternatives, zone/card inspection, explicit scoped manual permission declarations, and manual counter adjustments with Knock Out/Prize/promotion consequences. A permission declaration logs the claimed card/rule and reason; it does **not** verify that an official rule grants access. Manual counters likewise do not certify an authorized effect. Player 1 still starts; full coin-choice/setup coverage below remains a requirement.
 
@@ -83,7 +83,7 @@ Requested per-player areas: Lost Zone, discard pile, draw pile, hand, one Active
 
 The preserved developer Debug views/commands can expose hidden cards and change state; they are not permissions granted by a card/rule and are not privacy-safe normal-play controls. Keep that privileged testing distinction explicit. Do not use developer access or private debug/history exports as evidence that ordinary inspection is authorized or that human-play privacy is verified.
 
-The v54 human UI uses locally mirrored printed TCG type/Colorless symbols through `src/type-symbols.js` and eleven assets in `assets/types/`. Per-file source URLs and rights-holder attribution are in [`assets/types/sources.json`](assets/types/sources.json). This supplies artwork/provenance, not verified card metadata or implemented Weakness/Resistance damage rules.
+The v60 human UI uses locally mirrored printed TCG type/Colorless symbols through `src/type-symbols.js` and eleven assets in `assets/types/`. Per-file source URLs and rights-holder attribution are in [`assets/types/sources.json`](assets/types/sources.json). This supplies artwork/provenance, not verified card metadata or implemented Weakness/Resistance damage rules.
 
 ## 5. Quality-of-life operations
 
@@ -191,14 +191,14 @@ These are **criteria to exercise**, not tests reported as passing:
 
 - Inspect current repository state and relevant instructions before editing; avoid overwriting another engineer's changes.
 - Keep increments small and testable. Preserve working gameplay while extending it.
-- For each **gameplay release**, increment the visible version beside the header and synchronize production module/stylesheet cache keys throughout the dependency graph. The current target is **v54**; obsolete v48/stash targets must not replace incoming coworker work.
+- For each **gameplay release**, increment the visible version beside the header and synchronize production module/stylesheet cache keys throughout the dependency graph. The current target is **v60**; obsolete release/stash targets must not replace incoming coworker work.
 - Syntax-check changed JavaScript before committing and exercise the changed path. Report observed checks separately from user acceptance testing; do not claim iPad Safari coverage from another browser.
 - After an actual committed/deployed release, provide the versioned Pages link and focused user checks. Confirm the visible version first because Safari and Pages caches can lag.
 - Do not claim a document, prototype, imported image, or resolved card name proves working official mechanics. Update the implementation-status statement only with evidence.
 
 ### Integration verification handoff
 
-Validation of the reconciled v54 source: 33 engine/parser regression tests passed; syntax checks passed for all 18 JavaScript source files. A Node engine smoke completed default-deck setup, four passed turns, mandatory draws, and manual counter placement/removal. Browser interactions remain unverified. From the repository root:
+Validation of the reconciled v60 source: 33 engine/parser regression tests passed; syntax checks passed for all 18 JavaScript source files. A Node engine smoke completed default-deck setup, four passed turns, mandatory draws, and manual counter placement/removal. Browser interactions remain unverified. From the repository root:
 
 ```sh
 node --experimental-default-type=module --test tests/limitless-import.test.mjs src/engine.test.mjs
@@ -207,4 +207,4 @@ python3 -m http.server 8765
 
 `tests/limitless-import.test.mjs` exercises the parser with local fixtures, not live resolver/network compatibility, full format legality, or the browser import path. `src/engine.test.mjs` must run against the reconciled engine; passing results from the old pre-pull engine are not current evidence. The obsolete `tests/decks.test.mjs` path is not available.
 
-Publish v54 for the requested manual UI testing without claiming that a browser pass has occurred. The parent integrator must report observed regression results; Edge and iPad Safari acceptance remain pending separately. Manual acceptance should exercise handoff/setup privacy, drag/tap/keyboard placement, scoped inspection/detail/Back, cost-first search and cancellation, Snack Seek closure, signed counter corrections, Knock Out/Prize/promotion flow, and continuing-turn resumption without a draw. Preserve coach, live import/search, developer debug, and planning-graph integration while checking those paths. Edge results cannot establish iPad Safari acceptance. A release target or Pages URL alone is not evidence that a commit was deployed or that the visible version/cache keys are correct.
+Publish v60 for the requested manual UI testing without claiming that a browser pass has occurred. Edge and iPad Safari acceptance remain pending separately. Manual acceptance should exercise handoff/setup privacy, drag/tap/keyboard placement, scoped inspection/detail/Back, cost-first search and cancellation, Snack Seek closure, signed counter corrections, Knock Out/Prize/promotion flow, and continuing-turn resumption without a draw. Preserve coach, live import/search, developer debug, and planning-graph integration while checking those paths. Edge results cannot establish iPad Safari acceptance. A release target or Pages URL alone is not evidence that a commit was deployed or that the visible version/cache keys are correct.

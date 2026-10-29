@@ -56,6 +56,10 @@ src/main.js ──act()──▶ engine.dispatch ──▶ new state
 - `review(tracker)` → list of findings for the end-of-game card.
 - No DOM access; runnable in Node.
 
+### Dependency injection
+
+`main.js` calls `coachUI.configure({species,canPay,retreatCost,dispatch})` once at startup, and `coach.js` / `coach_moves.js` use those bindings instead of importing `cards.js` or `engine.js` themselves. Upstream bumps the `?v=` cache key on those modules every release; a stale key in the coach would load a second copy of the species registry and miss the cards `decks.js` registers at runtime.
+
 ### `src/coach_moves.js` (next move)
 
 - `nextMove(state)` → `{text, playable, focus, button}`. It never returns an empty instruction during a game.

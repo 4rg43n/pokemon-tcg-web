@@ -99,7 +99,7 @@ button.plan-node:focus-visible{outline:none}
 .plan-inspector pre{max-height:240px;overflow:auto;white-space:pre-wrap;font-size:.75rem;background:#080e1a;padding:10px;border-radius:6px}
 
 /* Pokémon TCG look: official blue/yellow brand, type-coloured card frames, tabletop mat, readable coach highlights. */
-:root{--pk-blue:#2a75bb;--pk-blue-deep:#153f7a;--pk-yellow:#ffcb05;--pk-yellow-deep:#c7a008;--pk-ink:#1b1d2a;--pk-cyan:#22e5ff}
+:root{--pk-blue:#2a75bb;--pk-blue-deep:#153f7a;--pk-yellow:#ffcb05;--pk-ink:#1b1d2a;--pk-cyan:#22e5ff}
 body{font-family:"Gill Sans","Gill Sans MT","Trebuchet MS","Segoe UI",system-ui,sans-serif;background:radial-gradient(ellipse at 50% 0%,#17386b,#0b1422 60%)}
 h1{font-weight:900;letter-spacing:.02em;color:var(--pk-yellow);text-shadow:0 2px 0 var(--pk-blue-deep),0 3px 8px #0008}
 #status{color:#fff;background:#153f7acc;border:1px solid #4d86c9;border-radius:999px;padding:6px 14px;font-weight:800}
@@ -113,19 +113,13 @@ h1{font-weight:900;letter-spacing:.02em;color:var(--pk-yellow);text-shadow:0 2px
 .side .active-slot{border:2px solid #ffcb0580;background:#ffcb050f;box-shadow:inset 0 0 24px #ffcb0514}
 .side .bench-row{border:1px dashed #7fa6e080;background:#ffffff08}
 .divider{border-top:2px dashed #ffcb0570}
-.divider::after{content:"BATTLE LINE";background:var(--pk-blue-deep);color:var(--pk-yellow);border:1px solid #4d86c9}
+.divider::after{background:var(--pk-blue-deep);color:var(--pk-yellow);border:1px solid #4d86c9}
 .hand{border-top:2px solid #ffcb0566;background:linear-gradient(#ffffff00,#ffffff08);border-radius:0 0 14px 14px;padding-bottom:8px}
 .hint{color:#c7d8f5}
 .tcg-card{position:relative;border:3px solid var(--pk-yellow);border-radius:9px;color:var(--pk-ink);box-shadow:0 3px 10px #0008,inset 0 0 0 1px #ffffff99;font-family:inherit}
 .tcg-card.pokemon{background:linear-gradient(160deg,#fff7c9,#f6d978 45%,#e8b94a)}
 .tcg-card.pokemon.type-fire{background:linear-gradient(160deg,#ffd9b3,#ff9c4d 45%,#f0632e)}
-.tcg-card.pokemon.type-water{background:linear-gradient(160deg,#cfe9ff,#6fb6f2 45%,#3187d8)}
-.tcg-card.pokemon.type-grass{background:linear-gradient(160deg,#dcf5c4,#8fd36a 45%,#4ea842)}
-.tcg-card.pokemon.type-psychic{background:linear-gradient(160deg,#efd8f7,#c48ad8 45%,#9a5bc4)}
-.tcg-card.pokemon.type-fighting{background:linear-gradient(160deg,#f6ddc6,#d6975f 45%,#b2682f)}
 .tcg-card.pokemon.type-colorless{background:linear-gradient(160deg,#f7f5ee,#dedacb 45%,#bdb7a4)}
-.tcg-card.pokemon.type-darkness{background:linear-gradient(160deg,#c9cfd9,#6f7a90 45%,#3b4556);color:#f4f6fb}
-.tcg-card.pokemon.type-metal{background:linear-gradient(160deg,#eef1f5,#bcc5d1 45%,#8d99a9)}
 .tcg-card.pokemon img{filter:drop-shadow(0 3px 3px #0005)}
 .card-top{background:#ffffffb8;border-radius:5px;padding:2px 4px;font-weight:900}
 .card-top span{color:#c62828}
@@ -153,7 +147,7 @@ button{background:var(--pk-blue);color:#fff;font-weight:900;letter-spacing:.02em
 button:hover:not(:disabled){transform:translateY(-1px)}
 button:disabled{opacity:.45;box-shadow:none}
 button[data-action=attack]{background:#e3350d;border-color:#ff7a5c;box-shadow:0 3px 0 #8f1f05,0 6px 12px #0006}
-button[data-action=reset],#open-menu,#open-decks{background:#243b5f;border-color:#3f5f8f;box-shadow:0 3px 0 #16263f,0 6px 12px #0006}
+#new-match,#open-menu,#open-decks{background:#243b5f;border-color:#3f5f8f;box-shadow:0 3px 0 #16263f,0 6px 12px #0006}
 .coach-bubble{background:linear-gradient(#173e74,#102c55);border:3px solid var(--pk-yellow);box-shadow:0 10px 30px #000a}
 .coach-bubble::after{border-left-color:var(--pk-yellow)}
 .coach-bird{background:var(--pk-blue-deep);border:3px solid var(--pk-yellow);color:var(--pk-yellow)}
@@ -169,7 +163,7 @@ button.coach-cta{position:relative;background:var(--pk-yellow);color:var(--pk-in
 button.coach-cta::after{content:"PRESS";top:-18px}
 @keyframes coach-ring{0%,100%{outline-color:#fff}50%{outline-color:var(--pk-cyan)}}
 @media(prefers-reduced-motion:reduce){.tcg-card.coach-focus,button.coach-cta{animation:none}}
-@media(max-width:700px){.mat::before{width:220px;height:220px}.mat::after{width:56px;height:56px}.tcg-card.coach-focus{transform:translateY(-8px) scale(1.04)}.tcg-card.coach-focus::after,button.coach-cta::after{font-size:8px;top:-13px}}
+@media(max-width:700px){.mat::before{width:220px;height:220px}.mat::after{width:56px;height:56px}.tcg-card{border-width:2px;border-radius:6px}.player-label{font-size:.65rem}.tcg-card.coach-focus{transform:translateY(-8px) scale(1.04)}.tcg-card.coach-focus::after,button.coach-cta::after{font-size:8px;top:-13px}}
 /* v54: private hotseat controls and scoped inspection complement the branded card frames. */
 select,input{font:inherit}button{font-family:inherit;font-size:inherit;min-height:44px;touch-action:manipulation}button:disabled{cursor:not-allowed}
 select,input{background:#0b1928;color:#f4f6fb;border:1px solid #7792a6;border-radius:7px;padding:10px;min-height:44px;max-width:100%}
@@ -184,3 +178,12 @@ header h1 small{font-size:.55em;opacity:.7}#privacy-status{margin:3px 0 10px}
 @media(max-width:760px){main{padding:5px}.side{grid-template-columns:48px minmax(0,1fr) 50px;gap:4px}.field-inspect{font-size:.6rem;padding:3px 2px;width:100%;min-height:44px}.zone-button{padding:3px;margin:2px 0;width:100%;min-width:44px}.zone-button .zone-label{font-size:.58rem}.zone-link{padding:3px;font-size:.6rem;width:100%}.pile-area{gap:3px}.pile-icon{font-size:1.35rem}.player-label{font-size:.65rem}.damage-total{font-size:6px;padding:1px}.field{gap:5px}.modal-panel{padding:56px 12px 16px;max-height:95dvh}.inspection-grid,.cost-grid{grid-template-columns:repeat(auto-fit,minmax(86px,1fr));min-width:min(520px,78vw);max-height:48dvh;gap:6px;padding:4px}.modal-content .inspection-grid .tcg-card.small,.modal-content .cost-grid .tcg-card.small{width:80px}.modal-content .inspection-grid .card-top,.modal-content .inspection-grid .card-bottom,.modal-content .cost-grid .card-top,.modal-content .cost-grid .card-bottom{font-size:8px}.modal-content .inspection-grid .energy-symbol,.modal-content .cost-grid .energy-symbol{font-size:2rem}.hand-cards{justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;padding:9px 4px 6px;scroll-snap-type:x proximity}.hand-cards .tcg-card.small{width:75px;scroll-snap-align:start}.hand-cards .card-top,.hand-cards .card-bottom{font-size:8px}.hand-cards .tcg-card.small .stat-label{font-size:6px}.hand-cards .tcg-card.small .stat-value{font-size:8px}.hand-cards .privacy-note{width:100%;text-align:center}.hint{line-height:1.6}}
 @media(prefers-reduced-motion:reduce){.slot,button{transition:none}.tcg-card.selected,.tcg-card.coach-focus,.tcg-card.coach-playable,button.coach-cta{transform:none}}
 .tcg-type-symbol{display:inline-block;object-fit:contain;width:18px;height:18px;vertical-align:middle;flex:none;image-rendering:auto}.tcg-card .tcg-type-symbol{width:14px;height:14px;max-width:none;min-height:0;flex:none;object-fit:contain;image-rendering:auto}.tcg-card .stat-value .tcg-type-symbol{width:11px;height:11px}.tcg-card .energy-symbol .tcg-type-symbol{width:48px;height:48px}.tcg-card.small .energy-symbol .tcg-type-symbol{width:32px;height:32px}.tcg-card .attached-energies{display:flex;flex-wrap:wrap;align-items:center;gap:1px;max-width:65%}.tcg-card .attached-energies .tcg-type-symbol{width:12px;height:12px}.modal-content>.tcg-card .energy-symbol .tcg-type-symbol{width:64px;height:64px}.modal-content>.tcg-card .stat-value .tcg-type-symbol{width:22px;height:22px}.modal-content>.tcg-card .attached-energies .tcg-type-symbol{width:20px;height:20px}.cost-type{display:inline-flex;align-items:center;gap:3px;white-space:nowrap}.type-symbol-unknown{font-size:.8em}.modal-content p .tcg-type-symbol{width:20px;height:20px}@media(max-width:700px){.tcg-card.small .stat-value .tcg-type-symbol{width:8px;height:8px}.hand-cards .tcg-card.small .stat-value .tcg-type-symbol{width:10px;height:10px}.tcg-card .attached-energies .tcg-type-symbol{width:9px;height:9px}}
+
+/* Exact-print cards use the complete card image, rather than prototype frames. */
+.tcg-card.printed{position:relative;overflow:hidden;padding:0!important;display:block!important;aspect-ratio:0.716;border-radius:7px;background:#203a5d}
+.tcg-card.printed>img{display:block!important;width:100%!important;height:100%!important;max-width:none!important;object-fit:fill!important;margin:0!important;border:0!important}
+.tcg-card.printed.image-unavailable>img{visibility:hidden}
+.tcg-card.printed .print-fallback{display:none;position:absolute;inset:0;padding:12px;align-items:center;justify-content:center;flex-direction:column;text-align:center;color:white;font-weight:bold;overflow-wrap:anywhere}
+.tcg-card.printed.image-unavailable .print-fallback{display:flex}
+.tcg-card.printed .print-fallback small{display:block;font-size:.7em;margin-top:6px}
+.tcg-card.printed .print-damage{position:absolute;bottom:4px;right:4px;background:#b72828;color:#fff;padding:2px 5px;border-radius:5px;font-size:11px}

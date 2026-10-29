@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {newGame, dispatch, pokemon} from "./engine.js";
-import {catalog, energyCard, pokemonCard, trainerCard} from "./decks.js?v=54";
-import {species} from "./cards.js?v=54";
+import {catalog, energyCard, pokemonCard, trainerCard} from "./decks.js?v=60";
+import {species} from "./cards.js?v=60";
 import {encodeState, decodeState} from "./history.js";
 
 function playing(){

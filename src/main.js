@@ -1,14 +1,15 @@
-import {retreatCost,species,energyTypes} from "./cards.js?v=54";
-import {catalog} from "./decks.js?v=54";
-import {commands as debugCommands,pokemonRefs} from "./debug.js?v=54";
-import {cardStats} from "./card-stats.js?v=54";
-import {newGame,dispatch,cardInfo} from "./engine.js?v=54";
-import {mountDeckBuilder} from "./deck-builder.js?v=54";
-import {createRecorder} from "./history.js?v=54";
-import {createPlanner} from "./planning/planner.js?v=54";
-import {renderPlanGraph} from "./planning/plan-graph.js?v=54";
-import {update as coachUpdate} from "./coach_ui.js?v=54";
-import {typeSymbol} from "./type-symbols.js?v=54";
+import {retreatCost,species,energyTypes,canPay} from "./cards.js?v=60";
+import {catalog} from "./decks.js?v=60";
+import {commands as debugCommands,pokemonRefs} from "./debug.js?v=60";
+import {cardStats} from "./card-stats.js?v=60";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=60";
+import {mountDeckBuilder} from "./deck-builder.js?v=60";
+import {createRecorder} from "./history.js?v=60";
+import {createPlanner} from "./planning/planner.js?v=60";
+import {renderPlanGraph} from "./planning/plan-graph.js?v=60";
+import {update as coachUpdate,configure as coachConfigure} from "./coach_ui.js?v=60";
+import {typeSymbol} from "./type-symbols.js?v=60";
+coachConfigure({species,canPay,retreatCost,dispatch});
 const $=s=>document.querySelector(s);
 const board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log"),modal=$("#modal"),panel=$("#modal .modal-content");
 const escape=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -38,7 +39,39 @@ function syncCoachPrivacy(){
 function updateCoach(event){coachUpdate(event);syncCoachPrivacy();}
 function setError(message){error.textContent=message;const local=panel.querySelector(".modal-error");if(local)local.textContent=message;}
 function aiAllowed(){return aiEnabled&&state.turn===1&&!preview&&state.winner===null;}
-function queueAI(){if(!aiAllowed()||aiBusy)return;aiBusy=true;setTimeout(()=>{try{for(let n=0;n<12&&aiAllowed();n++){const step=planner.next(state);if(!step)break;if(step.select!==undefined){const sel=dispatch(state,"select",{index:step.select});if(sel.error)break;state=sel.state;}const before=state;const r=act(step.action,step.payload||{},{source:"ai"});if(!r){planner.reset();error.textContent="AI paused: "+error.textContent;aiEnabled=false;break;}planner.applied(step,state);if(state===before)break;}render();updateCoach({state,action:"ai"});}catch(e){aiEnabled=false;error.textContent="AI error: "+e.message;}finally{aiBusy=false;}},180);}
+function queueAI(){
+ if(!aiAllowed()||aiBusy)return;aiBusy=true;
+ setTimeout(()=>{
+  try{
+   for(let n=0;n<24&&aiAllowed();n++){
+    const step=planner.next(state);
+    if(!step){
+     if(state.phase==="setup"&&!state.players[1].active){
+      const index=state.players[1].hand.findIndex(c=>c.kind==="pokemon"&&!species[c.species]?.stage);
+      if(index>=0){if(!act("select",{index},{source:"ai"})||!act("play",{target:"active"},{source:"ai"}))break;continue;}
+     }
+     if(state.phase==="setup"&&state.players[1].active){if(!act("ready",{},{source:"ai"}))break;continue;}
+     if(state.phase==="playing"){if(!act("end",{},{source:"ai"}))break;continue;}
+     break;
+    }
+    if(step.select!==undefined&&!act("select",{index:step.select},{source:"ai"}))break;
+    const before=state;
+    if(!act(step.action,step.payload||{},{source:"ai"})){
+     planner.reset();const message="AI skipped an invalid action: "+error.textContent;
+     if(state.phase==="setup"&&state.players[1].active)act("ready",{},{source:"ai"});
+     else if(state.phase==="playing")act("end",{},{source:"ai"});
+     setError(message);break;
+    }
+    planner.applied(step,state);if(state===before)break;
+   }
+   render();updateCoach({state,action:"ai"});
+  }catch(e){
+   const message="AI error: "+e.message;
+   if(state.turn===1&&state.phase==="playing")act("end",{},{source:"ai"});
+   setError(message);
+  }finally{aiBusy=false;}
+ },180);
+}
 function clearModal(){preview=null;modal.hidden=true;panel.replaceChildren();if(lastFocus?.isConnected)lastFocus.focus();lastFocus=null;}
 function closeModal(){
  // A revealed search cannot be abandoned as a free peek: reserve its costs
@@ -83,9 +116,14 @@ function cardHtml(data,opts={}){
  const {small=false,selected=false,back=false,empty=false,attrs=""}=opts;
  if(empty)return `<div class="tcg-card empty">${escape(data||"Empty")}</div>`;
  if(back)return '<div class="tcg-card back" aria-label="Face-down card"><span>Pokémon</span></div>';
+ const printed=displayCard(data);
+ if(printed.external&&printed.image){
+  const label=[printed.name,printed.set,printed.number].filter(Boolean).join(" · ");
+  return `<div class="tcg-card printed ${printed.kind==="pokemon"?"pokemon":""} ${small?"small":""} ${selected?"selected":""}" ${attrs} title="${escape(label)}"><img src="${escape(printed.image)}" alt="${escape(label)}" loading="lazy" onerror="this.style.display='none';this.parentElement.classList.add('image-unavailable')"><span class="print-fallback">${escape(printed.name)}<small>${escape([printed.set,printed.number].filter(Boolean).join(" "))}</small></span>${printed.damage?`<span class="print-damage">${printed.damage} damage</span>`:""}</div>`;
+ }
  if(data.kind==="energy")return `<div class="tcg-card energy type-${escape(String(data.type||"colorless").toLowerCase())} ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="energy-symbol">${typeSymbol(data.type)}</div><strong>${escape(data.type||"Basic")} Energy</strong></div>`;
  if(data.kind==="trainer")return `<div class="tcg-card trainer trainer-${escape(String(data.subtype||"Item").toLowerCase().replace(/[^a-z]+/g,"-"))} ${small?"small":""} ${selected?"selected":""}" ${attrs}><span class="card-type">TRAINER</span><strong>${escape(data.name)}</strong><small>${escape(data.subtype||"Item")}</small>${data.image?`<img src="${escape(data.image)}" alt="" loading="lazy">`:""}${data.name==="Air Balloon"?'<span class="tool-effect">Retreat costs 2 less</span>':data.name==="Float Stone"?'<span class="tool-effect">No retreat cost</span>':""}</div>`;
- const c=displayCard(data);
+ const c=printed;
  return `<div class="tcg-card pokemon type-${escape(String(c.type||"colorless").toLowerCase())} ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="card-top"><strong>${escape(c.name)}</strong><span>${typeSymbol(c.type)} ${c.hp} HP</span></div><img src="${escape(c.image||(c.printing?`https://images.pokemontcg.io/${c.printing.split("-")[0]}/${c.printing.split("-")[1]}.png`:sprite(c.id)))}" alt="" loading="lazy"><div class="card-bottom"><span class="attached-energies">${(c.energies||[]).map(type=>typeSymbol(type)).join("")||"—"}</span><span>${Math.max(0,c.hp-(c.damage||0))} HP</span></div><span class="damage-total">${c.damage||0} damage · ${(c.damage||0)/10} counters</span>${c.tool?`<div class="attached-tool">${escape(c.tool.name||"Air Balloon")}${c.tool.name==="Float Stone"?" · no retreat cost":c.tool.name==="Air Balloon"?" · retreat −2":""}</div>`:""}${cardStats(c)}</div>`;
 }
 function fieldVisible(player){return state.phase!=="setup"||(player===state.turn&&humanTurn()&&!handoff()&&gameVisible());}
@@ -189,6 +227,9 @@ function renderCardDetails(token,c,{back}={}){
  if(back){const button=actionButton("Back to cards",()=>{if(validToken(token))back();});if(token.type==="zone"){button.id="inspection-back";button.focus();}}
  if(token.field){
   const {player,target,slot}=token.field;
+  const summary=document.createElement("p");summary.className="field-card-state";
+  summary.textContent=`Current HP: ${Math.max(0,d.hp-(d.damage||0))}/${d.hp}. Damage: ${d.damage||0} (${(d.damage||0)/10} counters). Attached Energy: ${(d.energies||[]).join(", ")||"none"}. Attached Tool: ${d.tool?.name||"none"}.`;
+  panel.append(summary);
   if(player===state.turn&&d.ability&&canHuman(true)&&state.phase==="playing")actionButton(`Use ${d.ability.name}`,()=>useAbility(token),{disabled:!!d.abilityUsed||state.winner!==null});
   if(canReferee()){
    const note=document.createElement("p");note.textContent=`Manual counter placement/removal, not attack damage: ${d.damage||0} damage (${(d.damage||0)/10} counters). Resolve uncertain rulings with a Judge; players are responsible for legality.`;panel.append(note);
@@ -429,13 +470,13 @@ function showMenu(){
 function showGame(){if(!closeModal())return;screen="game";$("#main-menu").hidden=true;$("#deck-builder").hidden=true;$("main").hidden=false;render();queueAI();$("#open-menu").focus();window.scrollTo(0,0);}
 function openBuilder(){if(!closeModal())return;screen="builder";acknowledged=null;$("#main-menu").hidden=true;$("main").hidden=true;deckBuilder.open();render();window.scrollTo(0,0);}
 $("#menu-play").addEventListener("click",showGame);
-$("#menu-new").addEventListener("click",confirmNewMatch);
 $("#new-match").addEventListener("click",confirmNewMatch);
 $("#menu-decks").addEventListener("click",openBuilder);
 $("#open-decks").addEventListener("click",openBuilder);
 $("#open-menu").addEventListener("click",showMenu);
 document.addEventListener("visibilitychange",()=>{if(document.hidden){closeModal();acknowledged=null;dragging=null;}render();if(!document.hidden)queueAI();});
 $("#menu-message").textContent="Your match stays in memory while you visit the menu. Save decks to keep them after reloading.";
+ $("#menu-play").disabled=false;$("#menu-decks").disabled=false;
 showMenu();
 
 updateCoach({state,action:"init"});
