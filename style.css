@@ -164,3 +164,11 @@ button.coach-cta::after{content:"PRESS";top:-18px}
 @keyframes coach-ring{0%,100%{outline-color:#fff}50%{outline-color:var(--pk-cyan)}}
 @media(prefers-reduced-motion:reduce){.tcg-card.coach-focus,button.coach-cta{animation:none}}
 @media(max-width:700px){.mat::before{width:220px;height:220px}.mat::after{width:56px;height:56px}.tcg-card{border-width:2px;border-radius:6px}.player-label{font-size:.65rem}.tcg-card.coach-focus{transform:translateY(-8px) scale(1.04)}.tcg-card.coach-focus::after,button.coach-cta::after{font-size:8px;top:-13px}}
+
+/* Exact-print cards use the complete card image, rather than prototype frames. */
+.tcg-card.printed{position:relative;overflow:hidden;padding:0!important;display:block!important;aspect-ratio: 0.716;border-radius:7px;background:#203a5d;}
+.tcg-card.printed>img{display:block!important;width:100%!important;height:100%!important;max-width:none!important;object-fit:fill!important;margin:0!important;border:0!important;}
+.tcg-card.printed .print-fallback{display:none;position:absolute;inset:0;padding:12px;align-items:center;justify-content:center;flex-direction:column;text-align:center;color:white;font-weight:bold;overflow-wrap:anywhere;}
+.tcg-card.printed.image-unavailable .print-fallback{display:flex;}
+.tcg-card.printed .print-fallback small{display:block;font-size:.7em;margin-top:6px;}
+.tcg-card.printed .print-damage{position:absolute;bottom:4px;right:4px;background:#b72828;color:#fff;padding:2px 5px;border-radius:5px;font-size:11px;}
