@@ -43,6 +43,7 @@ document.querySelectorAll("button[data-action=attack],button[data-action=end]").
 const attack=document.querySelector("button[data-action=attack]");attack.textContent=p.active?.attacks?.length>1?"Choose Attack":"Attack";
 const retreat=document.querySelector("button[data-action=retreat]");retreat.textContent=`Retreat (${retreatCost(p.active)} Energy)`;retreat.hidden=state.phase!=="playing";retreat.disabled=botTurn||state.phase!=="playing"||!state.players[state.turn].bench.length||state.players[state.turn].retreated||!p.active||p.active.energy<retreatCost(p.active);
 const playTrainer=document.querySelector("button[data-action=trainer]");playTrainer.hidden=state.phase!=="playing"||p.hand[state.selection]?.kind!=="trainer";
+let stadiumButton=document.querySelector("#stadium-action");if(!stadiumButton){stadiumButton=document.createElement("button");stadiumButton.id="stadium-action";stadiumButton.type="button";stadiumButton.onclick=showStadiumAction;document.querySelector("#ai-toggle").after(stadiumButton);}stadiumButton.hidden=!state.stadium||!["Stormy Mountains","Tropical Beach"].includes(state.stadium.name);stadiumButton.textContent="Use "+(state.stadium?.name||"Stadium");stadiumButton.disabled=botTurn||state.phase!=="playing";
 const aiButton=document.querySelector("#ai-toggle");aiButton.textContent=aiEnabled?"AI Player 2: ON":"AI Player 2: OFF";
 renderPlanGraph(document.querySelector("#ai-graph"),planner);
 const panel=document.querySelector("#ai-plans");if(panel)panel.textContent=JSON.stringify({active:planner.active,archived:planner.archive.slice(-3)},null,2);
@@ -86,6 +87,15 @@ if(preview.type==="card"&&preview.card.ability){
  if(own&&state.phase==="playing"){const button=document.createElement("button");button.textContent="Use "+c.ability.name;button.disabled=!!c.abilityUsed||state.winner!==null;button.onclick=useAbilityFromPreview;modal.querySelector(".modal-content").append(button);}
 }
 else if(preview.type!=="card") modal.querySelector(".modal-content").innerHTML=`<h2>${escape(preview.name)} · ${preview.cards.length} cards</h2><div class="pile-list">${preview.name==="deck"?"Deck contents are hidden during play.":preview.cards.length?preview.cards.map(c=>cardHtml(c,{small:true})).join(""):"No cards yet."}</div>`;
+}
+function showStadiumAction(){
+ const p=state.players[state.turn],stadium=state.stadium,panel=$("#modal .modal-content");if(!stadium)return;
+ if(stadium.name==="Tropical Beach"){const result=act("stadium");if(!result.error)$("#modal").hidden=true;return;}
+ if(stadium.name!=="Stormy Mountains")return;
+ preview={type:"stadium"};$("#modal").hidden=false;panel.innerHTML="<h2>Stormy Mountains</h2><p>Once during your turn, search your deck for a Basic Lightning or Dragon Pokémon and put it onto your Bench. Then shuffle.</p>";
+ const select=document.createElement("select");select.innerHTML='<option value="">Do not choose a Pokémon</option>'+p.deck.map((c,i)=>({c,i})).filter(({c})=>c.kind==="pokemon"&&!species[c.species]?.stage&&["Lightning","Dragon"].includes(species[c.species]?.type)).map(({c,i})=>'<option value="'+i+'">'+escape(species[c.species].name)+'</option>').join("");
+ const gallery=document.createElement("div");gallery.className="print-search-grid";p.deck.forEach((c,i)=>{if(c.kind!=="pokemon"||species[c.species]?.stage||!["Lightning","Dragon"].includes(species[c.species]?.type))return;const tile=document.createElement("div");tile.className="print-search-tile";tile.innerHTML=cardHtml(c,{small:true});const btn=document.createElement("button");btn.textContent="Choose "+species[c.species].name;btn.onclick=()=>{select.value=String(i);};tile.append(btn);gallery.append(tile);});panel.append(gallery,select);
+ const done=document.createElement("button");done.textContent="Use Stormy Mountains";done.onclick=()=>{const r=act("stadium",{searchIndex:select.value===""?null:Number(select.value)});if(!r.error){$("#modal").hidden=true;preview=null;}};panel.append(done);
 }
 function showTrainersMail(){
  const p=state.players[state.turn],top=p.deck.slice(0,4),panel=$("#modal .modal-content");
