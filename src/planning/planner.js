@@ -1,5 +1,5 @@
 // Deterministic Player 2 planning experiment. All decisions use Player 2's visible information.
-import {canPay,retreatCost,species} from "../cards.js?v=23";
+import {canPay,retreatCost,species} from "../cards.js?v=53";
 const KEY="ptcg.ai.plans.v1";
 const identity=m=>m?m.name:null;
 // Attack utility is effect-specific. A zero score means do not use the attack.
@@ -30,7 +30,7 @@ export function createPlanner(storage=(()=>{try{return localStorage;}catch{retur
   const p=s.players[1],actions=[],goal="Develop board and apply pressure";
   if(s.phase==="replacement"){actions.push({action:"promote",payload:{slot:0},why:"Replace knocked-out Active"});}
   else if(s.phase==="setup"){
-   if(!p.active){const idx=p.hand.findIndex(c=>c.kind==="pokemon"&&!species[c.species].stage);if(idx>=0)actions.push({action:"play",select:idx,payload:{target:"active"},why:"Choose opening Basic"});}
+   if(!p.active){const idx=p.hand.findIndex(c=>c.kind==="pokemon"&&species[c.species]&&!species[c.species].stage);if(idx>=0)actions.push({action:"play",select:idx,payload:{target:"active"},why:"Choose opening Basic"});}
    else actions.push({action:"ready",why:"Finish setup"});
   }else if(s.phase==="playing"){
    const basics=p.hand.map((c,i)=>({c,i})).filter(x=>x.c.kind==="pokemon"&&!species[x.c.species].stage);
@@ -49,7 +49,7 @@ export function createPlanner(storage=(()=>{try{return localStorage;}catch{retur
   let step=active.actions[0];
   // Re-resolve selected hand cards by identity because previous plays shift indices.
   if(step.select!==undefined){const wanted=step.payload.target==="active"&&s.phase==="playing"?"energy":"pokemon";
-   if(s.players[1].hand[step.select]?.kind!==wanted){const i=s.players[1].hand.findIndex(c=>c.kind===wanted&&(wanted!=="pokemon"||!species[c.species].stage));if(i<0){active.actions.shift();return next(s);}step={...step,select:i};}
+   if(s.players[1].hand[step.select]?.kind!==wanted){const i=s.players[1].hand.findIndex(c=>c.kind===wanted&&(wanted!=="pokemon"||(species[c.species]&&!species[c.species].stage)));if(i<0){active.actions.shift();return next(s);}step={...step,select:i};}
   }
   if(step.action==="attackOrEnd"){
    const p=s.players[1],choices=(p.active?.attacks||[]).map((move,index)=>({index,...attackUtility(move,p,s.players[0])})).sort((a,b)=>b.score-a.score);
