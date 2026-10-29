@@ -33,7 +33,7 @@ export function createPlanner(storage=(()=>{try{return localStorage;}catch{retur
    if(!p.active){const idx=p.hand.findIndex(c=>c.kind==="pokemon"&&species[c.species]&&!species[c.species].stage);if(idx>=0)actions.push({action:"play",select:idx,payload:{target:"active"},why:"Choose opening Basic"});}
    else actions.push({action:"ready",why:"Finish setup"});
   }else if(s.phase==="playing"){
-   const basics=p.hand.map((c,i)=>({c,i})).filter(x=>x.c.kind==="pokemon"&&!species[x.c.species].stage);
+   const basics=p.hand.map((c,i)=>({c,i})).filter(x=>x.c.kind==="pokemon"&&species[x.c.species]&&!species[x.c.species].stage);
    if(p.bench.length<5&&basics.length)actions.push({action:"play",select:basics[0].i,payload:{target:"bench",slot:p.bench.length},why:"Build a bench"});
    const energy=p.hand.findIndex(c=>c.kind==="energy");
    if(!p.attached&&energy>=0&&p.active)actions.push({action:"play",select:energy,payload:{target:"active"},why:"Power up Active"});
