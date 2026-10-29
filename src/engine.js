@@ -274,6 +274,17 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   }
   message="Cynthia & Caitlin "+(i===null||i===undefined?"recovered no Supporter":"recovered a Supporter")+(cost===null||cost===undefined?".":" and drew up to three cards.");
  }
+ else if(card.name==="Lt. Surge's Strategy"){
+  if(p.prizes<=o.prizes)return err(state,"Lt. Surge's Strategy requires you to have more Prize cards remaining than your opponent.");
+  p.extraSupporters=(p.extraSupporters||0)+2;message="Lt. Surge's Strategy allows two additional Supporter cards this turn.";
+ }
+ else if(card.name==="Lusamine"){
+  const indices=payload.discardIndices??[];
+  const eligible=c=>c?.kind==="trainer"&&["Supporter","Stadium"].includes(c.subtype)&&c.name!=="Lusamine";
+  if(!Array.isArray(indices)||indices.length>2||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||!eligible(p.discard[i])))return err(state,"Choose up to two Supporter or Stadium cards from your discard pile.");
+  for(const i of [...indices].sort((a,b)=>b-a))p.hand.push(p.discard.splice(i,1)[0]);
+  message="Lusamine recovered "+indices.length+" Supporter or Stadium cards.";
+ }
  else if(card.name==="Max Potion"){
   const mon=payload.target==="bench"?p.bench[payload.slot]:p.active;
   if(!mon)return err(state,"Choose one of your Pokémon.");
