@@ -17,7 +17,7 @@ const escape=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").rep
 const sprite=id=>`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
 let state=newGame(),matchDecks=null,screen="menu",acknowledged=null;
 let preview=null,revision=0,dragging=null,lastFocus=null;
-let hoveredHand=null;
+let hoveredCard=null;
 const turnHistory=createRecorder();turnHistory.start(state);
 const planner=createPlanner();let aiEnabled=true,aiBusy=false;
 const humanTurn=()=>!aiEnabled||state.turn!==1;
@@ -163,7 +163,7 @@ function render(){
  status.textContent=state.winner!==null?`Player ${state.winner+1} won by ${state.winReason}`:state.phase==="replacement"?`${playerLabel(state.turn)}: promote a Benched Pokémon`:state.phase==="retreat"?`${playerLabel(state.turn)}: complete retreat`:state.phase==="setup"?`Setup: ${playerLabel(state.turn)} — choose Active and Bench, then Ready`:`${playerLabel(state.turn)} · Turn ${state.round}`;
  $("#privacy-status").textContent="Keep private cards out of the other player's view. Both players maintain a valid board; consult a Judge for disputes or uncertainty.";
  board.innerHTML=`<div class="mat">${side(state.players[1],1)}<div class="divider"></div>${side(state.players[0],0)}<section id="handoff" ${handoff()?"":"hidden"}><h2>Pass to Player ${state.turn+1}</h2><p>Other players: look away before this player reveals their private hand.</p><button type="button" id="accept-handoff">I am Player ${state.turn+1} — reveal my hand</button></section><div class="hand"><div class="zone-label">Player ${state.turn+1}'s hand · ${p.hand.length} cards · ${visible?"private to current human":"hidden"}</div><div class="hand-cards">${visible?p.hand.map((c,i)=>cardHtml(c,{small:true,selected:i===state.selection,attrs:`data-hand="${i}" role="button" tabindex="0" draggable="${canHuman()}" aria-label="${escape(cardName(c))}; select, then tap a highlighted target; select again to inspect"`})).join(""):'<p class="privacy-note">Private cards are not shown to spectators or during handoff.</p>'}</div><p class="hint">${visible?(state.phase==="setup"?"Select a Basic Pokémon and tap an empty Active/Bench slot. Ready finishes your setup.":state.phase==="replacement"||state.phase==="retreat"?"Tap one of your Benched Pokémon.":"Select or drag a hand card to a highlighted own slot. Select again to inspect. Keyboard: Tab and Enter/Space. Public Inspect buttons never play a card."):"Public face-up cards, Discards, and Lost Zones remain inspectable."}</p></div></div>`;
- if(visible&&hoveredHand!==null)board.querySelector(`.hand-cards [data-hand="${hoveredHand}"]`)?.classList.add("hovered");
+ if(hoveredCard)board.querySelector(hoveredCard)?.classList.add("hovered");
  const visibleLog=state.phase==="setup"?["Setup Pokémon identities stay private until both players are Ready."]:state.log;
  log.replaceChildren(...visibleLog.map(text=>{const li=document.createElement("li");li.textContent=text;return li;}));
  renderPlans();renderControls();syncCoachPrivacy();
@@ -196,8 +196,13 @@ function playSelected(player,target,slot){
  }
  act("play",{target,slot});
 }
-board.addEventListener("pointerover",e=>{const card=e.target.closest(".hand-cards [data-hand]");hoveredHand=card?Number(card.dataset.hand):null;board.querySelectorAll(".hand-cards .hovered").forEach(el=>{if(el!==card)el.classList.remove("hovered");});});
-board.addEventListener("pointerleave",()=>{hoveredHand=null;board.querySelectorAll(".hand-cards .hovered").forEach(el=>el.classList.remove("hovered"));});
+function hoverKey(card){
+ if(card.dataset.hand!==undefined)return `.hand-cards [data-hand="${card.dataset.hand}"]`;
+ const slot=card.closest("[data-target]");
+ return slot?`[data-target="${slot.dataset.target}"][data-player="${slot.dataset.player}"]${slot.dataset.slot===undefined?"":`[data-slot="${slot.dataset.slot}"]`} .tcg-card:not(.empty)`:null;
+}
+board.addEventListener("pointerover",e=>{const card=e.target.closest(".hand-cards [data-hand]")||e.target.closest("[data-target]")?.querySelector(".tcg-card:not(.empty)");hoveredCard=card?hoverKey(card):null;board.querySelectorAll(".hovered").forEach(el=>{if(el!==card)el.classList.remove("hovered");});});
+board.addEventListener("pointerleave",()=>{hoveredCard=null;board.querySelectorAll(".hovered").forEach(el=>el.classList.remove("hovered"));});
 function inspectField(player,target,slot){
  if(!fieldVisible(player))return;
  const c=target==="active"?state.players[player].active:state.players[player].bench[slot];if(c)showPreview(c,{field:{player,target,slot}});
