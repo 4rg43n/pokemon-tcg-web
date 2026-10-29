@@ -529,6 +529,8 @@ function renderFireTrainerChoices(token,card){
  if(needsTarget){target.innerHTML=(p.active&&!switchBoth&&name!=="Bird Keeper"?'<option value="active">Active: '+escape(p.active.name)+'</option>':"")+p.bench.map((c,i)=>`<option value="bench-${i}">Bench ${i+1}: ${escape(c.name)}</option>`).join("");panel.append(target);}
  let opponent=null,evolution=null;
  if(switchBoth){opponent=document.createElement("select");opponent.id="trainer-opponent";opponent.setAttribute("aria-label",name==="Escape Rope"?"Opponent chooses their Benched Pokémon":"Opponent Benched Pokémon");opponent.innerHTML=state.players[1-state.turn].bench.map((c,i)=>`<option value="${i}">Opponent Bench ${i+1}: ${escape(c.name)}</option>`).join("");panel.append(opponent);}
+ let scoopReplacement=null;
+ if(name==="Scoop Up Net"&&p.bench.length){scoopReplacement=document.createElement("select");scoopReplacement.setAttribute("aria-label","Benched Pokémon to promote");scoopReplacement.innerHTML=p.bench.map((c,i)=>`<option value="${i}">Promote Bench ${i+1}: ${escape(c.name)}</option>`).join("");panel.append(scoopReplacement);}
  if(candy){evolution=document.createElement("select");evolution.id="trainer-evolution";evolution.setAttribute("aria-label","Stage 2 in hand");evolution.innerHTML=p.hand.map((c,i)=>({c,i})).filter(({c})=>c.kind==="pokemon"&&species[c.species]?.stage===2).map(({c,i})=>`<option value="${i}">${escape(cardName(c))}</option>`).join("");panel.append(evolution);}
  const done=actionButton("Play "+name,()=>{
   if(!modalHuman(token))return;
@@ -536,7 +538,7 @@ function renderFireTrainerChoices(token,card){
   if(selected.length>limit){setError(`Choose at most ${limit} cards.`);return;}
   if(name==="Arven"&&new Set(selected.map(i=>pool[i].subtype)).size!==selected.length){setError("Choose at most one Item and one Pokémon Tool.");return;}
   if(needsTarget&&!value||opponent&&!opponent.value||evolution&&!evolution.value){setError("Choose an available Pokémon target.");return;}
-  const payload={...(search?{searchIndices:selected}:{}),...(recover||welder?{discardIndices:selected}:{}),...(token.discardCostIndices?{discardCostIndices:token.discardCostIndices}:{}),...(needsTarget?{target:value.startsWith("bench-")?"bench":"active",...(value.startsWith("bench-")?{slot:Number(value.slice(6))}:{})}:{}),...(opponent?{opponentSlot:Number(opponent.value)}:{}),...(evolution?{evolutionIndex:Number(evolution.value)}:{})};
+  const payload={...(search?{searchIndices:selected}:{}),...(recover||welder?{discardIndices:selected}:{}),...(token.discardCostIndices?{discardCostIndices:token.discardCostIndices}:{}),...(needsTarget?{target:value.startsWith("bench-")?"bench":"active",...(value.startsWith("bench-")?{slot:Number(value.slice(6))}:{})}:{}),...(opponent?{opponentSlot:Number(opponent.value)}:{}),...(scoopReplacement?{switchSlot:Number(scoopReplacement.value)}:{}),...(evolution?{evolutionIndex:Number(evolution.value)}:{})};
   act("trainer",payload,{token});
  });done.id="trainer-play";
 }
