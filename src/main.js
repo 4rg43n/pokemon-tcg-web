@@ -2,7 +2,7 @@ import {retreatCost,species,energyTypes,canPay} from "./cards.js?v=53";
 import {catalog} from "./decks.js?v=59";
 import {commands as debugCommands,pokemonRefs} from "./debug.js?v=59";
 import {cardStats} from "./card-stats.js?v=27";
-import {newGame,dispatch,cardInfo} from "./engine.js?v=59";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=61";
 import {mountDeckBuilder} from "./deck-builder.js?v=59";
 import {createRecorder} from "./history.js?v=27";
 import {createPlanner} from "./planning/planner.js?v=59";
@@ -44,6 +44,7 @@ document.querySelectorAll("button[data-action=attack],button[data-action=end]").
 const attack=document.querySelector("button[data-action=attack]");attack.textContent=p.active?.attacks?.length>1?"Choose Attack":"Attack";
 const retreat=document.querySelector("button[data-action=retreat]");retreat.textContent=`Retreat (${retreatCost(p.active)} Energy)`;retreat.hidden=state.phase!=="playing";retreat.disabled=botTurn||state.phase!=="playing"||!state.players[state.turn].bench.length||state.players[state.turn].retreated||!p.active||p.active.energy<retreatCost(p.active);
 const playTrainer=document.querySelector("button[data-action=trainer]");playTrainer.hidden=state.phase!=="playing"||p.hand[state.selection]?.kind!=="trainer";
+let stadiumButton=document.querySelector("#stadium-action");if(!stadiumButton){stadiumButton=document.createElement("button");stadiumButton.id="stadium-action";stadiumButton.type="button";stadiumButton.onclick=showStadiumAction;document.querySelector("#ai-toggle").after(stadiumButton);}stadiumButton.hidden=!state.stadium||!["Stormy Mountains","Tropical Beach"].includes(state.stadium.name);stadiumButton.textContent="Use "+(state.stadium?.name||"Stadium");stadiumButton.disabled=botTurn||state.phase!=="playing";
 const aiButton=document.querySelector("#ai-toggle");aiButton.textContent=aiEnabled?"AI Player 2: ON":"AI Player 2: OFF";
 renderPlanGraph(document.querySelector("#ai-graph"),planner);
 const panel=document.querySelector("#ai-plans");if(panel)panel.textContent=JSON.stringify({active:planner.active,archived:planner.archive.slice(-3)},null,2);
@@ -88,6 +89,28 @@ if(preview.type==="card"&&preview.card.ability){
 }
 else if(preview.type!=="card") modal.querySelector(".modal-content").innerHTML=`<h2>${escape(preview.name)} · ${preview.cards.length} cards</h2><div class="pile-list">${preview.name==="deck"?"Deck contents are hidden during play.":preview.cards.length?preview.cards.map(c=>cardHtml(c,{small:true})).join(""):"No cards yet."}</div>`;
 }
+function showStadiumAction(){
+ const p=state.players[state.turn],stadium=state.stadium,panel=$("#modal .modal-content");if(!stadium)return;
+ if(stadium.name==="Tropical Beach"){const result=act("stadium");if(!result.error)$("#modal").hidden=true;return;}
+ if(stadium.name!=="Stormy Mountains")return;
+ preview={type:"stadium"};$("#modal").hidden=false;panel.innerHTML="<h2>Stormy Mountains</h2><p>Once during your turn, search your deck for a Basic Lightning or Dragon Pokémon and put it onto your Bench. Then shuffle.</p>";
+ const select=document.createElement("select");select.innerHTML='<option value="">Do not choose a Pokémon</option>'+p.deck.map((c,i)=>({c,i})).filter(({c})=>c.kind==="pokemon"&&!species[c.species]?.stage&&["Lightning","Dragon"].includes(species[c.species]?.type)).map(({c,i})=>'<option value="'+i+'">'+escape(species[c.species].name)+'</option>').join("");
+ const gallery=document.createElement("div");gallery.className="print-search-grid";p.deck.forEach((c,i)=>{if(c.kind!=="pokemon"||species[c.species]?.stage||!["Lightning","Dragon"].includes(species[c.species]?.type))return;const tile=document.createElement("div");tile.className="print-search-tile";tile.innerHTML=cardHtml(c,{small:true});const btn=document.createElement("button");btn.textContent="Choose "+species[c.species].name;btn.onclick=()=>{select.value=String(i);};tile.append(btn);gallery.append(tile);});panel.append(gallery,select);
+ const done=document.createElement("button");done.textContent="Use Stormy Mountains";done.onclick=()=>{const r=act("stadium",{searchIndex:select.value===""?null:Number(select.value)});if(!r.error){$("#modal").hidden=true;preview=null;}};panel.append(done);
+}
+function showTrainersMail(){
+ const p=state.players[state.turn],top=p.deck.slice(0,4),panel=$("#modal .modal-content");
+ preview={type:"mail-search"};$("#modal").hidden=false;
+ panel.innerHTML="<h2>Trainers' Mail</h2><p>Look at the top four cards. Choose one Trainer; put the other cards on the bottom of your deck.</p>";
+ const options=document.createElement("div");options.className="print-search-grid";
+ const select=document.createElement("select");select.setAttribute("aria-label","Trainer from top four");
+ select.innerHTML='<option value="">Take no Trainer</option>';
+ top.forEach((c,i)=>{const tile=document.createElement("div");tile.className="print-search-tile";tile.innerHTML=cardHtml(c,{small:true});const label=document.createElement("div");label.textContent=(i+1)+". "+(c.kind==="pokemon"?species[c.species]?.name:c.name||c.type);tile.append(label);options.append(tile);if(c.kind==="trainer"){const opt=document.createElement("option");opt.value=i;opt.textContent=(i+1)+". "+c.name;select.append(opt);}});
+ panel.append(options,select);
+ const status=document.createElement("p"),done=document.createElement("button");done.textContent="Resolve Trainers' Mail";
+ done.onclick=()=>{const payload={searchIndex:select.value===""?null:Number(select.value)},result=dispatch(state,"trainer",payload);if(result.error){status.textContent=result.error;return;}turnHistory.record(state,result.state,"trainer",payload);const prev=state;state=result.state;render();coachUpdate({prev,state,action:"trainer"});error.textContent="";preview=null;$("#modal").hidden=true;queueAI();};
+ panel.append(status,done);
+}
 function showFireTrainerChoices(card){
  const p=state.players[state.turn],panel=$("#modal .modal-content");
  preview={type:"fire-trainer"};$("#modal").hidden=false;
@@ -131,6 +154,7 @@ function showBallSearch(){
  const checks=[];
  p.hand.forEach((c,i)=>{if(i===idx)return;const label=document.createElement("label"),check=document.createElement("input");check.type="checkbox";label.style.display="block";label.append(check,document.createTextNode(c.kind==="pokemon"?species[c.species].name:c.name));panel.append(label);checks.push({check,index:i});});
  const select=document.createElement("select");select.setAttribute("aria-label","Pokémon to find");select.innerHTML='<option value="">Finish without finding a Pokémon</option>'+p.deck.map((c,i)=>({c,i})).filter(({c})=>c.kind==="pokemon"&&(card.name==="Ultra Ball"||!species[c.species].stage)).map(({c,i})=>'<option value="'+i+'">'+escape(species[c.species].name)+'</option>').join('');panel.append(select);
+ const deckView=document.createElement("details");deckView.open=true;const summary=document.createElement("summary");summary.textContent="View all "+p.deck.length+" cards in your deck";deckView.append(summary);const grid=document.createElement("div");grid.className="print-search-grid";p.deck.forEach((c,i)=>{const tile=document.createElement("div");tile.className="print-search-tile";tile.innerHTML=cardHtml(c,{small:true});const label=document.createElement("div");label.textContent=(i+1)+". "+(c.kind==="pokemon"?species[c.species]?.name:c.name||c.type);tile.append(label);if(c.kind==="pokemon"&&(card.name==="Ultra Ball"||!species[c.species]?.stage)){const pick=document.createElement("button");pick.type="button";pick.textContent="Choose";pick.onclick=()=>{select.value=String(i);grid.querySelectorAll(".chosen").forEach(x=>x.classList.remove("chosen"));tile.classList.add("chosen");};tile.append(pick);}grid.append(tile);});deckView.append(grid);panel.append(deckView);
  const status=document.createElement("p"),done=document.createElement("button");done.textContent="Play "+card.name;done.onclick=()=>{const payload={discardIndices:checks.filter(x=>x.check.checked).map(x=>x.index),searchIndex:select.value===""?null:Number(select.value)},result=dispatch(state,"trainer",payload);if(result.error){status.textContent=result.error;return;}turnHistory.record(state,result.state,"trainer",payload);const prev=state;state=result.state;render();coachUpdate({prev,state,action:"trainer"});error.textContent="";preview=null;$("#modal").hidden=true;};panel.append(status,done);
 }
 function chooseAttack(index){
@@ -146,7 +170,7 @@ function chooseAttack(index){
 function showAttacks(){const moves=state.players[state.turn].active.attacks;preview={type:"attacks"};const modal=$("#modal");modal.hidden=false;modal.querySelector(".modal-content").innerHTML="<h2>Choose an attack</h2>"+moves.map((a,i)=>`<button type="button" data-attack="${i}" style="display:block;margin:12px 0;padding:12px;width:100%;text-align:left">${escape(a.name)} — ${escape(a.cost.join(" + "))} — ${a.damage} damage</button>`).join("");}
 $("#modal").addEventListener("click",e=>{const attack=e.target.closest("[data-attack]");if(attack){chooseAttack(Number(attack.dataset.attack));return;}});
 $("#modal").addEventListener("click",e=>{if(e.target.id==="modal"||e.target.closest(".close-modal")){$("#modal").hidden=true;preview=null;}});
-document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(aiEnabled&&state.turn===1){error.textContent="AI Player 2 controls this turn.";return;}if(b.dataset.action==="attack"){if(state.players[state.turn].active?.attacks?.length>1)showAttacks();else chooseAttack(0);return;}if(b.dataset.action==="trainer"){const card=state.players[state.turn].hand[state.selection];if(card?.name==="Quick Ball"||card?.name==="Ultra Ball"){showBallSearch();return;}if(card?.name==="Nest Ball"){showNestBallSearch();return;}if(["Buddy-Buddy Poffin","Evolution Incense","Level Ball","Poké Pad","Trainers' Mail","Earthen Vessel","Arven","Gloria","Hisuian Heavy Ball","Night Stretcher","Rescue Stretcher","Lana's Aid","Welder","Float Stone","Muscle Band","Vitality Band","Bird Keeper","Blacksmith","Raihan","Guzma","Escape Rope","Rare Candy","Scoop Up Net"].includes(card?.name)){showFireTrainerChoices(card);return;}if(card?.name==="Potion"||card?.name==="Air Balloon"){error.textContent=card.name==="Air Balloon"?"Tap your Active or a Benched Pokémon to attach Air Balloon.":"Tap a damaged Pokémon to use Potion.";return;}act("trainer");}else act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
+document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(aiEnabled&&state.turn===1){error.textContent="AI Player 2 controls this turn.";return;}if(b.dataset.action==="attack"){if(state.players[state.turn].active?.attacks?.length>1)showAttacks();else chooseAttack(0);return;}if(b.dataset.action==="trainer"){const card=state.players[state.turn].hand[state.selection];if(card?.name==="Quick Ball"||card?.name==="Ultra Ball"){showBallSearch();return;}if(card?.name==="Trainers\u0027 Mail"){showTrainersMail();return;}if(card?.name==="Nest Ball"){showNestBallSearch();return;}if(["Buddy-Buddy Poffin","Evolution Incense","Level Ball","Poké Pad","Trainers' Mail","Earthen Vessel","Arven","Gloria","Hisuian Heavy Ball","Night Stretcher","Rescue Stretcher","Lana's Aid","Welder","Float Stone","Muscle Band","Vitality Band","Bird Keeper","Blacksmith","Raihan","Guzma","Escape Rope","Rare Candy","Scoop Up Net"].includes(card?.name)){showFireTrainerChoices(card);return;}if(card?.name==="Potion"||card?.name==="Air Balloon"){error.textContent=card.name==="Air Balloon"?"Tap your Active or a Benched Pokémon to attach Air Balloon.":"Tap a damaged Pokémon to use Potion.";return;}act("trainer");}else act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
 render();
 
 coachUpdate({state,action:"init"});
