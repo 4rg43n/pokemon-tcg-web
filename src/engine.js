@@ -253,7 +253,7 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
  }
  else if(card.name==="Iono"){
   const counts=[p.prizes,o.prizes];
-  for(const player of [p,o]){player.deck.push(...player.hand);player.hand=[];shuffle(player.deck);}
+  for(const player of [p,o]){const hand=player.hand.splice(0);shuffle(hand);player.deck.push(...hand);}
   for(const [j,player] of [p,o].entries())for(let n=0;n<counts[j]&&player.deck.length;n++)player.hand.push(player.deck.shift());
   message="Iono shuffled each player's hand into the bottom of their deck and each player drew cards equal to their remaining Prize cards.";
  }
