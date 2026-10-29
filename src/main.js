@@ -179,7 +179,7 @@ function renderControls(){
  $("#ai-toggle").disabled=!!preview;
  let stadiumButton=$("#stadium-action");
  if(!stadiumButton){stadiumButton=document.createElement("button");stadiumButton.id="stadium-action";stadiumButton.type="button";stadiumButton.addEventListener("click",showStadiumAction);$("#ai-toggle").after(stadiumButton);}
- stadiumButton.hidden=!["Stormy Mountains","Tropical Beach"].includes(state.stadium?.name);
+ stadiumButton.hidden=!["Stormy Mountains","Tropical Beach","PokéStop"].includes(state.stadium?.name);
  stadiumButton.textContent="Use "+(state.stadium?.name||"Stadium");stadiumButton.disabled=!playing;
 }
 function playSelected(player,target,slot){
@@ -302,7 +302,7 @@ function renderZoneCards(token){
 }
 function showStadiumAction(){
  if(!canHuman()||state.phase!=="playing"||!state.stadium)return;
- if(state.stadium.name==="Tropical Beach"){act("stadium");return;}
+ if(["Tropical Beach","PokéStop"].includes(state.stadium.name)){act("stadium");return;}
  if(state.stadium.name!=="Stormy Mountains")return;
  const failure=dispatch(state,"stadium",{searchIndex:null}).error;if(failure){setError(failure);return;}
  const p=state.players[state.turn],token=openModal("stadium",{trainerPayload:{searchIndex:null},settleAction:"stadium"},"<h2>Stormy Mountains</h2><p>Search your Deck for a Basic Lightning or Dragon Pokémon to Bench, then shuffle. Closing resolves without finding a Pokémon and uses this turn's activation.</p><div class=\"print-search-grid\"></div>");
