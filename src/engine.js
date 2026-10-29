@@ -22,6 +22,25 @@ if(action==="reset")return {state:newGame()};
 if(state.winner!==null)return err(state,"Game is over.");
 const s=structuredClone(state),p=s.players[s.turn],o=s.players[1-s.turn];
 let message="";
+if(action==="stadium"){
+ if(s.phase!=="playing")return err(state,"Stadium abilities can only be used during play.");
+ if(!s.stadium)return err(state,"No Stadium in play.");
+ if(s.stadium.name==="Stormy Mountains"){
+  if(p.stormyUsedTurn===s.round)return err(state,"Stormy Mountains was already used this turn.");
+  if(p.bench.length>=5)return err(state,"Your Bench is full.");
+  const i=payload.searchIndex;
+  if(i===null){p.stormyUsedTurn=s.round;shuffle(p.deck);return {state:s};}
+  if(!Number.isInteger(i)||p.deck[i]?.kind!=="pokemon"||species[p.deck[i].species]?.stage||!["Lightning","Dragon"].includes(species[p.deck[i].species].type))return err(state,"Select a Basic Lightning or Dragon Pokémon.");
+  const found=p.deck.splice(i,1)[0];const mon=pokemon(found.species);mon.playedTurn=s.round;p.bench.push(mon);shuffle(p.deck);p.stormyUsedTurn=s.round;
+  s.log.unshift("Player "+(s.turn+1)+" used Stormy Mountains to Bench "+mon.name+".");return {state:s};
+ }
+ if(s.stadium.name==="Tropical Beach"){
+  if(p.beachUsedTurn===s.round)return err(state,"Tropical Beach was already used this turn.");
+  const amount=Math.max(0,7-p.hand.length);for(let n=0;n<amount&&p.deck.length;n++)p.hand.push(p.deck.shift());
+  p.beachUsedTurn=s.round;next(s);s.log.unshift("Player "+(state.turn+1)+" used Tropical Beach to draw "+amount+" cards and end the turn.");return {state:s};
+ }
+ return err(state,"This Stadium has no manually activated effect.");
+}
 if(action==="deselect"){s.selection=null;return {state:s};}
 if(action==="select"){
 const idx=payload.index;
