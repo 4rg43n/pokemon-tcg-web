@@ -1,6 +1,6 @@
 // Battle Bird coach widget: bird avatar + speech bubble, fed by coach.js after every game action.
-import {buildContext,advise,summarizeTurn,lastTurnOf,review,configure as configureCoach} from "./coach.js?v=62";
-import {nextMove,configure as configureMoves} from "./coach_moves.js?v=62";
+import {buildContext,advise,summarizeTurn,lastTurnOf,review,configure as configureCoach} from "./coach.js?v=65";
+import {nextMove,configure as configureMoves} from "./coach_moves.js?v=65";
 
 export function configure(deps){configureCoach(deps);configureMoves(deps);}
 
@@ -67,8 +67,9 @@ return `${headHtml("Review","Game over")}<div class="coach-review"><h3>How did t
 
 // Light up the hand cards that can be played, the recommended one, and the button to press.
 function highlightBoard(){
-for(const element of document.querySelectorAll(".coach-playable,.coach-focus,.coach-cta"))element.classList.remove("coach-playable","coach-focus","coach-cta");
+for(const element of document.querySelectorAll(".coach-playable,.coach-focus,.coach-cta,.coach-dim"))element.classList.remove("coach-playable","coach-focus","coach-cta","coach-dim");
 if(!move||settings.muted)return;
+for(const card of document.querySelectorAll("[data-hand]"))if(!move.playable.includes(Number(card.dataset.hand)))card.classList.add("coach-dim");
 for(const index of move.playable)document.querySelector(`[data-hand="${index}"]`)?.classList.add("coach-playable");
 if(move.focus!==null)document.querySelector(`[data-hand="${move.focus}"]`)?.classList.add("coach-focus");
 if(move.button)document.querySelector(`button[data-action="${move.button}"]`)?.classList.add("coach-cta");

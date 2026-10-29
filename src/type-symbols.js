@@ -4,5 +4,5 @@ const types=new Set(["Grass","Fire","Water","Lightning","Psychic","Fighting","Da
 const escape=value=>String(value).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 export function typeSymbol(type){
  if(!types.has(type))return `<span class="type-symbol-unknown">${escape(type||"Unknown")}</span>`;
- return `<img class="tcg-type-symbol" src="assets/types/${type.toLowerCase()}.png?v=62" alt="${type} Energy" title="${type}" width="18" height="18" draggable="false">`;
+ return `<img class="tcg-type-symbol" src="assets/types/${type.toLowerCase()}.png?v=65" alt="${type} Energy" title="${type}" width="18" height="18" draggable="false">`;
 }

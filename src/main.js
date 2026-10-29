@@ -1,14 +1,15 @@
-import {retreatCost,species,energyTypes,canPay} from "./cards.js?v=62";
-import {catalog} from "./decks.js?v=62";
-import {commands as debugCommands,pokemonRefs} from "./debug.js?v=62";
-import {cardStats} from "./card-stats.js?v=62";
-import {newGame,dispatch,cardInfo} from "./engine.js?v=62";
-import {mountDeckBuilder} from "./deck-builder.js?v=62";
-import {createRecorder} from "./history.js?v=62";
-import {createPlanner} from "./planning/planner.js?v=62";
-import {renderPlanGraph} from "./planning/plan-graph.js?v=62";
-import {update as coachUpdate,configure as coachConfigure} from "./coach_ui.js?v=62";
-import {typeSymbol} from "./type-symbols.js?v=62";
+import {retreatCost,species,energyTypes,canPay} from "./cards.js?v=65";
+import {catalog} from "./decks.js?v=65";
+import {commands as debugCommands,pokemonRefs} from "./debug.js?v=65";
+import {cardStats} from "./card-stats.js?v=65";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=65";
+import {mountDeckBuilder} from "./deck-builder.js?v=65";
+import {createRecorder} from "./history.js?v=65";
+import {createPlanner} from "./planning/planner.js?v=65";
+import {renderPlanGraph} from "./planning/plan-graph.js?v=65";
+import {update as coachUpdate,configure as coachConfigure} from "./coach_ui.js?v=65";
+import {typeSymbol} from "./type-symbols.js?v=65";
+import {describeCard,cardTooltip} from "./card-text.js?v=65";
 coachConfigure({species,canPay,retreatCost,dispatch});
 const $=s=>document.querySelector(s);
 const board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log"),modal=$("#modal"),panel=$("#modal .modal-content");
@@ -16,6 +17,7 @@ const escape=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").rep
 const sprite=id=>`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
 let state=newGame(),matchDecks=null,screen="menu",acknowledged=null;
 let preview=null,revision=0,dragging=null,lastFocus=null;
+let hoveredHand=null;
 const turnHistory=createRecorder();turnHistory.start(state);
 const planner=createPlanner();let aiEnabled=false,aiBusy=false;
 const humanTurn=()=>!aiEnabled||state.turn!==1;
@@ -113,13 +115,14 @@ function act(action,payload={},options={}){
  setError("");$("#action-notice").textContent="";render();if(source!=="ai"){updateCoach({prev,state,action,error:""});queueAI();}return true;
 }
 function cardHtml(data,opts={}){
- const {small=false,selected=false,back=false,empty=false,attrs=""}=opts;
+ const {small=false,selected=false,back=false,empty=false,attrs:sourceAttrs=""}=opts;
  if(empty)return `<div class="tcg-card empty">${escape(data||"Empty")}</div>`;
  if(back)return '<div class="tcg-card back" aria-label="Face-down card"><span>Pokémon</span></div>';
  const printed=displayCard(data);
+ const attrs=sourceAttrs+` title="${escape(cardTooltip(printed))}"`;
  if(printed.external&&printed.image){
   const label=[printed.name,printed.set,printed.number].filter(Boolean).join(" · ");
-  return `<div class="tcg-card printed ${printed.kind==="pokemon"?"pokemon":""} ${small?"small":""} ${selected?"selected":""}" ${attrs} title="${escape(label)}"><img src="${escape(printed.image)}" alt="${escape(label)}" loading="lazy" onerror="this.style.display='none';this.parentElement.classList.add('image-unavailable')"><span class="print-fallback">${escape(printed.name)}<small>${escape([printed.set,printed.number].filter(Boolean).join(" "))}</small></span>${printed.damage?`<span class="print-damage">${printed.damage} damage</span>`:""}</div>`;
+  return `<div class="tcg-card printed ${printed.kind==="pokemon"?"pokemon":""} ${small?"small":""} ${selected?"selected":""}" ${attrs}><img src="${escape(printed.image)}" alt="${escape(label)}" loading="lazy" onerror="this.style.display='none';this.parentElement.classList.add('image-unavailable')"><span class="print-fallback">${escape(printed.name)}<small>${escape([printed.set,printed.number].filter(Boolean).join(" "))}</small></span>${printed.damage?`<span class="print-damage">${printed.damage} damage</span>`:""}</div>`;
  }
  if(data.kind==="energy")return `<div class="tcg-card energy type-${escape(String(data.type||"colorless").toLowerCase())} ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="energy-symbol">${typeSymbol(data.type)}</div><strong>${escape(data.type||"Basic")} Energy</strong></div>`;
  if(data.kind==="trainer")return `<div class="tcg-card trainer trainer-${escape(String(data.subtype||"Item").toLowerCase().replace(/[^a-z]+/g,"-"))} ${small?"small":""} ${selected?"selected":""}" ${attrs}><span class="card-type">TRAINER</span><strong>${escape(data.name)}</strong><small>${escape(data.subtype||"Item")}</small>${data.image?`<img src="${escape(data.image)}" alt="" loading="lazy">`:""}${data.name==="Air Balloon"?'<span class="tool-effect">Retreat costs 2 less</span>':data.name==="Float Stone"?'<span class="tool-effect">No retreat cost</span>':""}</div>`;
@@ -160,6 +163,7 @@ function render(){
  status.textContent=state.winner!==null?`Player ${state.winner+1} won by ${state.winReason}`:state.phase==="replacement"?`${playerLabel(state.turn)}: promote a Benched Pokémon`:state.phase==="retreat"?`${playerLabel(state.turn)}: complete retreat`:state.phase==="setup"?`Setup: ${playerLabel(state.turn)} — choose Active and Bench, then Ready`:`${playerLabel(state.turn)} · Turn ${state.round}`;
  $("#privacy-status").textContent="Keep private cards out of the other player's view. Both players maintain a valid board; consult a Judge for disputes or uncertainty.";
  board.innerHTML=`<div class="mat">${side(state.players[1],1)}<div class="divider"></div>${side(state.players[0],0)}<section id="handoff" ${handoff()?"":"hidden"}><h2>Pass to Player ${state.turn+1}</h2><p>Other players: look away before this player reveals their private hand.</p><button type="button" id="accept-handoff">I am Player ${state.turn+1} — reveal my hand</button></section><div class="hand"><div class="zone-label">Player ${state.turn+1}'s hand · ${p.hand.length} cards · ${visible?"private to current human":"hidden"}</div><div class="hand-cards">${visible?p.hand.map((c,i)=>cardHtml(c,{small:true,selected:i===state.selection,attrs:`data-hand="${i}" role="button" tabindex="0" draggable="${canHuman()}" aria-label="${escape(cardName(c))}; select, then tap a highlighted target; select again to inspect"`})).join(""):'<p class="privacy-note">Private cards are not shown to spectators or during handoff.</p>'}</div><p class="hint">${visible?(state.phase==="setup"?"Select a Basic Pokémon and tap an empty Active/Bench slot. Ready finishes your setup.":state.phase==="replacement"||state.phase==="retreat"?"Tap one of your Benched Pokémon.":"Select or drag a hand card to a highlighted own slot. Select again to inspect. Keyboard: Tab and Enter/Space. Public Inspect buttons never play a card."):"Public face-up cards, Discards, and Lost Zones remain inspectable."}</p></div></div>`;
+ if(visible&&hoveredHand!==null)board.querySelector(`.hand-cards [data-hand="${hoveredHand}"]`)?.classList.add("hovered");
  const visibleLog=state.phase==="setup"?["Setup Pokémon identities stay private until both players are Ready."]:state.log;
  log.replaceChildren(...visibleLog.map(text=>{const li=document.createElement("li");li.textContent=text;return li;}));
  renderPlans();renderControls();syncCoachPrivacy();
@@ -192,6 +196,8 @@ function playSelected(player,target,slot){
  }
  act("play",{target,slot});
 }
+board.addEventListener("pointerover",e=>{const card=e.target.closest(".hand-cards [data-hand]");hoveredHand=card?Number(card.dataset.hand):null;board.querySelectorAll(".hand-cards .hovered").forEach(el=>{if(el!==card)el.classList.remove("hovered");});});
+board.addEventListener("pointerleave",()=>{hoveredHand=null;board.querySelectorAll(".hand-cards .hovered").forEach(el=>el.classList.remove("hovered"));});
 function inspectField(player,target,slot){
  if(!fieldVisible(player))return;
  const c=target==="active"?state.players[player].active:state.players[player].bench[slot];if(c)showPreview(c,{field:{player,target,slot}});
@@ -225,8 +231,7 @@ board.addEventListener("drop",e=>{
 board.addEventListener("dragend",()=>{dragging=null;highlightDrag();});
 function renderCardDetails(token,c,{back}={}){
  if(token.type==="zone"&&!zoneEntries(token)?.some(entry=>entry.c===c)){clearModal();renderControls();return;}
- const d=displayCard(c);panel.innerHTML=cardHtml(c)+`<h2>${escape(cardName(c))}</h2>${d.attacks?.map(a=>`<p>${escape(a.name)} · ${costHtml(a.cost)} · ${a.damage} damage</p>`).join("")||""}${d.hp?'<p class="stat-legend">? = data not yet recorded; — = no Weakness or Resistance. Weakness and Resistance stats are informational; their damage rules are not implemented. Damage counters represent 10 damage each.</p>':""}<p class="modal-error" role="alert"></p>`;
- if(d.ability){const text=document.createElement("p");text.textContent=`${d.ability.name}: ${d.ability.text}`;panel.append(text);}
+ const d=displayCard(c),description=describeCard(d);panel.innerHTML=`<div class="card-view">${cardHtml(c)}<div class="card-info"><h2>${escape(cardName(c))}</h2><p class="card-heading">${escape(description.heading)}</p>${description.sections.map(section=>`<h3>${escape(section.title)}</h3>${section.lines.map(line=>`<p>${escape(line)}</p>`).join("")}`).join("")}${d.hp?'<p class="stat-legend">Weakness and Resistance are informational; their damage rules are not implemented. Damage counters represent 10 damage each.</p>':""}</div></div><p class="modal-error" role="alert"></p>`;
  if(token.type==="zone"&&token.authorized){const note=document.createElement("p");note.id="inspection-scope";note.textContent=`Authorized scope: ${inspectionScopeText(token.scope,token.zone)}. Details do not expand this permission.`;panel.append(note);}
  if(back){const button=actionButton("Back to cards",()=>{if(validToken(token))back();});if(token.type==="zone"){button.id="inspection-back";button.focus();}}
  if(token.field){

@@ -1,5 +1,5 @@
 // Deterministic Player 2 planning experiment. All decisions use Player 2's visible information.
-import {canPay,retreatCost,species} from "../cards.js?v=62";
+import {canPay,retreatCost,species} from "../cards.js?v=65";
 const KEY="ptcg.ai.plans.v1";
 const identity=m=>m?m.name:null;
 // Attack utility is effect-specific. A zero score means do not use the attack.

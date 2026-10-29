@@ -1,6 +1,6 @@
 // Per-turn game history for AI review: compact true-state snapshots in localStorage, current game only.
-import {pokemon} from "./engine.js?v=62";
-import {pokemonCard,energyCard,trainerCard} from "./decks.js?v=62";
+import {pokemon} from "./engine.js?v=65";
+import {pokemonCard,energyCard,trainerCard} from "./decks.js?v=65";
 const GAME_KEY="ptcg.game",TURN_PREFIX="ptcg.turn.";
 const cardCode=c=>c.kind==="pokemon"?"P:"+c.species:c.kind==="energy"?"E:"+c.type:"T:"+c.name;
 function fromCode(id){const i=id.indexOf(":"),kind=id.slice(0,i),value=id.slice(i+1);return kind==="P"?pokemonCard(Number(value)):kind==="E"?energyCard(value):trainerCard(value);}
