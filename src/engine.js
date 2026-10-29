@@ -274,6 +274,27 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   }
   message="Cynthia & Caitlin "+(i===null||i===undefined?"recovered no Supporter":"recovered a Supporter")+(cost===null||cost===undefined?".":" and drew up to three cards.");
  }
+ else if(card.name==="Max Potion"){
+  const mon=payload.target==="bench"?p.bench[payload.slot]:p.active;
+  if(!mon)return err(state,"Choose one of your Pokémon.");
+  if(mon.damage<=0)return err(state,"Choose a damaged Pokémon.");
+  mon.damage=0;for(const type of mon.energies)p.discard.push(energy(type));
+  mon.energies=[];mon.energy=0;message="Max Potion healed all damage and discarded all attached Energy.";
+ }
+ else if(card.name==="Lana's Fishing Rod"){
+  const indices=payload.searchIndices??[];
+  const eligible=c=>c.kind==="pokemon"||c.kind==="trainer"&&/Tool/i.test(c.subtype||"");
+  if(!Array.isArray(indices)||indices.length>2||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||!eligible(p.discard[i])))return err(state,"Choose up to two Pokémon or Pokémon Tool cards from discard.");
+  for(const i of [...indices].sort((a,b)=>b-a))p.deck.push(p.discard.splice(i,1)[0]);
+  shuffle(p.deck);message="Lana's Fishing Rod shuffled "+indices.length+" Pokémon or Pokémon Tool cards into the deck.";
+ }
+ else if(card.name==="Devolution Spray"){
+  const mon=payload.target==="bench"?p.bench[payload.slot]:p.active;
+  if(!mon||!mon.under?.length)return err(state,"Choose one of your evolved Pokémon.");
+  const previous=mon.under.pop(),old=mon.speciesIndex;
+  p.hand.push(basic(old));const prev=species[previous];mon.speciesIndex=previous;mon.name=prev.name;mon.hp=prev.hp;mon.attacks=prev.attacks;mon.ability=prev.ability;mon.under=[...mon.under];mon.damage=Math.min(mon.damage,Math.max(0,mon.hp-10));
+  message="Devolution Spray returned "+species[old].name+" to hand.";
+ }
  else if(card.name==="Acro Bike"){
   const top=p.deck.splice(0,2);if(top.length){
    const chosen=payload.searchIndex??0;
