@@ -1,7 +1,7 @@
 // Lightweight two-player prototype; intentionally not a complete official TCG rules engine.
 import {species,canPay,retreatCost} from "./cards.js?v=66";
 export const pokemon=(i)=>({...species[i],speciesIndex:i,damage:0,energy:0,energies:[],evolvedThisTurn:false,playedTurn:0,under:[],tool:null});
-import {defaultDeck, expandDeck, validateDeck, energyCard as energy, pokemonCard as basic} from "./decks.js?v=66";
+import {defaultDeck, expandDeck, validateDeck, energyCard as energy, pokemonCard as basic} from "./decks.js?v=70";
 function shuffle(cards){for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]];}return cards;}
 function player(i,deck){
  const cards=shuffle(expandDeck(deck||defaultDeck(i)));
@@ -11,7 +11,7 @@ function player(i,deck){
  do{if(hand.length)cards.push(...hand);shuffle(cards);hand=cards.splice(0,7);mulligans++;}while(!hand.some(basicCard)&&mulligans<100);
  if(!hand.some(basicCard)){cards.push(...hand);hand=[];shuffle(cards);const basicIndex=cards.findIndex(basicCard);hand.push(cards.splice(basicIndex,1)[0]);hand.push(...cards.splice(0,6));}
  const prizes=cards.splice(0,6);
- return {hand,deck:cards,prizeCards:prizes,discard:[],lostZone:[],active:null,bench:[],prizes:prizes.length,attached:false,retreated:false,supporterUsed:false,stadiumPlayed:false,mulligans:mulligans-1};
+ return {hand,deck:cards,prizeCards:prizes,discard:[],lostZone:[],active:null,bench:[],prizes:prizes.length,attached:false,retreated:false,supporterUsed:false,extraSupporters:0,stadiumPlayed:false,mulligans:mulligans-1};
 }
 export function newGame(decks){
  if(decks&&(!Array.isArray(decks)||decks.length!==2||decks.some(d=>validateDeck(d).errors.length)))throw new Error("Choose two complete 60-card decks containing a Basic Pokémon.");
@@ -197,7 +197,7 @@ if(s.phase==="replacement"){
  const slot=payload.slot;if(!Number.isInteger(slot)||slot<0||slot>=p.bench.length)return err(state,"Tap one of your Benched Pokémon.");
  p.active=p.bench.splice(slot,1)[0];s.phase="playing";s.selection=null;
  if(s.resumeTurn!==undefined){s.turn=s.resumeTurn;delete s.resumeTurn;}
- else{s.round++;p.attached=false;p.retreated=false;p.supporterUsed=false;p.stadiumPlayed=false;for(const mon of [p.active,...p.bench]){mon.evolvedThisTurn=false;mon.abilityUsed=false;}if(p.deck.length)p.hand.push(p.deck.shift());else{s.winner=1-s.turn;s.winReason="deck out";s.log.unshift("Deck out!");}}
+ else{s.round++;p.attached=false;p.retreated=false;p.supporterUsed=false;p.extraSupporters=0;p.stadiumPlayed=false;for(const mon of [p.active,...p.bench]){mon.evolvedThisTurn=false;mon.abilityUsed=false;}if(p.deck.length)p.hand.push(p.deck.shift());else{s.winner=1-s.turn;s.winReason="deck out";s.log.unshift("Deck out!");}}
  s.log.unshift("Player "+(state.turn+1)+" promoted "+p.active.name+".");return {state:s};
 }
 if(s.phase==="retreat"&&action!=="switch")return err(state,"Tap one of your Benched Pokémon to complete retreat.");
@@ -207,7 +207,17 @@ if(action==="ability"){
  const target=payload.target==="active"?p.active:payload.target==="bench"&&Number.isInteger(payload.slot)?p.bench[payload.slot]:null;
  if(!target?.ability)return err(state,"Choose a Pokémon with an Ability.");
  if(target.abilityUsed)return err(state,"This Pokémon already used its Ability this turn.");
- if(!p.deck.length)return err(state,"No cards left to draw.");
+ if(!p.deck.length&&target.ability.name!=="Call Signal")return err(state,"No cards left to draw.");
+ if(target.ability.name==="Call Signal"){
+  const indices=payload.searchIndices;
+  if(!Array.isArray(indices)||indices.length>3||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||p.deck[i]?.kind!=="trainer"||p.deck[i]?.subtype!=="Supporter"))return err(state,"Choose up to three Supporter cards from your deck.");
+  for(const i of [...indices].sort((a,b)=>b-a))p.hand.push(p.deck.splice(i,1)[0]);
+  shuffle(p.deck);
+  if(payload.target==="active")p.active=null;else p.bench.splice(payload.slot,1);
+  discardKnockOut(s,s.turn,target);
+  if(s.winner===null&&payload.target==="active"){s.resumeTurn=s.turn;s.phase="replacement";}
+  s.selection=null;s.log.unshift("Magneton used Call Signal, found "+indices.length+" Supporter(s), then was Knocked Out. Opponent took a Prize.");return {state:s};
+ }
  if(target.ability.name==="Snack Seek"){
   if(typeof payload.discard!=="boolean")return err(state,"Choose whether to keep or discard the top card.");
   if(payload.discard)p.discard.push(p.deck.shift());
@@ -218,7 +228,8 @@ if(action==="ability"){
 if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer")){
  if(s.phase!=="playing")return err(state,"Trainer cards cannot be played during setup.");
  let idx=s.selection;const card=p.hand[idx];if(!card||card.kind!=="trainer")return err(state,"Select a Trainer card first.");
- if(card.subtype==="Supporter"&&p.supporterUsed)return err(state,"Only one Supporter per turn.");
+ if(card.subtype==="Supporter"&&p.supporterUsed&&!(p.extraSupporters>0))return err(state,"Only one Supporter per turn.");
+ if(card.subtype==="Supporter"&&p.supporterUsed&&p.extraSupporters>0)p.extraSupporters--;
  if(card.subtype==="Supporter"&&s.turn===0&&s.round===1)return err(state,"The first player cannot play a Supporter on their first turn.");
  const isStadium=card.subtype==="Stadium"||["Magma Basin","PokéStop","Silent Lab","Stormy Mountains","Tropical Beach","Parallel City","Sky Field","Lost City"].includes(card.name);
  if(isStadium&&p.stadiumPlayed)return err(state,"Only one Stadium may be played from hand per turn.");
@@ -365,6 +376,90 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   target.tool=card;p.hand.splice(idx,1);s.selection=null;
   s.log.unshift("Player "+(s.turn+1)+": attached "+card.name+" to "+target.name+".");return {state:s};
  }
+ else if(card.name==="Gladion"){
+  const i=payload.prizeIndex;
+  if(!Number.isInteger(i)||i<0||i>=p.prizeCards.length)return err(state,"Choose one of your face-down Prize cards.");
+  const found=p.prizeCards.splice(i,1)[0];p.hand.push(found);
+  p.prizeCards.push(card);shuffle(p.prizeCards);p.prizes=p.prizeCards.length;
+  p.hand.splice(idx,1);p.supporterUsed=true;s.selection=null;
+  s.log.unshift("Player "+(s.turn+1)+" used Gladion to exchange one Prize card with Gladion.");return {state:s};
+ }
+ else if(card.name==="Clay"){
+  const top=p.deck.splice(0,7);const items=top.filter(c=>c.kind==="trainer"&&c.subtype==="Item");
+  p.hand.push(...items);p.discard.push(...top.filter(c=>!items.includes(c)));
+  message="Clay discarded the top "+top.length+" cards and added "+items.length+" Item cards to hand.";
+ }
+ else if(card.name==="Cynthia & Caitlin"){
+  const i=payload.discardIndex;
+  if(i!==null&&i!==undefined&&(!Number.isInteger(i)||p.discard[i]?.kind!=="trainer"||p.discard[i]?.subtype!=="Supporter"||p.discard[i]?.name==="Cynthia & Caitlin"))return err(state,"Choose another Supporter in your discard pile.");
+  if(i!==null&&i!==undefined)p.hand.push(p.discard.splice(i,1)[0]);
+  const cost=payload.discardCostIndex;
+  if(cost!==null&&cost!==undefined){
+   if(!Number.isInteger(cost)||cost===idx||!p.hand[cost])return err(state,"Discard a different card from hand to draw three.");
+   p.discard.push(p.hand.splice(cost,1)[0]);if(cost<idx)idx--;
+   for(let n=0;n<3&&p.deck.length;n++)p.hand.push(p.deck.shift());
+  }
+  message="Cynthia & Caitlin "+(i===null||i===undefined?"recovered no Supporter":"recovered a Supporter")+(cost===null||cost===undefined?".":" and drew up to three cards.");
+ }
+ else if(card.name==="Lt. Surge's Strategy"){
+  if(p.prizes<=o.prizes)return err(state,"Lt. Surge's Strategy requires you to have more Prize cards remaining than your opponent.");
+  p.extraSupporters=(p.extraSupporters||0)+2;message="Lt. Surge's Strategy allows two additional Supporter cards this turn.";
+ }
+ else if(card.name==="Lusamine"){
+  const indices=payload.discardIndices??[];
+  const eligible=c=>c?.kind==="trainer"&&["Supporter","Stadium"].includes(c.subtype)&&c.name!=="Lusamine";
+  if(!Array.isArray(indices)||indices.length>2||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||!eligible(p.discard[i])))return err(state,"Choose up to two Supporter or Stadium cards from your discard pile.");
+  for(const i of [...indices].sort((a,b)=>b-a))p.hand.push(p.discard.splice(i,1)[0]);
+  message="Lusamine recovered "+indices.length+" Supporter or Stadium cards.";
+ }
+ else if(card.name==="Max Potion"){
+  const mon=payload.target==="bench"?p.bench[payload.slot]:p.active;
+  if(!mon)return err(state,"Choose one of your Pokémon.");
+  if(mon.damage<=0)return err(state,"Choose a damaged Pokémon.");
+  mon.damage=0;for(const type of mon.energies)p.discard.push(energy(type));
+  mon.energies=[];mon.energy=0;message="Max Potion healed all damage and discarded all attached Energy.";
+ }
+ else if(card.name==="Lana's Fishing Rod"){
+  const indices=payload.searchIndices??[];
+  const eligible=c=>c.kind==="pokemon"||c.kind==="trainer"&&/Tool/i.test(c.subtype||"");
+  if(!Array.isArray(indices)||indices.length>2||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||!eligible(p.discard[i])))return err(state,"Choose up to two Pokémon or Pokémon Tool cards from discard.");
+  for(const i of [...indices].sort((a,b)=>b-a))p.deck.push(p.discard.splice(i,1)[0]);
+  shuffle(p.deck);message="Lana's Fishing Rod shuffled "+indices.length+" Pokémon or Pokémon Tool cards into the deck.";
+ }
+ else if(card.name==="Devolution Spray"){
+  const mon=payload.target==="bench"?p.bench[payload.slot]:p.active;
+  if(!mon||!mon.under?.length)return err(state,"Choose one of your evolved Pokémon.");
+  const previous=mon.under.pop(),old=mon.speciesIndex;
+  p.hand.push(basic(old));const prev=species[previous];mon.speciesIndex=previous;mon.name=prev.name;mon.hp=prev.hp;mon.attacks=prev.attacks;mon.ability=prev.ability;mon.under=[...mon.under];mon.damage=Math.min(mon.damage,Math.max(0,mon.hp-10));
+  message="Devolution Spray returned "+species[old].name+" to hand.";
+ }
+ else if(card.name==="Acro Bike"){
+  const top=p.deck.splice(0,2);if(top.length){
+   const chosen=payload.searchIndex??0;
+   if(!Number.isInteger(chosen)||chosen<0||chosen>=top.length)return err(state,"Choose one of the top two cards.");
+   p.hand.push(top[chosen]);top.forEach((c,i)=>{if(i!==chosen)p.discard.push(c);});
+  }
+  message="Acro Bike looked at the top two cards, kept one, and discarded the other.";
+ }
+ else if(card.name==="Special Charge"||card.name==="Super Rod"){
+  const indices=payload.searchIndices??[],max=card.name==="Special Charge"?2:3;
+  const eligible=c=>card.name==="Special Charge"?c.kind==="energy"&&/^(Capture Energy|Recycle Energy|Speed Lightning Energy)$/.test(c.name||""):c.kind==="pokemon"||c.kind==="energy"&&!/^(Capture Energy|Recycle Energy|Speed Lightning Energy)$/.test(c.name||"");
+  if(!Array.isArray(indices)||indices.length>max||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||!eligible(p.discard[i])))return err(state,"Choose up to "+max+" eligible cards in your discard pile.");
+  for(const i of [...indices].sort((a,b)=>b-a))p.deck.push(p.discard.splice(i,1)[0]);
+  shuffle(p.deck);message=card.name+" shuffled "+indices.length+" selected cards into the deck.";
+ }
+ else if(card.name==="Tag Call"){
+  const indices=payload.searchIndices??[];
+  const eligible=c=>c.kind==="trainer"&&/^(Cynthia & Caitlin|Guzma & Hala|Bellelba & Brycen-Man)$/.test(c.name)||c.kind==="pokemon"&&/TAG TEAM/i.test(c.name);
+  if(!Array.isArray(indices)||indices.length>2||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||!eligible(p.deck[i])))return err(state,"Choose up to two TAG TEAM cards from your deck.");
+  for(const i of [...indices].sort((a,b)=>b-a))p.hand.push(p.deck.splice(i,1)[0]);
+  shuffle(p.deck);message="Tag Call found "+indices.length+" TAG TEAM cards and shuffled the deck.";
+ }
+ else if(card.name==="Counter Catcher"){
+  if(p.prizes>=o.prizes)return err(state,"Counter Catcher requires you to have more Prize cards remaining than your opponent.");
+  const i=payload.targetBench;if(!Number.isInteger(i)||!o.bench[i])return err(state,"Choose an opponent's Benched Pokémon.");
+  [o.active,o.bench[i]]=[o.bench[i],o.active];message="Counter Catcher switched the opponent's Active Pokémon.";
+ }
  else if(card.name==="Pokégear 3.0"){
   const top=p.deck.slice(0,7),i=payload.searchIndex;
   if(i!==null&&i!==undefined&&(!Number.isInteger(i)||i<0||i>=top.length||top[i].kind!=="trainer"||top[i].subtype!=="Supporter"))return err(state,"Choose a Supporter from the top seven cards.");
@@ -395,13 +490,14 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   shuffle(p.deck);message="Professor's Letter searched for "+found+" Basic Energy card(s), then shuffled the deck.";
  }
  else if(card.name==="Pal Pad"){
-  const cards=p.discard.map((c,i)=>({c,i})).filter(({c})=>c.kind==="trainer"&&c.subtype==="Supporter").slice(0,2);
-  for(const {i} of cards.slice().reverse())p.deck.push(p.discard.splice(i,1)[0]);
-  shuffle(p.deck);message="Pal Pad shuffled "+cards.length+" Supporter card(s) from discard into the deck.";
+  const indices=payload.discardIndices??[];
+  if(!Array.isArray(indices)||indices.length>2||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||p.discard[i]?.kind!=="trainer"||p.discard[i]?.subtype!=="Supporter"))return err(state,"Choose up to two Supporter cards from your discard pile.");
+  for(const i of [...indices].sort((a,b)=>b-a))p.deck.push(p.discard.splice(i,1)[0]);
+  shuffle(p.deck);message="Pal Pad shuffled "+indices.length+" selected Supporter card(s) into the deck.";
  }
  else if(card.name==="VS Seeker"){
-  const index=p.discard.findIndex(c=>c.kind==="trainer"&&c.subtype==="Supporter");
-  if(index<0)return err(state,"VS Seeker requires a Supporter in the discard pile.");
+  const index=payload.discardIndex;
+  if(!Number.isInteger(index)||p.discard[index]?.kind!=="trainer"||p.discard[index]?.subtype!=="Supporter")return err(state,"Choose a Supporter in your discard pile.");
   const recovered=p.discard.splice(index,1)[0];p.hand.push(recovered);
   message="VS Seeker returned "+recovered.name+" from discard to hand.";
  }

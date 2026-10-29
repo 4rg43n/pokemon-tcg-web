@@ -35,6 +35,9 @@ birdButton=root.querySelector(".coach-bird");
 bubble=root.querySelector(".coach-bubble");
 root.addEventListener("click",onClick);
 birdButton.addEventListener("animationend",event=>{if(event.animationName==="coach-flap")birdButton.classList.remove("flap");});
+// The game rebuilds the board markup on every render, which drops the highlight classes; re-apply them after each rebuild.
+const board=document.getElementById("board");
+if(board)new MutationObserver(()=>highlightBoard()).observe(board,{childList:true});
 }
 
 function onClick(event){
