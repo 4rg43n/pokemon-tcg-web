@@ -224,6 +224,19 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   for(const i of chosen.slice().sort((a,b)=>b-a))p.hand.push(p.discard.splice(i,1)[0]);
   message=card.name+" recovered "+chosen.length+" card(s).";
  }
+ else if(card.name==="Energy Retrieval"){
+  const indices=payload.discardIndices??[];
+  const basicEnergy=c=>c?.kind==="energy"&&["Fire","Water","Grass","Lightning","Psychic","Fighting","Darkness","Metal","Colorless","Dragon","Fairy"].includes(c.type);
+  if(!Array.isArray(indices)||indices.length>2||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||!basicEnergy(p.discard[i])))return err(state,"Choose up to two Basic Energy cards in your discard pile.");
+  for(const i of [...indices].sort((a,b)=>b-a))p.hand.push(p.discard.splice(i,1)[0]);
+  message="Energy Retrieval returned "+indices.length+" Basic Energy cards to your hand.";
+ }
+ else if(card.name==="Fire Crystal"){
+  const indices=payload.discardIndices??[];
+  if(!Array.isArray(indices)||indices.length!==3||new Set(indices).size!==3||indices.some(i=>!Number.isInteger(i)||p.discard[i]?.kind!=="energy"||p.discard[i]?.type!=="Fire"))return err(state,"Choose exactly three Fire Energy cards in your discard pile.");
+  for(const i of [...indices].sort((a,b)=>b-a))p.hand.push(p.discard.splice(i,1)[0]);
+  message="Fire Crystal returned three Fire Energy cards to your hand.";
+ }
  else if(card.name==="Welder"){
   const target=payload.target==="bench"?p.bench[payload.slot]:p.active;
   if(!target)return err(state,"Choose a Pokémon for Welder.");
