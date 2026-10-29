@@ -22,6 +22,25 @@ if(action==="reset")return {state:newGame()};
 if(state.winner!==null)return err(state,"Game is over.");
 const s=structuredClone(state),p=s.players[s.turn],o=s.players[1-s.turn];
 let message="";
+if(action==="stadium"){
+ if(s.phase!=="playing")return err(state,"Stadium abilities can only be used during play.");
+ if(!s.stadium)return err(state,"No Stadium in play.");
+ if(s.stadium.name==="Stormy Mountains"){
+  if(p.stormyUsedTurn===s.round)return err(state,"Stormy Mountains was already used this turn.");
+  if(p.bench.length>=5)return err(state,"Your Bench is full.");
+  const i=payload.searchIndex;
+  if(i===null){p.stormyUsedTurn=s.round;shuffle(p.deck);return {state:s};}
+  if(!Number.isInteger(i)||p.deck[i]?.kind!=="pokemon"||species[p.deck[i].species]?.stage||!["Lightning","Dragon"].includes(species[p.deck[i].species].type))return err(state,"Select a Basic Lightning or Dragon Pokémon.");
+  const found=p.deck.splice(i,1)[0];const mon=pokemon(found.species);mon.playedTurn=s.round;p.bench.push(mon);shuffle(p.deck);p.stormyUsedTurn=s.round;
+  s.log.unshift("Player "+(s.turn+1)+" used Stormy Mountains to Bench "+mon.name+".");return {state:s};
+ }
+ if(s.stadium.name==="Tropical Beach"){
+  if(p.beachUsedTurn===s.round)return err(state,"Tropical Beach was already used this turn.");
+  const amount=Math.max(0,7-p.hand.length);for(let n=0;n<amount&&p.deck.length;n++)p.hand.push(p.deck.shift());
+  p.beachUsedTurn=s.round;next(s);s.log.unshift("Player "+(state.turn+1)+" used Tropical Beach to draw "+amount+" cards and end the turn.");return {state:s};
+ }
+ return err(state,"This Stadium has no manually activated effect.");
+}
 if(action==="deselect"){s.selection=null;return {state:s};}
 if(action==="select"){
 const idx=payload.index;
@@ -105,6 +124,16 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
  return {state:s};
  }
  else if(card.name==="Professor's Research"){p.discard.push(...p.hand.filter((_,i)=>i!==idx));p.hand=[];for(let n=0;n<7&&p.deck.length;n++)p.hand.push(p.deck.shift());p.supporterUsed=true;message="Professor's Research drew "+p.hand.length+" cards.";p.discard.push(card);s.selection=null;s.log.unshift("Player "+(state.turn+1)+": "+message);return {state:s};}
+ else if(card.name==="Trainers' Mail"){
+  const top=p.deck.slice(0,4);
+  const choice=payload.searchIndex;
+  if(choice!==null&&choice!==undefined&&(!Number.isInteger(choice)||choice<0||choice>=top.length||top[choice].kind!=="trainer"))return err(state,"Choose a Trainer from the top four cards.");
+  const found=choice===null||choice===undefined?null:p.deck.splice(choice,1)[0];
+  if(found)p.hand.push(found);
+  const remaining=p.deck.splice(0,Math.min(4-(found?1:0),p.deck.length));
+  p.deck.push(...remaining);
+  message="Trainers' Mail revealed "+top.length+" cards"+(found?", added "+found.name+" to hand":"; no Trainer selected")+" and put the others on the bottom of the deck.";
+ }
  else if(["Buddy-Buddy Poffin","Evolution Incense","Level Ball","Poké Pad","Trainers' Mail","Earthen Vessel","Arven","Gloria","Hisuian Heavy Ball"].includes(card.name)){
   const options=card.name==="Hisuian Heavy Ball"?p.prizeCards:p.deck;
   const allowed=c=>card.name==="Buddy-Buddy Poffin"?c.kind==="pokemon"&&!species[c.species]?.stage&&species[c.species]?.hp<=70:
@@ -160,6 +189,11 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   if(target.tool)return err(state,"That Pokémon already has a Tool.");
   target.tool=card;p.hand.splice(idx,1);s.selection=null;
   s.log.unshift("Player "+(s.turn+1)+": attached "+card.name+" to "+target.name+".");return {state:s};
+ }
+ else if(["Stormy Mountains","Tropical Beach"].includes(card.name)){
+  if(s.stadium)s.players[s.stadiumOwner??s.turn].discard.push(s.stadium);
+  s.stadium=card;s.stadiumOwner=s.turn;p.hand.splice(idx,1);s.selection=null;
+  s.log.unshift("Player "+(s.turn+1)+": played "+card.name+" Stadium.");return {state:s};
  }
  else if(card.name==="PokéStop"||card.name==="Silent Lab"){
   if(s.stadium)s.players[s.stadiumOwner??s.turn].discard.push(s.stadium);

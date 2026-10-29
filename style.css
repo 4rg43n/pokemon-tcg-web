@@ -182,3 +182,10 @@ button.coach-cta::after{content:"PRESS";top:-18px}
 .hand-cards .tcg-card:hover + .tcg-card.selected,.hand-cards .tcg-card.hovered + .tcg-card.selected{transform:translate(14px,-8px)}
 }
 @media(hover:hover) and (prefers-reduced-motion:reduce){.hand-cards .tcg-card{transition:none}}
+
+/* Search dialogs show the actual inspected cards in a scrollable gallery. */
+.print-search-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:12px;max-height:380px;overflow-y:auto;padding:12px 4px;margin:12px 0;}
+.print-search-tile{min-width:0;text-align:center;font-size:12px;overflow-wrap:anywhere;border:2px solid transparent;border-radius:8px;padding:4px;}
+.print-search-tile.chosen{border-color:#facc15;background:#234a68;}
+.print-search-tile .tcg-card{width:100%;max-width:130px;margin:0 auto 5px;}
+.print-search-tile button{font-size:12px;padding:5px 8px;margin-top:5px;}
