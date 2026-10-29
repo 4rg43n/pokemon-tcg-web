@@ -172,3 +172,13 @@ button.coach-cta::after{content:"PRESS";top:-18px}
 .tcg-card.printed.image-unavailable .print-fallback{display:flex;}
 .tcg-card.printed .print-fallback small{display:block;font-size:.7em;margin-top:6px;}
 .tcg-card.printed .print-damage{position:absolute;bottom:4px;right:4px;background:#b72828;color:#fff;padding:2px 5px;border-radius:5px;font-size:11px;}
+/* Slay the Spire-style hand hover: the card rises and grows above its neighbours, which ease aside. Mouse/trackpad only, so taps don't leave cards stuck raised. */
+@media(hover:hover){
+.hand-cards .tcg-card{transform-origin:50% 100%;transition:transform .16s ease-out,box-shadow .16s ease-out}
+.hand-cards .tcg-card:hover,.hand-cards .tcg-card.hovered{transform:translateY(-34px) scale(1.55);z-index:20;box-shadow:0 14px 28px #000c,inset 0 0 0 1px #ffffff99}
+.hand-cards .tcg-card:has(+ .tcg-card:hover),.hand-cards .tcg-card:has(+ .tcg-card.hovered){transform:translateX(-14px)}
+.hand-cards .tcg-card:hover + .tcg-card,.hand-cards .tcg-card.hovered + .tcg-card{transform:translateX(14px)}
+.hand-cards .tcg-card.selected:has(+ .tcg-card:hover),.hand-cards .tcg-card.selected:has(+ .tcg-card.hovered){transform:translate(-14px,-8px)}
+.hand-cards .tcg-card:hover + .tcg-card.selected,.hand-cards .tcg-card.hovered + .tcg-card.selected{transform:translate(14px,-8px)}
+}
+@media(hover:hover) and (prefers-reduced-motion:reduce){.hand-cards .tcg-card{transition:none}}
