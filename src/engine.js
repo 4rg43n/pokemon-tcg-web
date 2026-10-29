@@ -285,6 +285,16 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   p.hand.splice(idx,1);p.supporterUsed=true;s.selection=null;
   s.log.unshift("Player "+(s.turn+1)+" used Gladion to exchange one Prize card with Gladion.");return {state:s};
  }
+ else if(card.name==="Peonia"){
+  const prizes=payload.prizeIndices??[],hand=payload.handIndices??[];
+  if(!Array.isArray(prizes)||!Array.isArray(hand)||prizes.length>3||prizes.length!==hand.length||new Set(prizes).size!==prizes.length||new Set(hand).size!==hand.length||prizes.some(i=>!Number.isInteger(i)||i<0||i>=p.prizeCards.length)||hand.some(i=>!Number.isInteger(i)||i===idx||i<0||i>=p.hand.length))return err(state,"Choose up to three Prize cards and the same number of other hand cards.");
+  const taken=prizes.map(i=>p.prizeCards[i]),returned=hand.map(i=>p.hand[i]);
+  for(const i of [...prizes].sort((a,b)=>b-a))p.prizeCards.splice(i,1);
+  for(const i of [...hand,idx].sort((a,b)=>b-a))p.hand.splice(i,1);
+  p.hand.push(...taken);p.prizeCards.push(...returned);shuffle(p.prizeCards);p.prizes=p.prizeCards.length;
+  p.discard.push(card);p.supporterUsed=true;s.selection=null;
+  s.log.unshift("Player "+(s.turn+1)+": Peonia exchanged "+taken.length+" Prize card(s) with cards from hand.");return {state:s};
+ }
  else if(card.name==="Clay"){
   const top=p.deck.splice(0,7);const items=top.filter(c=>c.kind==="trainer"&&c.subtype==="Item");
   p.hand.push(...items);p.discard.push(...top.filter(c=>!items.includes(c)));
