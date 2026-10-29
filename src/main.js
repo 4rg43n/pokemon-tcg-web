@@ -191,6 +191,7 @@ function playSelected(player,target,slot){
  if(card.kind==="trainer"){
   if(card.name==="Quick Ball"||card.name==="Ultra Ball"){showBallSearch();return;}
   if(card.name==="Nest Ball"){showNestBallSearch();return;}
+  if(["Gladion","Clay","Cynthia & Caitlin"].includes(card.name)){showSupporterPrinting(card);return;}
   if(["Pokégear 3.0","Battle Compressor"].includes(card.name)){showPrintedSearch(card);return;}
   if(choiceTrainers.includes(card.name)&&!["Float Stone","Muscle Band","Vitality Band"].includes(card.name)){showFireTrainerChoices(card);return;}
   act("trainer",["Potion","Air Balloon","Float Stone","Muscle Band","Vitality Band"].includes(card.name)?{target,slot}:{});return;
@@ -354,6 +355,25 @@ function useAbility(token){
  for(const discard of [false,true])actionButton(discard?"Discard top card":"Keep on top",()=>{if(modalHuman(token))act("ability",{target,slot,discard},{token});});
 }
 const choiceTrainers=["Buddy-Buddy Poffin","Evolution Incense","Level Ball","Poké Pad","Trainers' Mail","Earthen Vessel","Arven","Gloria","Hisuian Heavy Ball","Night Stretcher","Rescue Stretcher","Lana's Aid","Welder","Float Stone","Muscle Band","Vitality Band","Bird Keeper","Blacksmith","Raihan","Guzma","Escape Rope","Rare Candy","Scoop Up Net"];
+function showSupporterPrinting(card){
+ if(!canHuman()||state.phase!=="playing")return;
+ const p=state.players[state.turn],name=card.name;
+ const token=openModal("supporter-printing",{card},`<h2>${escape(name)}</h2><p>${name==="Gladion"?"Look at your face-down Prize cards. Choose one to put in your hand; Gladion replaces it and the remaining Prizes are shuffled.":name==="Clay"?"Discard the top seven cards of your deck and put all Item cards discarded this way into your hand.":"Put a Supporter other than Cynthia & Caitlin from your discard pile into your hand. You may also discard another card from your hand to draw three."}</p>`);
+ if(name==="Clay"){actionButton("Play Clay",()=>act("trainer",{}, {token}));return;}
+ if(name==="Gladion"){
+  const grid=document.createElement("div");grid.className="search-deck-gallery";let selected=null;
+  p.prizeCards.forEach((c,i)=>{const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile";tile.innerHTML=cardHtml(c,{small:true})+"<span>Prize "+(i+1)+"</span>";tile.onclick=()=>{selected=i;grid.querySelectorAll(".chosen").forEach(x=>x.classList.remove("chosen"));tile.classList.add("chosen");};grid.append(tile);});panel.append(grid);
+  actionButton("Exchange selected Prize",()=>{if(selected===null){setError("Choose a Prize card.");return;}act("trainer",{prizeIndex:selected},{token});});return;
+ }
+ const supporter=document.createElement("select");supporter.setAttribute("aria-label","Supporter to recover");
+ supporter.innerHTML='<option value="">Do not recover a Supporter</option>';
+ p.discard.forEach((c,i)=>{if(c.kind==="trainer"&&c.subtype==="Supporter"&&c.name!=="Cynthia & Caitlin"){const opt=document.createElement("option");opt.value=i;opt.textContent=c.name;supporter.append(opt);}});
+ const cost=document.createElement("select");cost.setAttribute("aria-label","Discard a hand card to draw three");cost.innerHTML='<option value="">Do not discard or draw</option>';
+ p.hand.forEach((c,i)=>{if(i===state.selection)return;const opt=document.createElement("option");opt.value=i;opt.textContent=cardName(c);cost.append(opt);});
+ const label1=document.createElement("p");label1.textContent="Supporter from discard:";const label2=document.createElement("p");label2.textContent="Optional hand discard to draw 3:";
+ panel.append(label1,supporter,label2,cost);
+ actionButton("Play Cynthia & Caitlin",()=>act("trainer",{discardIndex:supporter.value===""?null:Number(supporter.value),discardCostIndex:cost.value===""?null:Number(cost.value)},{token}));
+}
 function showPrintedSearch(card){
  if(!canHuman()||state.phase!=="playing")return;
  const p=state.players[state.turn],name=card.name;
@@ -500,6 +520,7 @@ for(const b of document.querySelectorAll("button[data-action]"))b.addEventListen
   const c=state.players[state.turn].hand[state.selection];if(!c)return;
   if(c.name==="Quick Ball"||c.name==="Ultra Ball"){showBallSearch();return;}
   if(c.name==="Nest Ball"){showNestBallSearch();return;}
+  if(["Gladion","Clay","Cynthia & Caitlin"].includes(c.name)){showSupporterPrinting(c);return;}
   if(["Pokégear 3.0","Battle Compressor"].includes(c.name)){showPrintedSearch(c);return;}
   if(choiceTrainers.includes(c.name)){showFireTrainerChoices(c);return;}
   if(c.name==="Potion"||c.name==="Air Balloon"){setError("Tap or drag onto an appropriate own Pokémon to use this Trainer.");return;}
