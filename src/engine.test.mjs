@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {newGame, dispatch, pokemon} from "./engine.js";
+import {newGame, dispatch, pokemon, benchLimit} from "./engine.js";
 import {catalog, energyCard, pokemonCard, trainerCard} from "./decks.js?v=66";
 import {species} from "./cards.js?v=66";
 import {encodeState, decodeState} from "./history.js";
@@ -473,4 +473,187 @@ test("normal Knock Out promotion starts a turn in which the incoming player can 
  state.selection=0;const total=totalCards(state);state=apply(state,"trainer");
  assert.equal(state.stadium.name,"Silent Lab");assert.equal(state.stadiumOwner,1);
  assert.equal(totalCards(state),total);
+});
+
+function rejectedAction(state,action,payload){
+ const before=structuredClone(state),result=dispatch(state,action,payload);
+ assert.ok(result.error);assert.equal(result.state,state);assert.deepEqual(state,before);
+}
+
+test("a typed reason cannot authorize arbitrary Lost Zone movement",()=>{
+ const state=playing();state.players[0].hand=[energyCard("Fire")];state.players[0].discard=[trainerCard("Potion")];
+ for(const zone of ["hand","deck","discard","prizeCards","active","lostZone"])
+  rejectedAction(state,"moveToLostZone",{player:0,zone,index:0,reason:"I claim a card lets me do this"});
+});
+
+test("Lost Vacuum pays its selected hand cost and sends only the chosen Tool to its owner's Lost Zone",()=>{
+ let state=playing();state.players[0].hand=[energyCard("Fire"),trainer("Lost Vacuum"),trainerCard("Potion")];state.selection=1;
+ state.players[1].active.tool=trainerCard("Air Balloon");
+ const total=totalCards(state);
+ rejectedTrainer(state,{lostTarget:{zone:"tool",player:1,target:"active"}});
+ rejectedTrainer(state,{lostCostIndex:1,lostTarget:{zone:"tool",player:1,target:"active"}});
+ rejectedTrainer(state,{lostCostIndex:0,lostTarget:{zone:"tool",player:0,target:"active"}});
+ state=apply(state,"trainer",{lostCostIndex:0,lostTarget:{zone:"tool",player:1,target:"active"}});
+ assert.deepEqual(state.players[0].hand.map(c=>c.name),["Potion"]);
+ assert.equal(state.players[0].lostZone[0].type,"Fire");assert.equal(state.players[0].discard[0].name,"Lost Vacuum");
+ assert.equal(state.players[1].active.tool,null);assert.equal(state.players[1].lostZone[0].name,"Air Balloon");
+ assert.deepEqual(state.players.map(p=>p.prizes),[6,6]);assert.equal(totalCards(state),total);
+ state=decodeState(encodeState(state));assert.equal(state.players[1].lostZone[0].name,"Air Balloon");
+});
+
+test("Lost Vacuum can remove the Stadium without treating it as an ordinary discard",()=>{
+ let state=playing();state.stadium=trainer("Parallel City");state.stadiumOwner=1;state.stadiumLimitedPlayer=0;
+ state.players[0].hand=[trainer("Lost Vacuum"),energyCard("Fire")];state.selection=0;
+ const total=totalCards(state);state=apply(state,"trainer",{lostCostIndex:1,lostTarget:{zone:"stadium"}});
+ assert.equal(state.stadium,null);assert.equal(benchLimit(state,0),5);
+ assert.equal(state.players[1].lostZone[0].name,"Parallel City");
+ assert.equal(state.players[1].discard.length,0);assert.equal(totalCards(state),total);
+});
+
+test("Lost City changes only Knock Out Pokémon destinations, not attachments or Prizes",()=>{
+ for(const lostCity of [false,true]){
+  let state=playing();state.players[1].active.under=[3];state.players[1].active.energies=["Fire"];state.players[1].active.energy=1;
+  state.players[1].active.tool=trainerCard("Air Balloon");state.players[1].bench=[pokemon(3)];
+  if(lostCity){state.stadium=trainer("Lost City");state.stadiumOwner=0;}
+  const total=totalCards(state);
+  state=apply(state,"adjustDamage",{player:1,target:"active",counters:7,reason:"Authorized counter placement causing a Knock Out"});
+  const p=state.players[1];
+  assert.equal(state.phase,"replacement");assert.equal(state.players[0].prizes,5);
+  assert.deepEqual(p.lostZone.map(c=>c.species),lostCity?[2,3]:[]);
+  assert.deepEqual(p.discard.filter(c=>c.kind==="pokemon").map(c=>c.species),lostCity?[]:[2,3]);
+  assert.deepEqual(p.discard.filter(c=>c.kind!=="pokemon").map(c=>c.type||c.name),["Fire","Air Balloon"]);
+  assert.equal(totalCards(state),total);
+ }
+});
+
+test("declared Bench capacity supports eight spaces and rejects a ninth placement",()=>{
+ let state=playing();assert.equal(benchLimit(state,0),5);assert.equal(benchLimit(state,1),5);
+ rejectedAction(state,"setBenchLimit",{player:0,limit:9,reason:"Effect"});
+ rejectedAction(state,"setBenchLimit",{player:0,limit:8,reason:""});
+ state=apply(state,"setBenchLimit",{player:0,limit:8,reason:"Declared supported effect"});
+ state.players[0].hand=Array.from({length:9},()=>pokemonCard(2));
+ for(let slot=0;slot<8;slot++){state.selection=0;state=apply(state,"play",{target:"bench",slot});}
+ assert.equal(state.players[0].bench.length,8);assert.equal(benchLimit(state,1),5);
+ state.selection=0;rejectedAction(state,"play",{target:"bench",slot:8});
+ state=decodeState(encodeState(state));assert.equal(benchLimit(state,0),8);
+});
+
+test("shrinking the Bench requires owner-selected excess discards with no Knock Out or extra turn",()=>{
+ let state=playing();state.players[1].bench=[pokemon(2),pokemon(3),pokemon(4),pokemon(5),pokemon(6)];
+ state.players[1].bench[3].energies=["Lightning"];state.players[1].bench[3].energy=1;
+ state.players[1].bench[3].tool=trainerCard("Air Balloon");state.players[1].bench[3].under=[2];
+ const kept=[2,4,6],total=totalCards(state),deckSizes=state.players.map(p=>p.deck.length);
+ state=apply(state,"setBenchLimit",{player:1,limit:3,reason:"Declared Bench-limiting effect"});
+ assert.equal(state.phase,"benchReduction");assert.equal(state.turn,1);
+ rejectedAction(state,"end");rejectedAction(state,"reduceBench",{slots:[1]});
+ rejectedAction(state,"reduceBench",{slots:[1,1]});
+ state=decodeState(encodeState(state));state=apply(state,"reduceBench",{slots:[1,3]});
+ assert.equal(state.phase,"playing");assert.equal(state.turn,0);assert.equal(state.round,3);
+ assert.deepEqual(state.players[1].bench.map(p=>p.speciesIndex),kept);
+ assert.equal(state.players[1].discard.length,5);assert.equal(state.players[0].prizes,6);
+ assert.deepEqual(state.players.map(p=>p.deck.length),deckSizes);assert.equal(totalCards(state),total);
+});
+
+test("Parallel City orientation is selected on play and limits only the chosen player",()=>{
+ for(const limitedPlayer of [0,1]){
+  let state=playing();state.players[0].hand=[trainer("Parallel City")];state.selection=0;
+  rejectedTrainer(state,{});rejectedTrainer(state,{limitedPlayer:2});
+  state=apply(state,"trainer",{limitedPlayer});
+  assert.equal(benchLimit(state,limitedPlayer),3);assert.equal(benchLimit(state,1-limitedPlayer),5);
+  state=decodeState(encodeState(state));assert.equal(benchLimit(state,limitedPlayer),3);
+  assert.equal(state.stadiumLimitedPlayer,limitedPlayer);
+  rejectedAction(state,"stadium",{limitedPlayer:1-limitedPlayer});
+ }
+});
+
+test("Sky Field replacement cleans both Benches before returning to the original turn",()=>{
+ let state=playing();state.players[0].hand=[trainer("Sky Field")];state.selection=0;
+ state=apply(state,"trainer");assert.equal(benchLimit(state,0),8);assert.equal(benchLimit(state,1),8);
+ state.players.forEach(p=>{p.bench=Array.from({length:8},()=>pokemon(2));});
+ state.players[0].hand=[trainer("Field Blower")];state.selection=0;
+ const total=totalCards(state);state=apply(state,"trainer");
+ assert.equal(state.stadium,null);assert.equal(state.phase,"benchReduction");assert.equal(state.turn,0);
+ state=apply(state,"reduceBench",{slots:[0,2,4]});
+ assert.equal(state.phase,"benchReduction");assert.equal(state.turn,1);
+ state=apply(state,"reduceBench",{slots:[1,3,5]});
+ assert.equal(state.phase,"playing");assert.equal(state.turn,0);assert.equal(state.round,3);
+ assert.deepEqual(state.players.map(p=>p.bench.length),[5,5]);
+ assert.deepEqual(state.players.map(p=>p.prizes),[6,6]);assert.equal(totalCards(state),total);
+});
+
+test("Bench searches honor a reduced capacity and can use expanded spaces",()=>{
+ for(const [limit,start,allowed] of [[3,3,false],[8,6,true]]){
+  let state=playing();state=apply(state,"setBenchLimit",{player:0,limit,reason:"Declared effect"});
+  state.players[0].bench=Array.from({length:start},()=>pokemon(2));
+  state.players[0].hand=[trainer("Nest Ball")];state.players[0].deck=[pokemonCard(2)];state.selection=0;
+  if(!allowed)rejectedTrainer(state,{searchIndex:0});
+  else{state=apply(state,"trainer",{searchIndex:0});assert.equal(state.players[0].bench.length,start+1);}
+ }
+});
+
+function sampleRuling(decision="allowed"){
+ return {decision,authority:decision==="unresolved"?"unresolved":"provisional_project_interpretation",summary:"Project ruling on the submitted action",reasoning:["The supplied public facts satisfy the documented prerequisite."],sources:[{url:"https://www.pokemon.com/us/pokemon-tcg/pokemon-cards/series/xy8/145",title:"Parallel City",quote:"Choose which way this card faces before you play it.",evidence:"search_indexed"}],requiredActions:[],uncertainties:[],dissent:[]};
+}
+test("Judge pauses freeze gameplay and stale or unexplained rulings cannot resolve the case",()=>{
+ let state=playing();state=apply(state,"judgeRequest",{question:"May I take this proposed action?"});
+ const id=state.judgeCase.id;
+ rejectedAction(state,"end");rejectedAction(state,"adjustDamage",{player:0,target:"active",counters:1,reason:"Effect"});
+ rejectedAction(state,"judgeResult",{id:"stale",ruling:sampleRuling()});
+ rejectedAction(state,"judgeResult",{id,ruling:{...sampleRuling(),reasoning:[]}});
+ state=decodeState(encodeState(state));assert.equal(state.judgeCase.id,id);
+ state=apply(state,"judgeResult",{id,ruling:sampleRuling()});
+ rejectedAction(state,"judgeResume");
+ state=apply(state,"judgeAcknowledge",{player:0});rejectedAction(state,"judgeResume");
+ state=apply(state,"judgeAcknowledge",{player:1});state=apply(state,"judgeResume");
+ assert.equal(state.phase,"playing");assert.equal(state.round,3);assert.equal(state.turn,0);
+ state=apply(state,"end");assert.equal(state.turn,1);
+});
+
+test("unresolved Judge cases cannot be resumed as permission and canceling preserves the board",()=>{
+ let state=playing();const before=structuredClone(state.players);
+ state=apply(state,"judgeRequest",{question:"An interaction without sufficient evidence"});
+ state=apply(state,"judgeResult",{id:state.judgeCase.id,ruling:sampleRuling("unresolved")});
+ state=apply(state,"judgeAcknowledge",{player:0});state=apply(state,"judgeAcknowledge",{player:1});
+ rejectedAction(state,"judgeResume");
+ state=apply(state,"judgeCancel");assert.deepEqual(state.players,before);
+ assert.equal(state.judgeCase.status,"canceled");
+});
+
+test("Parallel City's opposite side reduces Fire attack damage but never placed counters",()=>{
+ for(const limitedPlayer of [0,1]){
+  let state=playing();state.stadium=trainer("Parallel City");state.stadiumOwner=0;state.stadiumLimitedPlayer=limitedPlayer;
+  state.players[0].active=pokemon(speciesIndex("Charcadet"));state.players[0].active.energies=["Fire"];state.players[0].active.energy=1;
+  state.players[1].active=pokemon(speciesIndex("Armarouge ex"));
+  state=apply(state,"attack",{index:0});
+  const expected=limitedPlayer===1?10:30;assert.equal(state.players[1].active.damage,expected);
+  state=apply(state,"adjustDamage",{player:1,target:"active",counters:1,reason:"Authorized counter placement"});
+  assert.equal(state.players[1].active.damage,expected+10);
+ }
+});
+
+test("Sky Field departure uses its owner first and preserves separate Parallel City choices",()=>{
+ let state=playing();state.stadium=trainer("Sky Field");state.stadiumOwner=1;
+ state.players.forEach(p=>{p.bench=Array.from({length:8},()=>pokemon(2));});
+ state.players[0].hand=[trainer("Parallel City")];state.selection=0;
+ const total=totalCards(state),decks=state.players.map(p=>p.deck.length);
+ state=apply(state,"trainer",{limitedPlayer:1});
+ assert.equal(state.turn,1);assert.equal(state.benchReduction.limit,5);
+ state=apply(state,"reduceBench",{slots:[0,1,2]});
+ assert.equal(state.turn,0);assert.equal(state.benchReduction.limit,5);
+ assert.deepEqual(state.players.map(p=>p.bench.length),[8,5]);
+ state=decodeState(encodeState(state));state=apply(state,"reduceBench",{slots:[0,1,2]});
+ assert.equal(state.turn,1);assert.equal(state.benchReduction.limit,3);
+ assert.deepEqual(state.players.map(p=>p.bench.length),[5,5]);
+ state=apply(state,"reduceBench",{slots:[0,1]});
+ assert.equal(state.phase,"playing");assert.equal(state.turn,0);assert.equal(state.round,3);
+ assert.deepEqual(state.players.map(p=>p.bench.length),[5,3]);
+ assert.deepEqual(state.players.map(p=>p.deck.length),decks);assert.equal(totalCards(state),total);
+ assert.deepEqual(state.players.map(p=>p.prizes),[6,6]);
+});
+
+test("attached Fire Energy does not make a Colorless Pokémon's attack Fire-type",()=>{
+ let state=playing();state.stadium=trainer("Parallel City");state.stadiumOwner=0;state.stadiumLimitedPlayer=1;
+ state.players[0].active=pokemon(speciesIndex("Eevee"));state.players[0].active.energies=["Fire"];state.players[0].active.energy=1;
+ state.players[1].active=pokemon(speciesIndex("Armarouge ex"));
+ state=apply(state,"attack",{index:0});assert.equal(state.players[1].active.damage,20);
 });

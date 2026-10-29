@@ -2,7 +2,7 @@ import {retreatCost,species,energyTypes,canPay} from "./cards.js?v=66";
 import {catalog} from "./decks.js?v=66";
 import {commands as debugCommands,pokemonRefs} from "./debug.js?v=66";
 import {cardStats} from "./card-stats.js?v=66";
-import {newGame,dispatch,cardInfo} from "./engine.js?v=68";
+import {newGame,dispatch,cardInfo,benchLimit} from "./engine.js?v=68";
 import {mountDeckBuilder} from "./deck-builder.js?v=66";
 import {createRecorder} from "./history.js?v=66";
 import {createPlanner} from "./planning/planner.js?v=66";
@@ -10,6 +10,7 @@ import {renderPlanGraph} from "./planning/plan-graph.js?v=66";
 import {update as coachUpdate,configure as coachConfigure} from "./coach_ui.js?v=66";
 import {typeSymbol} from "./type-symbols.js?v=66";
 import {describeCard,cardTooltip} from "./card-text.js?v=66";
+import {judgeServiceURL,publicJudgeContext,requestJudgeRuling} from "./judge-client.js";
 coachConfigure({species,canPay,retreatCost,dispatch});
 const $=s=>document.querySelector(s);
 const board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log"),modal=$("#modal"),panel=$("#modal .modal-content");
@@ -18,15 +19,17 @@ const sprite=id=>`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprit
 let state=newGame(),matchDecks=null,screen="menu",acknowledged=null;
 let preview=null,revision=0,dragging=null,lastFocus=null;
 let hoveredCard=null;
+let judgeConfig={url:"",token:""},judgeTransport=null,judgeError="",judgePanels=new Map();
+const judgePaused=()=>["pending","ruled"].includes(state.judgeCase?.status);
 const turnHistory=createRecorder();turnHistory.start(state);
 const planner=createPlanner();let aiEnabled=true,aiBusy=false;
-const humanTurn=()=>!aiEnabled||state.turn!==1;
+const humanTurn=()=>state.phase==="benchReduction"||judgePaused()||!aiEnabled||state.turn!==1;
 const handoff=()=>humanTurn()&&acknowledged!==state.turn;
 const gameVisible=()=>screen==="game"&&!document.hidden;
 const canHuman=(inModal=false)=>gameVisible()&&humanTurn()&&!handoff()&&state.winner===null&&(inModal||!preview);
 const canReadOwnHand=player=>gameVisible()&&player===state.turn&&humanTurn()&&acknowledged===player;
 const zoneAccessAllowed=token=>!token.protected||(token.ownHand?canReadOwnHand(token.player):canHuman(true));
-const canReferee=()=>canHuman(true)&&state.phase==="playing";
+const canReferee=()=>canHuman(true)&&state.phase==="playing"&&!judgePaused();
 const validToken=token=>!!token&&token===preview&&token.revision===revision&&token.actor===state.turn;
 const cardName=c=>c?.kind==="pokemon"&&c.species!==undefined?species[c.species].name:c?.name||`${c?.type||"Basic"} Energy`;
 const displayCard=c=>c?.kind==="pokemon"&&c.species!==undefined?cardInfo(c):c;
@@ -40,7 +43,7 @@ function syncCoachPrivacy(){
 }
 function updateCoach(event){coachUpdate(event);syncCoachPrivacy();}
 function setError(message){error.textContent=message;const local=panel.querySelector(".modal-error");if(local)local.textContent=message;}
-function aiAllowed(){return aiEnabled&&state.turn===1&&!preview&&state.winner===null;}
+function aiAllowed(){return aiEnabled&&state.turn===1&&!preview&&state.winner===null&&state.phase!=="benchReduction"&&!judgePaused();}
 function queueAI(){
  if(!aiAllowed()||aiBusy)return;aiBusy=true;
  setTimeout(()=>{
@@ -106,6 +109,7 @@ function act(action,payload={},options={}){
  if(source==="ai"&&!aiAllowed()){setError("AI action canceled: the playmat is not available.");return false;}
  if(source==="referee"&&(!canReferee()||!validToken(token))){setError("Counters can only change during the current player's turn after handoff.");return false;}
  if(source==="settle"&&(!validToken(token)||(!token.ballCost&&!token.snackPayload&&!token.trainerPayload)||!humanTurn()))return false;
+ if(source==="judge"&&(!["judgeResult","judgeCancel","judgeAcknowledge","judgeResume"].includes(action)||!judgePaused()))return false;
  let result;
  try{result=action==="reset"?{state:newGame(options.decks??matchDecks)}:dispatch(state,action,payload);}catch(cause){setError(cause.message||String(cause));return false;}
  if(result.error){setError(result.error);if(source!=="ai")updateCoach({prev:state,state,action,error:result.error});return false;}
@@ -131,11 +135,11 @@ function cardHtml(data,opts={}){
 }
 function fieldVisible(player){return state.phase!=="setup"||(player===state.turn&&humanTurn()&&!handoff()&&gameVisible());}
 function placementAllowed(card,player,target,slot){
- if(!card||player!==state.turn||!canHuman()||!["setup","playing"].includes(state.phase))return false;
+ if(!card||player!==state.turn||!canHuman()||judgePaused()||!["setup","playing"].includes(state.phase))return false;
  const p=state.players[player],mon=target==="active"?p.active:p.bench[slot];
  if(card.kind==="pokemon"){
   const def=species[card.species];
-  if(!def.stage)return target==="active"?state.phase==="setup"&&!p.active:!!p.active&&!mon&&p.bench.length<5;
+  if(!def.stage)return target==="active"?state.phase==="setup"&&!p.active:!!p.active&&!mon&&slot<benchLimit(state,player)&&p.bench.length<benchLimit(state,player);
   return state.phase==="playing"&&state.round>2&&mon?.name===def.evolvesFrom&&mon.playedTurn!==state.round&&!mon.evolvedThisTurn;
  }
  if(state.phase!=="playing")return false;
@@ -152,7 +156,7 @@ function fieldSlot(p,player,target,slot){
 }
 function pileButton(player,zone,count){return `<button type="button" class="pile zone-button" data-zone="${zone}" data-player="${player}" aria-label="Inspect Player ${player+1} ${zoneName(zone)} (${count} cards)"><span class="zone-label">${zoneName(zone)} · ${count}</span>${zone==="deck"||zone==="prizeCards"?cardHtml(null,{back:true}):'<span class="pile-icon" aria-hidden="true">▤</span>'}</button>`;}
 function side(p,i){
- return `<section class="side ${i===1?"opponent":"self"} ${i===state.turn?"current":""}" aria-label="Player ${i+1} play area"><div class="prize-area">${pileButton(i,"prizeCards",p.prizes)}<button type="button" class="zone-link" data-zone="hand" data-player="${i}">Hand · ${p.hand.length}</button></div><div class="field"><div class="player-label">${playerLabel(i)} ${i===state.turn?"· CURRENT TURN":""}${state.phase==="setup"&&!fieldVisible(i)?" · face-down setup":""}</div><div class="bench-row">${Array.from({length:5},(_,slot)=>fieldSlot(p,i,"bench",slot)).join("")}</div><div class="active-row">${fieldSlot(p,i,"active")}</div></div><div class="pile-area">${pileButton(i,"deck",p.deck.length)}${pileButton(i,"discard",p.discard.length)}${pileButton(i,"lostZone",(p.lostZone||[]).length)}</div></section>`;
+ return `<section class="side ${i===1?"opponent":"self"} ${i===state.turn?"current":""}" aria-label="Player ${i+1} play area"><div class="prize-area">${pileButton(i,"prizeCards",p.prizes)}<button type="button" class="zone-link" data-zone="hand" data-player="${i}">Hand · ${p.hand.length}</button></div><div class="field"><div class="player-label">${playerLabel(i)} ${i===state.turn?"· CURRENT TURN":""}${state.phase==="setup"&&!fieldVisible(i)?" · face-down setup":""} · Bench ${p.bench.length}/${benchLimit(state,i)}</div><div class="bench-row" style="--bench-slots:${Math.max(benchLimit(state,i),p.bench.length)}">${Array.from({length:Math.max(benchLimit(state,i),p.bench.length)},(_,slot)=>fieldSlot(p,i,"bench",slot)).join("")}</div><div class="active-row">${fieldSlot(p,i,"active")}</div></div><div class="pile-area">${pileButton(i,"deck",p.deck.length)}${pileButton(i,"discard",p.discard.length)}${pileButton(i,"lostZone",(p.lostZone||[]).length)}</div></section>`;
 }
 function renderPlans(){
  renderPlanGraph($("#ai-graph"),planner);
@@ -160,16 +164,18 @@ function renderPlans(){
 }
 function render(){
  const p=state.players[state.turn],visible=humanTurn()&&!handoff()&&gameVisible();
- status.textContent=state.winner!==null?`Player ${state.winner+1} won by ${state.winReason}`:state.phase==="replacement"?`${playerLabel(state.turn)}: promote a Benched Pokémon`:state.phase==="retreat"?`${playerLabel(state.turn)}: complete retreat`:state.phase==="setup"?`Setup: ${playerLabel(state.turn)} — choose Active and Bench, then Ready`:`${playerLabel(state.turn)} · Turn ${state.round}`;
+ if(state.phase==="benchReduction")status.textContent=`${playerLabel(state.turn)} must choose ${p.bench.length-(state.benchReduction?.limit??benchLimit(state,state.turn))} Benched Pokémon to discard to ${state.benchReduction?.limit??benchLimit(state,state.turn)} (no Knock Out or Prizes).`;
+ else status.textContent=state.winner!==null?`Player ${state.winner+1} won by ${state.winReason}`:judgePaused()?`Judge case ${state.judgeCase.id} · ${state.judgeCase.status} · game paused`:state.phase==="replacement"?`${playerLabel(state.turn)}: promote a Benched Pokémon`:state.phase==="retreat"?`${playerLabel(state.turn)}: complete retreat`:state.phase==="setup"?`Setup: ${playerLabel(state.turn)} — choose Active and Bench, then Ready`:`${playerLabel(state.turn)} · Turn ${state.round}`;
  $("#privacy-status").textContent="Keep private cards out of the other player's view. Both players maintain a valid board; consult a Judge for disputes or uncertainty.";
  board.innerHTML=`<div class="mat">${side(state.players[1],1)}<div class="divider"></div>${side(state.players[0],0)}<section id="handoff" ${handoff()?"":"hidden"}><h2>Pass to Player ${state.turn+1}</h2><p>Other players: look away before this player reveals their private hand.</p><button type="button" id="accept-handoff">I am Player ${state.turn+1} — reveal my hand</button></section><div class="hand"><div class="zone-label">Player ${state.turn+1}'s hand · ${p.hand.length} cards · ${visible?"private to current human":"hidden"}</div><div class="hand-cards">${visible?p.hand.map((c,i)=>cardHtml(c,{small:true,selected:i===state.selection,attrs:`data-hand="${i}" role="button" tabindex="0" draggable="${canHuman()}" aria-label="${escape(cardName(c))}; select, then tap a highlighted target; select again to inspect"`})).join(""):'<p class="privacy-note">Private cards are not shown to spectators or during handoff.</p>'}</div><p class="hint">${visible?(state.phase==="setup"?"Select a Basic Pokémon and tap an empty Active/Bench slot. Ready finishes your setup.":state.phase==="replacement"||state.phase==="retreat"?"Tap one of your Benched Pokémon.":"Select or drag a hand card to a highlighted own slot. Select again to inspect. Keyboard: Tab and Enter/Space. Public Inspect buttons never play a card."):"Public face-up cards, Discards, and Lost Zones remain inspectable."}</p></div></div>`;
  if(hoveredCard)board.querySelector(hoveredCard)?.classList.add("hovered");
  const visibleLog=state.phase==="setup"?["Setup Pokémon identities stay private until both players are Ready."]:state.log;
  log.replaceChildren(...visibleLog.map(text=>{const li=document.createElement("li");li.textContent=text;return li;}));
  renderPlans();renderControls();syncCoachPrivacy();
+ renderSharedRules();
 }
 function renderControls(){
- const p=state.players[state.turn],allowed=canHuman(),playing=allowed&&state.phase==="playing";
+ const p=state.players[state.turn],allowed=canHuman(),playing=allowed&&state.phase==="playing"&&!judgePaused();
  for(const b of document.querySelectorAll("button[data-action]"))b.disabled=!playing;
  const ready=$('[data-action="ready"]');ready.hidden=state.phase!=="setup";ready.disabled=!allowed||state.phase!=="setup"||!p.active;
  const retreat=$('[data-action="retreat"]');retreat.hidden=state.phase!=="playing";retreat.innerHTML=`Retreat (${retreatCost(p.active)} ${typeSymbol("Colorless")} Colorless Energy)`;retreat.disabled=!playing||!p.bench.length||p.retreated||!p.active||p.active.energy<retreatCost(p.active);
@@ -181,6 +187,10 @@ function renderControls(){
  if(!stadiumButton){stadiumButton=document.createElement("button");stadiumButton.id="stadium-action";stadiumButton.type="button";stadiumButton.addEventListener("click",showStadiumAction);$("#ai-toggle").after(stadiumButton);}
  stadiumButton.hidden=!["Stormy Mountains","Tropical Beach"].includes(state.stadium?.name);
  stadiumButton.textContent="Use "+(state.stadium?.name||"Stadium");stadiumButton.disabled=!playing;
+ $("#bench-effects").disabled=!playing;
+ $("#bench-cleanup").hidden=state.phase!=="benchReduction";$("#bench-cleanup").disabled=!allowed||state.phase!=="benchReduction";
+ $("#judge-open").disabled=!gameVisible()||(!judgePaused()&&(!allowed||state.phase!=="playing"));
+ $("#judge-open").textContent=judgePaused()?"View paused Judge case":"Ask Judge";
 }
 function playSelected(player,target,slot){
  if(!canHuman())return;
@@ -189,6 +199,8 @@ function playSelected(player,target,slot){
  const mon=target==="active"?state.players[player].active:state.players[player].bench[slot];
  if(card.kind==="pokemon"&&!species[card.species].stage&&mon){setError("A Basic Pokémon needs an empty slot; it cannot replace an occupied Pokémon.");return;}
  if(card.kind==="trainer"){
+  if(card.name==="Parallel City"){showParallelCity();return;}
+  if(card.name==="Lost Vacuum"){showLostVacuum();return;}
   if(card.name==="Quick Ball"||card.name==="Ultra Ball"){showBallSearch();return;}
   if(card.name==="Nest Ball"){showNestBallSearch();return;}
   if(["Pokégear 3.0","Battle Compressor"].includes(card.name)){showPrintedSearch(card);return;}
@@ -284,7 +296,7 @@ function zoneEntries(token){
 function renderZoneCards(token){
  const entries=zoneEntries(token);if(!entries){clearModal();renderControls();return;}
  const scoped=token.authorized,scopeText=scoped?inspectionScopeText(token.scope,token.zone):"";
- panel.innerHTML=`<h2>Player ${token.player+1} ${zoneName(token.zone)} · ${entries.length} cards</h2>${token.ownHand?"<p>Your own hand · read-only inspection.</p>":""}${scoped?`<p id="inspection-scope" class="permission-note">${escape(scopeText)}. Manual permission declared — players are responsible for legality. Access ends when this dialog closes or control changes. Ordered peeks retain deck order; selected positions retain their position labels; entire Deck/Prize searches are alphabetical. Inspection never moves, reorders, or shuffles cards.</p>`:""}<div class="inspection-grid" aria-label="Authorized inspection cards"></div><p class="modal-error" role="alert"></p>`;
+ panel.innerHTML=`<h2>Player ${token.player+1} ${zoneName(token.zone)} · ${entries.length} cards</h2>${token.ownHand?"<p>Your own hand · private inspection.</p>":""}${scoped?`<p id="inspection-scope" class="permission-note">${escape(scopeText)}. Manual permission declared — players are responsible for legality. Access ends when this dialog closes or control changes. Ordered peeks retain deck order; selected positions retain their position labels; entire Deck/Prize searches are alphabetical. Inspection alone never moves, reorders, or shuffles cards.</p>`:""}<div class="inspection-grid" aria-label="Authorized inspection cards"></div><p class="modal-error" role="alert"></p>`;
  const grid=panel.querySelector(".inspection-grid");
  for(const {c,index} of entries){
   const position=scoped&&token.scope.kind!=="entire"?`${token.zone==="prizeCards"?"Prize":zoneName(token.zone)} position ${index+1}`:"";
@@ -498,6 +510,8 @@ for(const b of document.querySelectorAll("button[data-action]"))b.addEventListen
  if(action==="attack"){showAttacks();return;}
  if(action==="trainer"){
   const c=state.players[state.turn].hand[state.selection];if(!c)return;
+  if(c.name==="Parallel City"){showParallelCity();return;}
+  if(c.name==="Lost Vacuum"){showLostVacuum();return;}
   if(c.name==="Quick Ball"||c.name==="Ultra Ball"){showBallSearch();return;}
   if(c.name==="Nest Ball"){showNestBallSearch();return;}
   if(["Pokégear 3.0","Battle Compressor"].includes(c.name)){showPrintedSearch(c);return;}
@@ -510,7 +524,7 @@ modal.addEventListener("click",e=>{if(e.target===modal||e.target.closest(".close
 modal.addEventListener("keydown",e=>{
  if(e.key==="Escape"){e.preventDefault();closeModal();return;}
  if(e.key!=="Tab")return;
- const focusable=[...modal.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),[tabindex="0"]')].filter(el=>!el.hidden);
+ const focusable=[...modal.querySelectorAll('button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex="0"]')].filter(el=>el.getClientRects().length);
  if(!focusable.length)return;const first=focusable[0],last=focusable[focusable.length-1];
  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
 });
@@ -521,12 +535,125 @@ $("#ai-export").addEventListener("click",()=>{
 });
 function startMatch(decks){
  if(!closeModal())return;matchDecks=decks?structuredClone(decks):null;acknowledged=null;
+ judgeTransport?.controller.abort();judgeTransport=null;judgeError="";judgePanels.clear();
  if(act("reset",{},{source:"system",decks:matchDecks}))showGame();
 }
 function confirmNewMatch(){
  const token=openModal("new-match",{},"<h2>Start a new match?</h2><p>This ends the current match and deals the current decks again. Use Deck Builder to edit decks first.</p>");
  actionButton("Confirm new match",()=>{if(validToken(token))startMatch(matchDecks);});actionButton("Keep current match",closeModal);
 }
+function showLostVacuum(){
+ if(!canHuman()||state.phase!=="playing")return;
+ const p=state.players[state.turn],vacuumIndex=state.selection;
+ if(p.hand[vacuumIndex]?.name!=="Lost Vacuum")return;
+ const targets=[];
+ if(state.stadium)targets.push({label:`Shared Stadium: ${state.stadium.name}`,payload:{zone:"stadium"}});
+ state.players.forEach((owner,player)=>[...[{mon:owner.active,target:"active"}],...owner.bench.map((mon,slot)=>({mon,target:"bench",slot}))].forEach(({mon,target,slot})=>{
+  if(mon?.tool)targets.push({label:`${playerLabel(player)} ${target==="active"?"Active":`Bench ${slot+1}`} ${mon.name}: ${mon.tool.name}`,payload:{zone:"tool",player,target,...(target==="bench"?{slot}:{})}});
+ }));
+ if(!targets.length){setError("Lost Vacuum requires a Pokémon Tool or Stadium in play; no legal public target exists.");return;}
+ if(p.hand.length<2){setError("Lost Vacuum requires another card from your hand as its Lost Zone cost.");return;}
+ const token=openModal("lost-vacuum",{},"<h2>Resolve Lost Vacuum</h2><p>To play this card, put one other card from your hand in the Lost Zone. Then put one Pokémon Tool attached to any Pokémon, or the Stadium in play, in its owner's Lost Zone. Both moved cards become public. Closing before confirmation does not pay the cost or play the card.</p>");
+ const label=document.createElement("label");label.className="modal-label";label.textContent="Required cost — one other card from your own hand";
+ const cost=document.createElement("select");cost.innerHTML='<option value="">Choose a cost card</option>';p.hand.forEach((c,index)=>{if(index!==vacuumIndex){const option=document.createElement("option");option.value=String(index);option.textContent=cardName(c);cost.append(option);}});label.append(cost);panel.append(label);
+ const targetLabel=document.createElement("label");targetLabel.className="modal-label";targetLabel.textContent="Tool or Stadium to put in its owner's Lost Zone";const target=document.createElement("select");target.innerHTML='<option value="">Choose a public target</option>';targets.forEach((entry,index)=>{const option=document.createElement("option");option.value=String(index);option.textContent=entry.label;target.append(option);});targetLabel.append(target);panel.append(targetLabel);
+ actionButton("Play Lost Vacuum — pay cost and resolve",()=>{if(!modalHuman(token))return;if(cost.value===""||target.value===""){setError("Choose both a hand cost and a public Tool/Stadium target.");return;}act("trainer",{lostCostIndex:Number(cost.value),lostTarget:targets[Number(target.value)].payload},{token});});
+}
+function renderSharedRules(){
+ const root=$("#shared-rules");if(!root)return;
+ const stadium=state.stadium;
+ root.innerHTML=`<h2>Shared Stadium</h2>${stadium?`<div class="shared-stadium-card">${cardHtml(stadium,{small:true})}<div><strong>${escape(stadium.name)}</strong><p>Played by ${playerLabel(state.stadiumOwner??0)}. Both players use this shared Stadium.</p>${stadium.name==="Parallel City"?`<p>${playerLabel(state.stadiumLimitedPlayer)} faces the 3-Pokémon Bench side. ${playerLabel(1-state.stadiumLimitedPlayer)} faces the opposite side: their Grass, Fire and Water Pokémon's attack damage is reduced by 20 (minimum 0; not counters). Orientation is fixed until this Stadium leaves play.</p>`:stadium.name==="Sky Field"?"<p>Each player's Bench capacity is 8. When this Stadium leaves play, each affected owner chooses excess Benched Pokémon to discard.</p>":""}</div></div>`:"<p>No Stadium in play.</p>"}
+ <p>Bench capacities: Player 1 ${benchLimit(state,0)} · Player 2 ${benchLimit(state,1)}. Unsupported card effects require an explicit declaration; this does not establish legality.</p>`;
+ const c=state.judgeCase;
+ $("#judge-status").textContent=c?`Judge case ${c.id}: ${c.status}${c.ruling?` — ${c.ruling.decision}: ${c.ruling.summary}`:""}.${judgePaused()?" Gameplay is paused.":""}${judgeError?" "+judgeError:""}`:judgeConfig.url&&judgeConfig.token?"Judge service configured for this session; no ruling requested.":"Judge not connected. Configure your own secure service to request a real ruling; no model runs in this browser.";
+}
+function showParallelCity(){
+ if(!canHuman()||state.phase!=="playing")return;
+ const token=openModal("parallel-city",{},"<h2>Play Parallel City — choose orientation</h2><p>Choose which player faces the 3-Pokémon Bench side before playing. The opposite side normally has 5 Bench spaces; its Grass, Fire and Water Pokémon deal 20 less attack damage. You cannot freely rotate it after placement. Any excess Bench must be discarded by its owner before play continues.</p>");
+ for(let player=0;player<2;player++)actionButton(`${playerLabel(player)} faces the 3-Pokémon Bench side`,()=>{if(modalHuman(token))act("trainer",{limitedPlayer:player},{token});});
+}
+function showBenchEffects(){
+ if(!canHuman()||state.phase!=="playing")return;
+ const token=openModal("bench-effects",{},"<h2>Declare a Bench-capacity effect</h2><p>Manual declaration for effects not automatically implemented. Players must establish legality, timing and precedence; this is not official permission. Known Stadium caps override this declaration. Lowering a capacity pauses play for each affected owner to discard exact excess Pokémon stacks, Energy and Tools without Prizes.</p>");
+ const playerLabelNode=document.createElement("label");playerLabelNode.className="modal-label";playerLabelNode.textContent="Affected player";const player=document.createElement("select");player.innerHTML='<option value="0">Player 1</option><option value="1">Player 2</option>';playerLabelNode.append(player);panel.append(playerLabelNode);
+ const limit=inputLabel("Declared capacity (3–8)",{type:"number"});limit.min="3";limit.max="8";limit.step="1";limit.value=String(benchLimit(state,0));
+ const reason=inputLabel("Authorizing effect and reason (public)",{placeholder:"Name effect, expiry/precedence and any ruling reference"});
+ actionButton("Declare Bench capacity",()=>{if(!modalHuman(token))return;if(!reason.value.trim()){setError("Enter the authorizing effect and reason.");return;}act("setBenchLimit",{player:Number(player.value),limit:Number(limit.value),reason:reason.value.trim()},{token});});
+}
+function showBenchCleanup(){
+ if(!canHuman()||state.phase!=="benchReduction")return;
+ const player=state.turn,p=state.players[player],limit=state.benchReduction?.limit??benchLimit(state,player),excess=p.bench.length-limit;
+ const token=openModal("bench-cleanup",{},`<h2>${playerLabel(player)} — choose ${excess} Benched Pokémon</h2><p>Only this affected owner chooses. Discard exactly ${excess} whole Pokémon stacks with attached Energy and Tools to reach ${limit}. This is not a Knock Out and awards no Prizes. Ordinary play and AI actions remain paused.</p>${state.benchReduction?.ruling?`<p class="permission-note">${escape(state.benchReduction.ruling)}</p>`:""}<div class="bench-cleanup-options"></div><p id="bench-cleanup-count" aria-live="polite"></p>`);
+ const selected=new Set(),root=panel.querySelector(".bench-cleanup-options");
+ const submit=actionButton("Discard chosen Bench Pokémon",()=>{if(modalHuman(token))act("reduceBench",{slots:[...selected]},{token});},{disabled:true});
+ const count=()=>{panel.querySelector("#bench-cleanup-count").textContent=`${selected.size} of ${excess} selected`;submit.disabled=selected.size!==excess;};
+ p.bench.forEach((card,slot)=>{const label=document.createElement("label");label.className="bench-cleanup-choice";const check=document.createElement("input");check.type="checkbox";check.setAttribute("aria-label",`Discard Bench ${slot+1}: ${card.name}`);check.addEventListener("change",()=>{if(!validToken(token))return;check.checked?selected.add(slot):selected.delete(slot);count();});const view=document.createElement("span");view.innerHTML=`Bench ${slot+1}`+cardHtml(card,{small:true});label.append(check,view);root.append(label);});count();
+}
+function judgeTextSection(title,items){
+ if(!Array.isArray(items)||!items.length)return;
+ const section=document.createElement("section"),heading=document.createElement("h3"),list=document.createElement("ul");heading.textContent=title;
+ for(const text of items){const li=document.createElement("li");li.textContent=String(text);list.append(li);}section.append(heading,list);panel.append(section);
+}
+function renderJudgeRuling(c){
+ const r=c.ruling,summary=document.createElement("p");summary.className="judge-decision";summary.textContent=`${r.decision} · ${r.authority}: ${r.summary}`;panel.append(summary);
+ judgeTextSection("Reasoned decision",r.reasoning);judgeTextSection("Required actions (not automatically executed)",r.requiredActions);judgeTextSection("Uncertainties",r.uncertainties);judgeTextSection("Dissent",r.dissent);
+ const heading=document.createElement("h3");heading.textContent="Sources";panel.append(heading);
+ for(const source of r.sources||[]){const item=document.createElement("p");let url;try{url=new URL(source.url);}catch{url=null;}if(url&&["https:","http:"].includes(url.protocol)){const link=document.createElement("a");link.href=url.href;link.target="_blank";link.rel="noopener noreferrer";link.textContent=source.title||url.hostname;item.append(link);}else item.textContent=source.title||"Unavailable source";item.append(document.createTextNode(` · ${source.evidence||"unverified"}${source.quote?` — ${source.quote}`:""}`));panel.append(item);}
+ for(const member of judgePanels.get(c.id)||[]){const detail=document.createElement("details"),title=document.createElement("summary"),text=document.createElement("p");title.textContent=String(member.role||"Panel Judge");const ruling=member.ruling||{};text.textContent=[ruling.decision,ruling.authority,ruling.summary,...(Array.isArray(ruling.reasoning)?ruling.reasoning:[])].filter(Boolean).join(" · ");detail.append(title,text);panel.append(detail);}
+}
+function showJudge(){
+ if(!gameVisible()||(!judgePaused()&&(!canHuman()||state.phase!=="playing")))return;
+ const c=state.judgeCase,token=openModal("judge",{},'<h2>Judge — real service ruling</h2><p>Only public board information is included. Hidden hands, Deck/Prize identities, private inspection scopes, plans and game history are never automatically sent. Keep private identities out of the question. A ruling explains required corrections; it does not execute them automatically.</p>');
+ if(judgePaused()){
+  const question=document.createElement("p");question.textContent=`Case ${c.id}: ${c.question}`;panel.append(question);
+  if(c.status==="pending"){
+   const note=document.createElement("p");note.setAttribute("role","status");note.textContent=judgeTransport?"Researching with the configured backend. Gameplay is paused; closing this window does not cancel the request.":judgeError||"Request has not completed. Gameplay remains paused.";panel.append(note);
+   if(!judgeTransport)actionButton("Retry same public-context request",()=>sendJudgeCase(c.id),{disabled:!judgeConfig.url||!judgeConfig.token});
+  }else if(c.ruling){
+   const r=c.ruling;renderJudgeRuling(c);
+   for(let player=0;player<2;player++)actionButton(c.acks?.[player]?`${playerLabel(player)} acknowledged`:`I am ${playerLabel(player)} — acknowledge this ruling`,()=>{if(validToken(token)&&gameVisible()&&act("judgeAcknowledge",{player},{source:"judge"}))showJudge();},{disabled:!!c.acks?.[player]});
+   const unresolved=r.decision==="unresolved";if(unresolved){const note=document.createElement("p");note.textContent="Unresolved: this is not a legal ruling and cannot authorize resume. Withdraw the case, clarify the question, or consult an in-person Judge.";panel.append(note);}
+   actionButton("Resume after both players acknowledge",()=>{if(validToken(token)&&gameVisible())act("judgeResume",{},{source:"judge"});},{disabled:unresolved||!c.acks?.every(Boolean)});
+  }
+  actionButton("Withdraw case (not a ruling or legality grant)",()=>{if(!validToken(token)||!gameVisible())return;judgeTransport?.controller.abort();judgeTransport=null;if(act("judgeCancel",{},{source:"judge"})){judgeError="";showJudge();}});
+ }else{
+  if(c){const note=document.createElement("p");note.textContent=`Previous case ${c.id}: ${c.status}. ${c.status==="canceled"?"Withdrawn, not a ruling or legality grant.":c.ruling?.summary||""}`;panel.append(note);}
+  if(c?.ruling)renderJudgeRuling(c);
+  const note=document.createElement("p");note.textContent=judgeConfig.url&&judgeConfig.token?"Service configured for this page session only. No request has been made for this question.":"Not connected: configure a deployed Judge backend and its access token. This static site cannot produce a real ruling on its own. Never enter a model/API key here.";panel.append(note);
+  const question=document.createElement("textarea");question.rows=4;question.maxLength=4000;question.setAttribute("aria-label","Public rules question (do not include hidden card identities)");question.placeholder="Ask a rules question using only public information";panel.append(question);
+  actionButton("Request ruling — pause game",()=>{if(!modalHuman(token))return;if(!question.value.trim()){setError("Enter a public rules question.");return;}const text=question.value.trim();judgeError="";if(act("judgeRequest",{question:text},{token}))sendJudgeCase(state.judgeCase.id);},{disabled:!judgeConfig.url||!judgeConfig.token});
+ }
+ if(!judgeTransport){
+  const config=document.createElement("details"),summary=document.createElement("summary");summary.textContent="Configure service (memory only)";config.append(summary);panel.append(config);
+  const url=inputLabel("Judge service base URL",{parent:config,placeholder:"https://your-judge-service.example"});url.value=judgeConfig.url;url.autocomplete="off";
+  const access=inputLabel("Judge service access token — NOT a model API key",{parent:config,type:"password"});access.value=judgeConfig.token;access.autocomplete="off";
+  actionButton("Use this service for this session",()=>{if(!validToken(token))return;try{const value=judgeServiceURL(url.value.trim());if(!access.value.trim())throw new Error("Enter the Judge service access token.");judgeConfig={url:value,token:access.value.trim()};judgeError="";showJudge();}catch(cause){setError(cause.message);}},{parent:config});
+  actionButton("Forget service and access token",()=>{if(!validToken(token))return;judgeConfig={url:"",token:""};showJudge();},{parent:config});
+ }
+}
+async function sendJudgeCase(id){
+ if(judgeTransport||!gameVisible()||state.judgeCase?.id!==id||state.judgeCase.status!=="pending")return;
+ const controller=new AbortController(),request={id,controller};judgeTransport=request;judgeError="";
+ const context=publicJudgeContext(state,{benchLimit,cardInfo,species}),question=state.judgeCase.question;
+ showJudge();
+ try{
+  const result=await requestJudgeRuling({...judgeConfig,question,context,signal:controller.signal});
+  if(judgeTransport!==request||state.judgeCase?.id!==id||state.judgeCase.status!=="pending")return;
+  judgeTransport=null;judgePanels.set(id,result.panel);
+  const viewing=preview?.type==="judge";
+  if(!act("judgeResult",{id,ruling:result.ruling},{source:"judge"}))judgeError="Ruling response was rejected. Retry or withdraw the case; gameplay remains paused.";
+  if(viewing&&gameVisible())showJudge();
+ }catch(cause){
+  if(judgeTransport!==request)return;
+  judgeTransport=null;judgeError=cause.name==="AbortError"?"Request canceled; no ruling was obtained.":cause.message||"Judge request failed; no ruling was obtained.";
+  if(preview?.type==="judge"&&gameVisible())showJudge();renderSharedRules();
+ }
+}
+for(const [id,label,handler] of [["bench-effects","Declare Bench effect",showBenchEffects],["bench-cleanup","Choose excess Bench",showBenchCleanup],["judge-open","Ask Judge",showJudge]]){
+ const button=document.createElement("button");button.id=id;button.type="button";button.textContent=label;button.addEventListener("click",handler);$("#actions").append(button);
+}
+const sharedRules=document.createElement("section");sharedRules.id="shared-rules";sharedRules.setAttribute("aria-label","Shared Stadium and Bench effects");$("#board").after(sharedRules);
+const judgeStatus=document.createElement("p");judgeStatus.id="judge-status";judgeStatus.setAttribute("role","status");$("#action-notice").after(judgeStatus);
 const deckBuilder=mountDeckBuilder({start:startMatch,inspect:card=>showPreview(card),onClose:started=>started?showGame():showMenu()});
 function showMenu(){
  if(!closeModal())return;screen="menu";acknowledged=null;$("main").hidden=true;$("#deck-builder").hidden=true;$("#main-menu").hidden=false;
@@ -573,6 +700,7 @@ function renderDebug(){
 }
 // Applies a scenario like a real move: recorded in turn history, seen by the AI planner, then the AI may act.
 function runDebug(name){
+ if(judgePaused()||state.phase==="benchReduction"){preview.message="Debug mutations are paused until the Judge case or owner-chosen Bench cleanup is finished.";renderDebug();return;}
  const val=id=>$("#"+id)?.value,args=name==="addCardToHand"?{id:val("debug-card")}:name==="addEnergy"?{ref:val("debug-mon"),type:val("debug-energy")}:name==="setDamage"?{ref:val("debug-mon"),damage:Number(val("debug-damage"))}:name==="heal"?{ref:val("debug-mon")}:{};
  const prev=state,r=debugCommands[name](state,debugMe(),args);
  if(r.error){preview.message=r.error;renderDebug();return;}

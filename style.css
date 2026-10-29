@@ -245,3 +245,21 @@ button.coach-cta::after{content:"PRESS THIS";background:var(--pk-yellow);color:v
 .search-deck-tile.chosen{border-color:#f9d75b;background:#285574;}
 .search-deck-tile.search-ineligible{opacity:.48;cursor:not-allowed;}
 .cost-card.search-ineligible{opacity:.55;}
+
+/* Shared rules remain outside private inspectors and survive handoff. */
+.side .bench-row{grid-template-columns:repeat(var(--bench-slots,5),minmax(0,1fr))}
+#shared-rules{max-width:1100px;margin:14px auto;padding:14px;border:1px solid #7397ac;border-radius:12px;background:#122638;color:#e1f2fa}
+#shared-rules h2{font-size:1rem;margin:0 0 10px}
+#shared-rules p,#judge-status{font-size:.88rem;line-height:1.55;overflow-wrap:anywhere}
+.shared-stadium-card{display:flex;align-items:center;gap:18px}
+.shared-stadium-card>.tcg-card{flex-shrink:0;width:92px}
+#judge-status{padding:10px 14px;border-left:3px solid #f9d36b}
+.bench-cleanup-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;max-height:52vh;overflow:auto}
+.bench-cleanup-choice{display:flex;align-items:flex-start;gap:7px;padding:8px;border:1px solid #7397ac;border-radius:8px;cursor:pointer}
+.bench-cleanup-choice input{min-width:22px;min-height:22px}
+.bench-cleanup-choice:has(input:checked){border-color:#f9d36b;background:#3f432b}
+.bench-cleanup-choice .tcg-card{width:105px;max-width:100%}
+.modal-content textarea{display:block;width:100%;min-width:min(500px,72vw);padding:10px;background:#112537;color:#edf6ff;border:1px solid #7397ac;border-radius:6px;font:inherit;resize:vertical}
+.judge-decision{padding:12px;border:1px solid #f9d36b;background:#39351c}
+.modal-content a{color:#9edaff;overflow-wrap:anywhere}
+@media(max-width:700px){.side .bench-row{grid-template-columns:repeat(var(--bench-slots,5),minmax(54px,1fr));overflow-x:auto;max-width:100%;padding-bottom:12px}.shared-stadium-card{align-items:flex-start;gap:10px}}

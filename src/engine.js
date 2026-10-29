@@ -17,7 +17,109 @@ export function newGame(decks){
  if(decks&&(!Array.isArray(decks)||decks.length!==2||decks.some(d=>validateDeck(d).errors.length)))throw new Error("Choose two complete 60-card decks containing a Basic Pokémon.");
  const players=[player(0,decks?.[0]),player(1,decks?.[1])];return {players,turn:0,round:1,phase:"setup",winner:null,winReason:null,log:["Each player: choose an Active Pokémon and optionally Bench Basics, then press Ready.","Shuffled 60-card decks and set six Prize cards per player."],selection:null};}
 const err=(state,error)=>({state,error});
+export function benchLimit(state,player){
+ if(state.stadium?.name==="Parallel City")return state.stadiumLimitedPlayer===player?3:5;
+ if(state.stadium?.name==="Sky Field")return 8;
+ const declared=state.players[player]?.declaredBenchLimit;
+ return Number.isInteger(declared)&&declared>=3&&declared<=8?declared:5;
+}
+const judgePaused=s=>["pending","ruled"].includes(s.judgeCase?.status);
+function discardStack(owner,mon){
+ owner.discard.push(basic(mon.speciesIndex),...(mon.under??[]).map(basic),...(mon.energies??[]).map(energy));
+ if(mon.tool)owner.discard.push(mon.tool);
+}
+function advanceBenchReduction(s){
+ const pending=s.benchReduction;
+ while(pending.steps.length&&s.players[pending.steps[0].player].bench.length<=pending.steps[0].limit)pending.steps.shift();
+ if(!pending.steps.length){s.turn=pending.resumeTurn;s.phase=pending.resumePhase;delete s.benchReduction;return;}
+ const step=pending.steps[0];s.turn=step.player;s.phase="benchReduction";pending.limit=step.limit;s.selection=null;
+ s.log.unshift("Player "+(s.turn+1)+" must choose "+(s.players[s.turn].bench.length-step.limit)+" Benched Pokémon to discard to "+step.limit+". No Knock Out or Prizes.");
+}
+function enforceBenchLimit(s,before){
+ if(s.stadium?.name!=="Parallel City")delete s.stadiumLimitedPlayer;
+ if(s.winner!==null||s.phase==="benchReduction")return;
+ const steps=[],departingSkyField=before.stadium?.name==="Sky Field"&&s.stadium?.name!=="Sky Field";
+ if(departingSkyField){
+  const owner=before.stadiumOwner??before.turn;
+  steps.push({player:owner,limit:5},{player:1-owner,limit:5});
+ }
+ for(const player of [before.turn,1-before.turn]){
+  const limit=benchLimit(s,player);
+  if(s.players[player].bench.length>limit&&!steps.some(step=>step.player===player&&step.limit<=limit))steps.push({player,limit});
+ }
+ if(!steps.some(step=>s.players[step.player].bench.length>step.limit))return;
+ s.benchReduction={resumeTurn:s.turn,resumePhase:s.phase,steps};
+ if(departingSkyField&&s.stadium?.name==="Parallel City"){
+  s.benchReduction.ruling="Provisional project interpretation: Sky Field's owner chooses to five first, then the other player to five, then Parallel City's blue-facing player to three. Two independent Judge researchers support this text-based sequence; no authoritative timing ruling was retrieved.";
+  s.log.unshift(s.benchReduction.ruling);
+ }
+ advanceBenchReduction(s);
+}
+const rulingKeys=["decision","authority","summary","reasoning","sources","requiredActions","uncertainties","dissent"];
+function validRuling(r){
+ const text=v=>typeof v==="string"&&v.trim().length>0&&v.length<=12000;
+ const texts=v=>Array.isArray(v)&&v.length<=40&&v.every(text);
+ if(!r||typeof r!=="object"||Array.isArray(r)||Object.keys(r).some(k=>!rulingKeys.includes(k)))return false;
+ if(!["allowed","blocked","correction_required","unresolved"].includes(r.decision)||!["officially_sourced","provisional_project_interpretation","house_rule","unresolved"].includes(r.authority)||!text(r.summary))return false;
+ if(!texts(r.reasoning)||!r.reasoning.length||!texts(r.requiredActions)||!texts(r.uncertainties)||!texts(r.dissent)||!Array.isArray(r.sources)||r.sources.length>40)return false;
+ if(r.sources.some(source=>{
+  if(!source||typeof source!=="object"||Array.isArray(source)||Object.keys(source).some(k=>!["url","title","quote","evidence"].includes(k))||!text(source.url)||!text(source.title)||typeof source.quote!=="string"||source.quote.length>12000||!["retrieved","search_indexed"].includes(source.evidence))return true;
+  try{const url=new URL(source.url);return !["https:","http:"].includes(url.protocol)||!!url.username||!!url.password;}catch{return true;}
+ }))return false;
+ if(r.authority==="officially_sourced"&&!r.sources.length)return false;
+ if((r.decision==="unresolved")!==(r.authority==="unresolved"))return false;
+ return true;
+}
+function parallelDamage(s,mon,damage){
+ return s.stadium?.name==="Parallel City"&&s.stadiumLimitedPlayer===1-s.turn&&["Grass","Fire","Water"].includes(mon.type)?Math.max(0,damage-20):damage;
+}
 export function dispatch(state,action,payload={}){
+ const paused=judgePaused(state);
+ if(paused&&!["inspectZone","deselect","judgeResult","judgeCancel","judgeAcknowledge","judgeResume"].includes(action))return err(state,"Resolve or cancel the Judge case before changing play.");
+ if(state.phase==="benchReduction"&&!["reduceBench","inspectZone","deselect"].includes(action))return err(state,"The affected owner must choose the excess Benched Pokémon first.");
+ if(action.startsWith("judge")){
+  if(state.winner!==null)return err(state,"Game is over.");
+  const s=structuredClone(state),c=s.judgeCase;
+  if(action==="judgeRequest"){
+   if(s.phase!=="playing"||paused)return err(state,"Request a Judge during ordinary play.");
+   if(typeof payload.question!=="string"||!payload.question.trim()||payload.question.length>8000)return err(state,"Enter a Judge question of at most 8000 characters. It will be shared publicly.");
+   if(c){s.judgeHistory??=[];s.judgeHistory.push(c);}
+   s.judgeSequence=(s.judgeSequence??0)+1;
+   s.judgeCase={id:"judge-"+s.judgeSequence,question:payload.question.trim(),status:"pending",resumePhase:s.phase,requestedBy:s.turn,acks:[false,false]};
+   s.selection=null;s.log.unshift("Player "+(s.turn+1)+" requested a Judge. Gameplay is paused.");
+  }else{
+   if(!paused)return err(state,"There is no paused Judge case.");
+   if(action==="judgeResult"){
+    if(c.status!=="pending"||payload.id!==c.id||!validRuling(payload.ruling))return err(state,"The Judge response does not match the pending case or has an invalid ruling shape.");
+    c.status="ruled";c.ruling=structuredClone(payload.ruling);c.acks=[false,false];
+    s.log.unshift("Judge response received ("+c.ruling.decision+"). Review the reasoning and sources; no corrections were automatically applied.");
+   }else if(action==="judgeAcknowledge"){
+    if(c.status!=="ruled"||![0,1].includes(payload.player))return err(state,"Each player must review a returned ruling before acknowledging.");
+    c.acks[payload.player]=true;
+   }else if(action==="judgeResume"){
+    if(c.status!=="ruled"||!c.acks.every(Boolean)||c.ruling.decision==="unresolved")return err(state,"Both players must acknowledge a resolved ruling before resuming.");
+    c.status="completed";s.phase=c.resumePhase;s.log.unshift("Both players acknowledged the Judge response. Play resumed; required corrections remain explicit player actions.");
+   }else if(action==="judgeCancel"){
+    c.status="canceled";s.phase=c.resumePhase;s.log.unshift("Judge query canceled or withdrawn. This is not a ruling or permission to take an action.");
+   }else return err(state,"Unknown Judge action.");
+  }
+  return {state:s};
+ }
+ if(action==="reduceBench"){
+  if(state.phase!=="benchReduction"||!state.benchReduction)return err(state,"No Bench reduction is pending.");
+  const p=state.players[state.turn],excess=p.bench.length-(state.benchReduction.limit??benchLimit(state,state.turn)),slots=payload.slots;
+  if(!Array.isArray(slots)||slots.length!==excess||new Set(slots).size!==slots.length||slots.some(i=>!Number.isInteger(i)||i<0||i>=p.bench.length))return err(state,"Choose exactly "+excess+" distinct Benched Pokémon.");
+  const s=structuredClone(state),owner=s.players[s.turn];
+  for(const i of [...slots].sort((a,b)=>b-a))discardStack(owner,owner.bench.splice(i,1)[0]);
+  s.log.unshift("Player "+(s.turn+1)+" discarded "+slots.length+" full Benched Pokémon stack(s) and attachments to meet the Bench limit. No Knock Out or Prizes.");
+  s.benchReduction.steps.shift();advanceBenchReduction(s);
+  s.selection=null;return {state:s};
+ }
+ const result=dispatchAction(state,action,payload);
+ if(!result.error)enforceBenchLimit(result.state,state);
+ return result;
+}
+function dispatchAction(state,action,payload={}){
 if(action==="reset")return {state:newGame()};
 if(state.winner!==null)return err(state,"Game is over.");
 const s=structuredClone(state),p=s.players[s.turn],o=s.players[1-s.turn];
@@ -29,6 +131,15 @@ if(action==="inspectZone"){
  s.log.unshift("Player "+(s.turn+1)+" declared inspection of Player "+(payload.player+1)+"'s "+payload.zone+": "+payload.reason.trim());
  return {state:s};
 }
+if(action==="setBenchLimit"){
+ if(s.phase!=="playing")return err(state,"Declare a Bench limit during ordinary play.");
+ if(![0,1].includes(payload.player)||!Number.isInteger(payload.limit)||payload.limit<3||payload.limit>8)return err(state,"Choose a player and a Bench limit from 3 to 8.");
+ if(typeof payload.reason!=="string"||!payload.reason.trim())return err(state,"Name the unsupported card effect or ruling authorizing this declaration.");
+ s.players[payload.player].declaredBenchLimit=payload.limit;s.players[payload.player].benchLimitReason=payload.reason.trim();s.selection=null;
+ s.log.unshift("Player "+(s.turn+1)+" declared Player "+(payload.player+1)+"'s Bench limit as "+payload.limit+": "+payload.reason.trim()+". Manual declaration, not rules permission; supported Stadium limits take precedence.");
+ return {state:s};
+}
+if(action==="moveToLostZone")return err(state,"A reason or inspection declaration does not authorize the Lost Zone. Play a supported card or attack that explicitly sends the selected cards there.");
 if(action==="adjustDamage"){
  if(s.phase!=="playing")return err(state,"Finish setup or the required promotion/switch first.");
  if(!Number.isInteger(payload.player)||payload.player<0||payload.player>1)return err(state,"Choose the Pokémon's owner.");
@@ -53,7 +164,7 @@ if(action==="stadium"){
  if(!s.stadium)return err(state,"No Stadium in play.");
  if(s.stadium.name==="Stormy Mountains"){
   if(p.stormyUsedTurn===s.round)return err(state,"Stormy Mountains was already used this turn.");
-  if(p.bench.length>=5)return err(state,"Your Bench is full.");
+  if(p.bench.length>=benchLimit(s,s.turn))return err(state,"Your Bench is full.");
   const i=payload.searchIndex;
   if(i===null){p.stormyUsedTurn=s.round;shuffle(p.deck);return {state:s};}
   if(!Number.isInteger(i)||p.deck[i]?.kind!=="pokemon"||species[p.deck[i].species]?.stage||!["Lightning","Dragon"].includes(species[p.deck[i].species].type))return err(state,"Select a Basic Lightning or Dragon Pokémon.");
@@ -109,10 +220,41 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
  let idx=s.selection;const card=p.hand[idx];if(!card||card.kind!=="trainer")return err(state,"Select a Trainer card first.");
  if(card.subtype==="Supporter"&&p.supporterUsed)return err(state,"Only one Supporter per turn.");
  if(card.subtype==="Supporter"&&s.turn===0&&s.round===1)return err(state,"The first player cannot play a Supporter on their first turn.");
- const isStadium=card.subtype==="Stadium"||["Magma Basin","PokéStop","Silent Lab","Stormy Mountains","Tropical Beach"].includes(card.name);
+ const isStadium=card.subtype==="Stadium"||["Magma Basin","PokéStop","Silent Lab","Stormy Mountains","Tropical Beach","Parallel City","Sky Field","Lost City"].includes(card.name);
  if(isStadium&&p.stadiumPlayed)return err(state,"Only one Stadium may be played from hand per turn.");
  if(isStadium&&s.stadium?.name===card.name)return err(state,"A Stadium with that name is already in play.");
- if(card.name==="Air Balloon"){
+ if(isStadium&&["Magma Basin","PokéStop","Silent Lab","Stormy Mountains","Tropical Beach","Parallel City","Sky Field","Lost City"].includes(card.name)){
+  if(card.name==="Parallel City"&&![0,1].includes(payload.limitedPlayer))return err(state,"Choose the player facing Parallel City's three-Pokémon Bench side.");
+  if(s.stadium)s.players[s.stadiumOwner??s.turn].discard.push(s.stadium);
+  s.stadium=card;s.stadiumOwner=s.turn;
+  if(card.name==="Parallel City")s.stadiumLimitedPlayer=payload.limitedPlayer;else delete s.stadiumLimitedPlayer;
+  p.stadiumPlayed=true;p.hand.splice(idx,1);s.selection=null;
+  s.log.unshift("Player "+(s.turn+1)+": played "+card.name+" Stadium."+(card.name==="Parallel City"?" Player "+(payload.limitedPlayer+1)+" faces the three-Pokémon Bench limit; the opposite player's Grass, Fire and Water Pokémon do 20 less attack damage.":""));
+  return {state:s};
+ }
+ else if(card.name==="Lost Vacuum"){
+  const cost=payload.lostCostIndex,target=payload.lostTarget;
+  if(!Number.isInteger(cost)||cost<0||cost===idx||!p.hand[cost])return err(state,"Lost Vacuum requires one other hand card to put in the Lost Zone.");
+  let owner,mon,targetCard;
+  if(target?.zone==="stadium"){
+   if(!s.stadium)return err(state,"Choose a Stadium in play.");
+   owner=s.players[s.stadiumOwner??s.turn];targetCard=s.stadium;
+  }else if(target?.zone==="tool"&&[0,1].includes(target.player)){
+   owner=s.players[target.player];
+   mon=target.target==="active"?owner.active:target.target==="bench"&&Number.isInteger(target.slot)&&target.slot>=0?owner.bench[target.slot]:null;
+   if(!mon?.tool)return err(state,"Choose a Pokémon Tool attached to a Pokémon in play.");
+   targetCard=mon.tool;
+  }else return err(state,"Choose a Pokémon Tool or Stadium in play for Lost Vacuum.");
+  // The complete target is validated before paying the Lost Zone cost.
+  p.lostZone??=[];owner.lostZone??=[];
+  const costCard=p.hand[cost];p.lostZone.push(costCard);owner.lostZone.push(targetCard);
+  if(mon)mon.tool=null;else{s.stadium=null;delete s.stadiumOwner;delete s.stadiumLimitedPlayer;}
+  for(const i of [idx,cost].sort((a,b)=>b-a))p.hand.splice(i,1);
+  p.discard.push(card);s.selection=null;
+  s.log.unshift("Player "+(s.turn+1)+" used Lost Vacuum: put "+cardInfo(costCard).name+" from their hand and "+targetCard.name+" from play into their owners' Lost Zones. Lost Vacuum was discarded.");
+  return {state:s};
+ }
+ else if(card.name==="Air Balloon"){
  const target=payload.target==="active"?p.active:payload.target==="bench"&&Number.isInteger(payload.slot)?p.bench[payload.slot]:null;
  if(!target)return err(state,"Choose your Active or a Benched Pokémon to attach Air Balloon.");
  if(target.tool)return err(state,"That Pokémon already has a Pokémon Tool attached.");
@@ -120,7 +262,7 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
  }
  else if(card.name==="Potion"){const target=payload.target==="active"?p.active:payload.target==="bench"?p.bench[payload.slot]:null;if(!target)return err(state,"Choose a Pokémon to heal.");if(!target.damage)return err(state,"That Pokémon has no damage.");target.damage=Math.max(0,target.damage-30);message="Potion healed "+target.name+".";}
  else if(card.name==="Nest Ball"){
-  if(p.bench.length>=5)return err(state,"Your Bench is full.");
+  if(p.bench.length>=benchLimit(s,s.turn))return err(state,"Your Bench is full.");
   const choice=payload.searchIndex;
   if(choice!==null&&(!Number.isInteger(choice)||p.deck[choice]?.kind!=="pokemon"||species[p.deck[choice].species]?.stage))return err(state,"Choose a Basic Pokémon from your deck.");
   const found=choice===null?null:p.deck.splice(choice,1)[0];
@@ -158,7 +300,7 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
  }
  else if(card.name==="Professor's Research"){p.discard.push(...p.hand.filter((_,i)=>i!==idx));p.hand=[];for(let n=0;n<7&&p.deck.length;n++)p.hand.push(p.deck.shift());p.supporterUsed=true;message="Professor's Research drew "+p.hand.length+" cards.";p.discard.push(card);s.selection=null;s.log.unshift("Player "+(state.turn+1)+": "+message);return {state:s};}
  else if(["Buddy-Buddy Poffin","Evolution Incense","Level Ball","Poké Pad","Trainers' Mail","Earthen Vessel","Arven","Gloria","Hisuian Heavy Ball"].includes(card.name)){
-  if((card.name==="Buddy-Buddy Poffin"||card.name==="Gloria")&&p.bench.length>=5)return err(state,"Your Bench is full.");
+  if((card.name==="Buddy-Buddy Poffin"||card.name==="Gloria")&&p.bench.length>=benchLimit(s,s.turn))return err(state,"Your Bench is full.");
   const cost=payload.discardCostIndices;
   if(card.name==="Earthen Vessel"&&(!Array.isArray(cost)||cost.length!==1||!Number.isInteger(cost[0])||cost[0]===idx||!p.hand[cost[0]]))return err(state,"Choose one other hand card to discard for Earthen Vessel.");
   const options=card.name==="Hisuian Heavy Ball"?p.prizeCards:p.deck;
@@ -175,7 +317,7 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   const choices=payload.searchIndices;
   if(!Array.isArray(choices)||choices.length>limit||new Set(choices).size!==choices.length||choices.some(i=>!Number.isInteger(i)||!options[i]||!allowed(options[i])||(card.name==="Trainers' Mail"&&i>=4)))return err(state,"Select up to "+limit+" eligible card(s) from "+(card.name==="Hisuian Heavy Ball"?"Prize cards":"your deck")+".");
   if(card.name==="Arven"&&new Set(choices.map(i=>options[i].subtype)).size!==choices.length)return err(state,"Arven can find at most one Item and one Pokémon Tool.");
-  if((card.name==="Gloria"||card.name==="Buddy-Buddy Poffin")&&p.bench.length+choices.length>5)return err(state,"Not enough Bench space.");
+  if((card.name==="Gloria"||card.name==="Buddy-Buddy Poffin")&&p.bench.length+choices.length>benchLimit(s,s.turn))return err(state,"Not enough Bench space.");
   const found=choices.slice().sort((a,b)=>b-a).map(i=>options.splice(i,1)[0]);
   if(card.name==="Hisuian Heavy Ball"){
    if(found.length){p.hand.splice(idx,1);p.hand.push(...found);p.prizeCards.push(card);}
@@ -216,28 +358,12 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   let drawn=0;for(let n=0;n<3&&p.deck.length;n++){p.hand.push(p.deck.shift());drawn++;}
   message="Bird Keeper switched Active Pokémon and drew "+drawn+" cards.";
  }
- else if(card.name==="Magma Basin"){
-  if(s.stadium)s.players[s.stadiumOwner??s.turn].discard.push(s.stadium);
-  s.stadium=card;s.stadiumOwner=s.turn;p.stadiumPlayed=true;p.hand.splice(idx,1);s.selection=null;
-  s.log.unshift("Player "+(s.turn+1)+": played Magma Basin Stadium.");return {state:s};
- }
  else if(card.name==="Float Stone"||card.name==="Muscle Band"||card.name==="Vitality Band"){
   const target=payload.target==="bench"?p.bench[payload.slot]:p.active;
   if(!target)return err(state,"Choose a Pokémon for the Tool.");
   if(target.tool)return err(state,"That Pokémon already has a Tool.");
   target.tool=card;p.hand.splice(idx,1);s.selection=null;
   s.log.unshift("Player "+(s.turn+1)+": attached "+card.name+" to "+target.name+".");return {state:s};
- }
- else if(["Stormy Mountains","Tropical Beach"].includes(card.name)){
-  if(s.stadium)s.players[s.stadiumOwner??s.turn].discard.push(s.stadium);
-  s.stadium=card;s.stadiumOwner=s.turn;p.stadiumPlayed=true;p.hand.splice(idx,1);s.selection=null;
-  s.log.unshift("Player "+(s.turn+1)+": played "+card.name+" Stadium.");return {state:s};
- }
- else if(card.name==="PokéStop"||card.name==="Silent Lab"){
-  if(s.stadium)s.players[s.stadiumOwner??s.turn].discard.push(s.stadium);
-  s.stadium=card;s.stadiumOwner=s.turn;p.stadiumPlayed=true;
-  p.hand.splice(idx,1);s.selection=null;
-  s.log.unshift("Player "+(s.turn+1)+": played "+card.name+" Stadium.");return {state:s};
  }
  else if(card.name==="Pokégear 3.0"){
   const top=p.deck.slice(0,7),i=payload.searchIndex;
@@ -355,7 +481,7 @@ if(card.kind==="pokemon"){
 const def=species[card.species];
 if(def.stage){if(s.phase==="setup")return err(state,"Evolution cards cannot be played during setup.");if(s.round<=2)return err(state,"You cannot evolve on your first turn.");const target=payload.target==="active"?p.active:payload.target==="bench"&&Number.isInteger(payload.slot)?p.bench[payload.slot]:null;if(!target||target.name!==def.evolvesFrom)return err(state,def.name+" must evolve from "+def.evolvesFrom+".");if(target.playedTurn===s.round||target.evolvedThisTurn)return err(state,"Cannot evolve a Pokémon played or evolved this turn.");const evolved=pokemon(card.species);evolved.tool=target.tool||null;evolved.damage=target.damage;evolved.energies=target.energies;evolved.energy=evolved.energies.length;evolved.under=[...target.under,target.speciesIndex];evolved.playedTurn=s.round;evolved.evolvedThisTurn=true;if(payload.target==="active")p.active=evolved;else p.bench[payload.slot]=evolved;message="Evolved "+target.name+" into "+def.name+".";}
 else if(payload.target==="active"&&s.phase==="setup"&&!p.active){p.active=pokemon(card.species);p.active.playedTurn=s.round;message="Chose "+p.active.name+" as Active Pokémon.";}
-else if(payload.target==="bench"){if(!p.active)return err(state,"Choose your Active Pokémon first.");if(p.bench.length>=5)return err(state,"Your Bench is full.");if(!Number.isInteger(payload.slot)||payload.slot<p.bench.length||payload.slot>=5)return err(state,"Choose an empty Bench slot.");const added=pokemon(card.species);added.playedTurn=s.round;p.bench.push(added);message="Benched "+species[card.species].name+".";}
+else if(payload.target==="bench"){if(!p.active)return err(state,"Choose your Active Pokémon first.");if(p.bench.length>=benchLimit(s,s.turn))return err(state,"Your Bench is full.");if(!Number.isInteger(payload.slot)||payload.slot<p.bench.length||payload.slot>=benchLimit(s,s.turn))return err(state,"Choose an empty Bench slot.");const added=pokemon(card.species);added.playedTurn=s.round;p.bench.push(added);message="Benched "+species[card.species].name+".";}
 else return err(state,s.phase==="setup"?"Tap the empty Active slot or an empty Bench slot.":"Basic Pokémon must be played to the Bench.");
 }else if(card.kind==="energy"){
 if(s.phase!=="playing")return err(state,"Energy cannot be attached during setup. Choose your Active and Bench Pokémon, then press Ready.");
@@ -366,7 +492,15 @@ if(card.type==="Speed Lightning"&&target.type!=="Lightning")return err(state,"Sp
 target.energies.push(card.type==="Speed Lightning"?"Lightning":card.type==="Capture"||card.type==="Recycle"?"Colorless":card.type);
 target.energy=target.energies.length;p.attached=true;
 if(card.type==="Speed Lightning"){let drawn=0;for(let n=0;n<2&&p.deck.length;n++){p.hand.push(p.deck.shift());drawn++;}message="Attached Speed Lightning Energy to "+target.name+" and drew "+drawn+" cards.";}
-else if(card.type==="Capture"){const choice=payload.searchIndex;if(Number.isInteger(choice)&&p.deck[choice]?.kind==="pokemon"&&!species[p.deck[choice].species]?.stage&&p.bench.length<5){const found=p.deck.splice(choice,1)[0];const added=pokemon(found.species);added.playedTurn=s.round;p.bench.push(added);}shuffle(p.deck);message="Attached Capture Energy to "+target.name+" and searched for a Basic Pokémon.";}
+else if(card.type==="Capture"){
+ const choice=payload.searchIndex;
+ if(choice!==null&&choice!==undefined&&(!Number.isInteger(choice)||choice<0||p.deck[choice]?.kind!=="pokemon"||species[p.deck[choice].species]?.stage))return err(state,"Choose a Basic Pokémon or finish without finding one.");
+ if(Number.isInteger(choice)){
+  if(p.bench.length>=benchLimit(s,s.turn))return err(state,"Not enough Bench space for the chosen Pokémon.");
+  const found=p.deck.splice(choice,1)[0],added=pokemon(found.species);added.playedTurn=s.round;p.bench.push(added);
+ }
+ shuffle(p.deck);message="Attached Capture Energy to "+target.name+" and searched for a Basic Pokémon.";
+}
 else message="Attached "+card.type+" Energy to "+target.name+".";
 }else return err(state,"Unsupported card.");
 p.hand.splice(idx,1);s.selection=null;
@@ -409,18 +543,44 @@ else if(move.effect==="regielekiTargetedBolt"){
  let discarded=0;p.active.energies=p.active.energies.filter(x=>{if(x==="Lightning"&&discarded<2){discarded++;p.discard.push(energy("Lightning"));return false;}return true;});p.active.energy=p.active.energies.length;
  const targetIndex=Number.isInteger(payload.targetBench)?payload.targetBench:0;
  const target=o.bench[targetIndex];if(!target)return err(state,"Invalid opposing Bench target.");
- target.damage+=120;message=p.active.name+" used Targeted Bolt on opposing Benched "+target.name+" for 120 damage.";
- if(target.damage>=target.hp){o.discard.push({kind:"pokemon",species:target.speciesIndex});for(const under of target.under)o.discard.push(basic(under));for(const type of target.energies)o.discard.push(energy(type));if(target.tool)o.discard.push(target.tool);o.bench.splice(targetIndex,1);if(p.prizeCards.length)p.hand.push(p.prizeCards.pop());p.prizes=p.prizeCards.length;message+=" Knockout! Took a Prize.";if(!p.prizes){s.winner=s.turn;s.winReason="taking all Prize cards";}}
+ const damage=parallelDamage(s,p.active,120);
+ target.damage+=damage;message=p.active.name+" used Targeted Bolt on opposing Benched "+target.name+" for "+damage+" damage.";
+ if(target.damage>=target.hp){
+  o.bench.splice(targetIndex,1);
+  const prizes=discardKnockOut(s,1-s.turn,target);
+  message+=" Knockout! Took "+prizes+" Prize card(s).";
+ }
 }
 else if(move.effect==="stoke"){let attached=0;for(let n=p.deck.length-1;n>=0&&attached<2;n--){if(p.deck[n].kind==="energy"&&p.deck[n].type==="Fire"){p.deck.splice(n,1);p.active.energies.push("Fire");attached++;}}p.active.energy=p.active.energies.length;shuffle(p.deck);message=p.active.name+" used Stoke and attached "+attached+" Fire Energy.";}
-else{let damage=move.damage;if(move.effect==="braveWing"&&p.active.damage>0)damage+=100;if(move.effect==="coinBonus20"&&Math.random()<0.5)damage+=20;if(move.effect==="discardToolsBonus40"){const targets=[p.active,...p.bench];const removed=targets.filter(t=>t.tool);for(const t of removed){p.discard.push(t.tool);t.tool=null;}damage+=removed.length*40;}if(move.effect==="discardStadium"){message=p.active.name+" used "+move.name+" (no Stadium in play).";}else{o.active.damage+=damage;message=p.active.name+" used "+move.name+" for "+damage+" damage.";}if(move.effect==="discardEnergy"||move.effect==="discardThreeEnergy"){const count=move.effect==="discardThreeEnergy"?3:1;for(let n=0;n<count&&p.active.energies.length;n++){const type=p.active.energies.pop();p.discard.push(energy(type));}p.active.energy=p.active.energies.length;message+=" Discarded "+count+" Energy.";}}
+else{
+ let damage=move.damage;
+ if(move.effect==="braveWing"&&p.active.damage>0)damage+=100;
+ if(move.effect==="coinBonus20"&&Math.random()<0.5)damage+=20;
+ if(move.effect==="discardToolsBonus40"){
+  const removed=[p.active,...p.bench].filter(t=>t.tool);
+  for(const t of removed){p.discard.push(t.tool);t.tool=null;}damage+=removed.length*40;
+ }
+ if(move.effect==="discardStadium"){
+  if(s.stadium){s.players[s.stadiumOwner??s.turn].discard.push(s.stadium);s.stadium=null;delete s.stadiumLimitedPlayer;message=p.active.name+" used "+move.name+" and discarded the Stadium.";}
+  else message=p.active.name+" used "+move.name+" (no Stadium in play).";
+ }else{
+  damage=parallelDamage(s,p.active,damage);o.active.damage+=damage;message=p.active.name+" used "+move.name+" for "+damage+" damage.";
+ }
+ if(move.effect==="discardEnergy"||move.effect==="discardThreeEnergy"){
+  const count=move.effect==="discardThreeEnergy"?3:1;
+  for(let n=0;n<count&&p.active.energies.length;n++)p.discard.push(energy(p.active.energies.pop()));
+  p.active.energy=p.active.energies.length;message+=" Discarded "+count+" Energy.";
+ }
+}
 if(o.active.damage>=o.active.hp)message+=knockOut(s);
 if(s.winner===null&&s.phase!=="replacement")next(s);
 }else if(action==="end"){if(s.phase!=="playing")return err(state,"Finish the Pokémon switch first.");next(s);message="Turn ended.";}
 else if(action==="bench"){
-const idx=p.hand.findIndex(c=>c.kind==="pokemon");if(idx<0)return err(state,"No Basic Pokémon in hand.");
-if(p.bench.length>=5)return err(state,"Bench full.");
-p.bench.push(pokemon(p.hand[idx].species));p.hand.splice(idx,1);message="Benched a Basic Pokémon.";
+if(s.phase!=="playing")return err(state,"Bench Pokémon during ordinary play.");
+const idx=p.hand.findIndex(c=>c.kind==="pokemon"&&!species[c.species]?.stage);if(idx<0)return err(state,"No Basic Pokémon in hand.");
+if(!p.active)return err(state,"Choose your Active Pokémon first.");
+if(p.bench.length>=benchLimit(s,s.turn))return err(state,"Bench full.");
+const added=pokemon(p.hand[idx].species);added.playedTurn=s.round;p.bench.push(added);p.hand.splice(idx,1);message="Benched a Basic Pokémon.";
 }else if(action==="energy"){
 if(s.phase!=="playing")return err(state,"Energy cannot be attached during setup.");
 const idx=p.hand.findIndex(c=>c.kind==="energy");if(idx<0)return err(state,"No Energy in hand.");
@@ -440,8 +600,11 @@ export function knockOut(s){
 }
 function discardKnockOut(s,owner,mon){
  const p=s.players[owner],opponent=s.players[1-owner];
- p.discard.push(basic(mon.speciesIndex),...mon.under.map(basic),...mon.energies.map(energy));
- if(mon.tool)p.discard.push(mon.tool);
+ if(s.stadium?.name==="Lost City"){
+  p.lostZone??=[];p.lostZone.push(basic(mon.speciesIndex),...(mon.under??[]).map(basic));
+  p.discard.push(...(mon.energies??[]).map(energy));if(mon.tool)p.discard.push(mon.tool);
+  s.log.unshift("Lost City put the Knocked Out "+mon.name+" Pokémon stack in Player "+(owner+1)+"'s Lost Zone; attached Energy and Tools were discarded. Knock Out Prizes still apply.");
+ }else discardStack(p,mon);
  const award=mon.name.endsWith(" ex")?2:1;
  let taken=0;while(taken<award&&opponent.prizeCards.length){opponent.hand.push(opponent.prizeCards.pop());taken++;}
  opponent.prizes=opponent.prizeCards.length;

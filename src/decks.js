@@ -1,12 +1,18 @@
 import {species,energyTypes} from "./cards.js?v=66";
 export const pokemonCard=species=>({kind:"pokemon",species});
 export const energyCard=type=>({kind:"energy",type,name:type+" Energy"});
-export const trainerCard=name=>({image:name==="Quick Ball"?"assets/cards/quick-ball.jpg":name==="Ultra Ball"?"assets/cards/ultra-ball.jpg":undefined,kind:"trainer",name,subtype:name==="Air Balloon"?"Pokémon Tool":(name==="Professor's Research"||name==="Lillie's Determination"||name==="Nemona")?"Supporter":"Item"});
+export const trainerCard=name=>({image:name==="Quick Ball"?"assets/cards/quick-ball.jpg":name==="Ultra Ball"?"assets/cards/ultra-ball.jpg":undefined,kind:"trainer",name,subtype:["Parallel City","Sky Field","Lost City"].includes(name)?"Stadium":name==="Air Balloon"?"Pokémon Tool":(name==="Professor's Research"||name==="Lillie's Determination"||name==="Nemona")?"Supporter":"Item"});
 export const catalog=[
  ...species.map((s,i)=>({id:`pokemon-${i}`,name:s.name,category:"pokemon",detail:`${s.stage?`Stage ${s.stage} · evolves from ${s.evolvesFrom}`:"Basic"} · ${s.type} · ${s.hp} HP`,card:pokemonCard(i)})),
  ...energyTypes.map(type=>({id:`energy-${type}`,name:type+" Energy",category:"energy",detail:"Basic Energy · unlimited copies",card:energyCard(type)})),
  ...["Potion","Quick Ball","Ultra Ball","Professor's Research","Lillie's Determination","Nemona","Nest Ball","Air Balloon"].map(name=>({id:`trainer-${name}`,name,category:"trainer",detail:name==="Air Balloon"?"Pokémon Tool · attach to a Pokémon · retreat costs 2 less":name==="Potion"?"Item · heal 30 damage":name==="Quick Ball"?"Item · discard 1 other card; search for a Basic Pokémon":name==="Ultra Ball"?"Item · discard 2 other cards; search for any Pokémon":name==="Nest Ball"?"Item · search for a Basic Pokémon and put it on the Bench":name==="Nemona"?"Supporter · draw 3 cards" :name==="Lillie's Determination"?"Supporter · shuffle hand into deck; draw 6 (8 if six Prize cards remain)":"Supporter · discard hand, draw up to 7",card:trainerCard(name)}))
 ];
+for(const [name,printing,detail] of [
+ ["Parallel City","xy8-145","Stadium · choose orientation at play: one Bench limit 3; opposite Grass/Fire/Water attack damage −20"],
+ ["Sky Field","xy6-89","Stadium · both players may have up to 8 Benched Pokémon; owners choose excess to discard when capacity drops"],
+ ["Lost Vacuum","swsh11-162","Item · put 1 other hand card in the Lost Zone; put a Tool or Stadium in play in its owner's Lost Zone"],
+ ["Lost City","swsh11-161","Stadium · Knocked Out Pokémon go to the Lost Zone instead of discard; attachments are discarded"]
+])catalog.push({id:"trainer-"+name,name,category:"trainer",detail,card:{...trainerCard(name),printing}});
 // Register external printings without claiming their effects are supported by the engine.
 export function registerExternalCard(raw){
  if(!raw?.id||!raw?.name)return null;
