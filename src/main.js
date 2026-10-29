@@ -1,9 +1,9 @@
 import {retreatCost,species,energyTypes,canPay} from "./cards.js?v=53";
-import {catalog} from "./decks.js?v=56";
-import {commands as debugCommands,pokemonRefs} from "./debug.js?v=56";
+import {catalog} from "./decks.js?v=58";
+import {commands as debugCommands,pokemonRefs} from "./debug.js?v=58";
 import {cardStats} from "./card-stats.js?v=27";
-import {newGame,dispatch,cardInfo} from "./engine.js?v=56";
-import {mountDeckBuilder} from "./deck-builder.js?v=56";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=58";
+import {mountDeckBuilder} from "./deck-builder.js?v=58";
 import {createRecorder} from "./history.js?v=27";
 import {createPlanner} from "./planning/planner.js?v=40";
 import {renderPlanGraph} from "./planning/plan-graph.js?v=47";
