@@ -1,5 +1,5 @@
-import {retreatCost} from "./cards.js?v=65";
-import {typeSymbol} from "./type-symbols.js?v=65";
+import {retreatCost} from "./cards.js?v=66";
+import {typeSymbol} from "./type-symbols.js?v=66";
 // Display only: these stats do not add Weakness or Resistance battle rules.
 const escape=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 function stat(label,value){

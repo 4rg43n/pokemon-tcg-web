@@ -1,5 +1,5 @@
 // Pure coach logic: derive a context from game state, pick tips, track turns, review the game. No DOM.
-import {TIPS,REVIEW_RULES,CLEAN_GAME,SOURCES} from "./coach_knowledge.js?v=65";
+import {TIPS,REVIEW_RULES,CLEAN_GAME,SOURCES} from "./coach_knowledge.js?v=66";
 
 // main.js injects its own card helpers so the coach shares the live species registry instead of importing a second copy.
 let species,canPay,retreatCost;

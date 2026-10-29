@@ -1,6 +1,6 @@
-import {catalog,registerExternalCard,defaultDeck,validateDeck,migrateDeck} from "./decks.js?v=65";
-import {importLimitlessDeck} from "./limitless-resolver.js?v=65";
-import {searchCardDatabase,getCardDetail} from "./external-cards.js?v=65";
+import {catalog,registerExternalCard,defaultDeck,validateDeck,migrateDeck} from "./decks.js?v=66";
+import {importLimitlessDeck} from "./limitless-resolver.js?v=66";
+import {searchCardDatabase,getCardDetail} from "./external-cards.js?v=66";
 const storageKey="pokemon-tcg-decks-v1";
 const externalKey="pokemon-tcg-external-cards-v1";
 const starterVersionKey="pokemon-tcg-starter-version";
