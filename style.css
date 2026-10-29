@@ -237,3 +237,11 @@ button.coach-cta::after{content:"PRESS THIS";background:var(--pk-yellow);color:v
 }
 @media(hover:hover) and (max-width:700px){.side.self .slot .tcg-card:not(.empty):hover,.side.self .slot .tcg-card:not(.empty).hovered,.side.self .slot .tcg-card.printed:not(.empty):hover,.side.self .slot .tcg-card.printed:not(.empty).hovered{transform:translateY(-12px) scale(1.8)}.side.opponent .slot .tcg-card:not(.empty):hover,.side.opponent .slot .tcg-card:not(.empty).hovered,.side.opponent .slot .tcg-card.printed:not(.empty):hover,.side.opponent .slot .tcg-card.printed:not(.empty).hovered{transform:translateY(12px) scale(1.8)}}
 @media(hover:hover) and (prefers-reduced-motion:reduce){.hand-cards .tcg-card,.slot .tcg-card{transition:none}}
+
+/* Inspect the full authorized deck, with eligible selections clearly marked. */
+.search-deck-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:12px;max-height:420px;overflow:auto;margin:12px 0;padding:10px;border:1px solid #668ba3;border-radius:8px;}
+.search-deck-tile{min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;border:2px solid #5e95b7;border-radius:8px;background:#17334b;color:white;cursor:pointer;overflow-wrap:anywhere;}
+.search-deck-tile .tcg-card{width:100%;max-width:120px;pointer-events:none;}
+.search-deck-tile.chosen{border-color:#f9d75b;background:#285574;}
+.search-deck-tile.search-ineligible{opacity:.48;cursor:not-allowed;}
+.cost-card.search-ineligible{opacity:.55;}
