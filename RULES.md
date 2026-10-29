@@ -8,11 +8,11 @@ This shared reference covers how to play, deck verification for **Standard and G
 
 Distinguish **rules**, **strategy/heuristics**, **provisional interpretations**, and **unresolved questions**. A prototype's current behavior is not evidence of an official rule. Explicit applicable card text, errata, format rules, and authoritative rulings can create exceptions to the ordinary rules below.
 
-**Consult the designated Judge whenever a ruling or interaction is uncertain.** Check the rulebook and existing rulings first. If no direct answer exists, use the multi-Judge deliberation process described in the separate requirements document. Related rulings and intent can support a case, but cannot override applicable explicit text. An extrapolated project interpretation must be labeled provisional, not presented as an official Pokémon ruling. Conflicting or insufficient evidence requires escalation rather than an invented definitive answer.
+**Consult the designated Judge when a rule/interaction is unclear or a player suspects a violation.** Routine legal actions do not need a Judge's approval. Check the rulebook and existing rulings first; escalate when direct authority is missing. Related rulings and intent can support a case, but cannot override applicable explicit text. An extrapolated project interpretation must be labeled provisional, not presented as an official Pokémon ruling. Conflicting or insufficient evidence requires escalation rather than an invented definitive answer.
 
 For each new finding, record the exact card printing or rules question, relevant facts, source URL and passage/ruling, applicable format/date, reasoning, and authority level. Check that a previous ruling remains applicable after errata or rule changes. Do not cite an earlier AI answer as official authority or pretend an unavailable prior link was consulted.
 
-**Research boundary:** direct access to the linked Pokémon rulebook PDFs, penalty guidelines, and GLC rules page returned HTTP 403 during this documentation pass. Research used search-indexed passages, not a complete review of the latest documents. Sources are listed in section 13. No multi-Judge ruling was obtained. Open questions remain explicit; this is not an exhaustive or fully verified official rules manual.
+**Research boundary:** direct access to the linked Pokémon rulebook PDFs, penalty guidelines, and GLC rules page returned HTTP 403 during the earlier documentation pass. Rulebook research used search-indexed passages, not a complete review of the latest documents. Rescue Scarf's exact printing/text was checked separately against the attributed Bulbapedia card entry linked in sections 9 and 13. The Trainer research below checked the English Buddy-Buddy Poffin and Potion scans and third-party transcriptions; direct official card pages and Compendium ruling pages returned HTTP 403, so their cited passages are search-indexed evidence only. Earlier delegated Judge research failed in its environment before producing findings; no panel decision or full authoritative review was obtained. Open questions remain explicit; this is not an exhaustive or fully verified official rules manual.
 
 ## 2. Deck verification: Standard and GLC
 
@@ -30,7 +30,7 @@ For each new finding, record the exact card printing or rules question, relevant
 
 The format differences discussed here concern **valid deck construction**, not a different turn sequence, set of Special Conditions, or ordinary win conditions.
 
-Card-name limits apply across different artworks and set numbers. For example, `Pikachu` and `Pikachu ex` are distinct names, whereas different Professor's Research printings do not automatically grant separate copy allowances. Basic Energy is exempt from the ordinary copy limit; Special Energy is not generally exempt. Additional restrictions, such as ACE SPEC limits where applicable, still require checking.
+Card-name limits apply to the **full printed card name**, across different artworks and set numbers, not to a Pokémon species. For example, `Pikachu` and `Pikachu ex` are distinct names, whereas different Professor's Research printings do not automatically grant separate copy allowances. For a GLC naming example only, **if otherwise eligible cards had the printed names `Pikachu` and `Team Rocket's Pikachu`, one of each would not violate singleton merely because both depict Pikachu**. Two different printings named `Pikachu` would violate it. This conditional example does not assert that a `Team Rocket's Pikachu` printing exists or is currently eligible; each card must separately pass the pool, type, Rule Box, and ban checks. The [GLC rules](https://gymleaderchallenge.com/rules), available here only through indexed text, say “Only one of each card with the same name allowed in a deck, except for Basic Energy.” Basic Energy is exempt from the ordinary copy limit; Special Energy is not generally exempt. Additional restrictions, such as ACE SPEC limits where applicable, still require checking.
 
 **Use printed TCG types, not video-game types.** A species' video-game typing does not establish the type of a particular Pokémon card. GLC's mono-type requirement concerns the Pokémon cards; it does not mean every Trainer or Energy must have that type.
 
@@ -72,13 +72,27 @@ Starting Pokémon are face down until setup is complete. There is no unrestricte
 
 A deck search may let a player inspect permitted cards and infer that missing copies are Prized. It does not directly reveal a specific face-down Prize. Taking a Prize is a choice among hidden cards unless an effect changes that; it is not permission to preview all identities.
 
+### Reading cards and inspecting zones
+
+Either player may ask to read a public card, including an opponent's face-up Pokémon in play. Both players may inspect **either discard pile and either Lost Zone at any time**. Your own hand is available to you, not automatically to the opponent. Reading a card does not grant permission to see an otherwise hidden copy.
+
+Access to hidden information is specific to the **player, zone, and scope** authorized by a rule or card effect. A card may permit inspection of your own **or your opponent's** hand, deck, or Prize cards. It does not authorize another zone, another player, extra cards, or public disclosure beyond its instructions. Looking at a permitted top card is not permission to search the entire deck or inspect Prizes.
+
+There is no free deck search or reshuffle to learn what is Prized or avoid an unwanted next draw. After a search, follow its exact shuffle instructions; a limited peek does not itself grant a shuffle. Unauthorized inspection or manipulation is a matter for Judge review and the applicable penalty policy.
+
+### Shuffling and cutting
+
+A cut is not a substitute for adequate shuffling or a free action that can be taken at any time. Offer/perform a permitted opponent cut only **after the relevant cards have been legally shuffled**, without looking at their identities. An offer does not grant permission to shuffle a previously ordered deck.
+
+The same restriction applies to Prize cards: **no cut without a preceding authorized Prize shuffle**. Prize cards remain hidden, and a deck-shuffle instruction does not authorize a Prize shuffle or Prize cut. Follow the specific effect and applicable Judge/tournament procedure; do not infer a universal right to cut Prizes merely because ordinary deck cutting is permitted.
+
 ## 4. Setup, turn order, and mulligans
 
 1. Confirm both decks are legal for the chosen format, including the presence of a legal Basic Pokémon.
 2. Flip a coin. **The winner chooses which player goes first**; winning does not automatically mean taking the first turn.
 3. Shuffle each 60-card deck and draw seven cards.
 4. A player with no Basic Pokémon reveals their hand, shuffles it back into the deck, and draws another seven. Repeat until the player can set up.
-5. From a valid opening hand, place one Basic Pokémon face down as Active and optionally place Basic Pokémon face down on the Bench within the setup limit. Ordinary Evolution cards cannot fill these opening slots.
+5. From a valid opening hand, place **one Basic Pokémon face down as Active** and optionally place **zero through the current Bench limit** of Basic Pokémon face down on the Bench (normally **0–5**). Ordinary Evolution cards cannot fill these opening slots; a non-Basic setup requires an explicit applicable card/rule exception.
 6. After opening Pokémon placement, put the top six cards of each deck face down as Prizes without inspecting them.
 7. Resolve optional bonus draws for uncompensated opposing mulligans after Prizes are placed. Basics drawn this way may be added to the Bench before setup ends, if space permits.
 8. Once both players are ready, reveal the starting Pokémon together. The chosen first player begins their turn with the mandatory draw.
@@ -104,15 +118,36 @@ A zero-damage attack, search attack, or effect-only attack is still an attack an
 
 ### Normal limits
 
-- **One Energy card from hand** attached to one of your Pokémon per turn, Active or Benched. Effect-based extra attachments are separate from this manual allowance.
+- **One ordinary Energy CARD attachment from hand** to one of your Pokémon per turn, Active or Benched. This is one card, not one Energy unit. Additional attachments require an authorizing card effect; a card providing multiple Energy does not grant more ordinary attachments.
 - **One Supporter per turn**, with the additional first-player first-turn restriction.
 - **Any number of Items**, subject to their requirements and restrictions on play.
 - **Any number of Pokémon Tools**, but normally **one attached Tool per Pokémon**. Attached Tools cannot be freely removed or reassigned; a rule/effect must permit it. Tools are a distinct modern Trainer category, not automatically Items.
 - Normally **one Stadium from hand per turn**. Follow replacement and same-name restrictions; only one Stadium is in play overall.
 - **One manual retreat per turn**, including free retreat. Switching through a card effect is not automatically a retreat.
 - **No general hand limit** and no ordinary end-of-turn discard-to-limit step.
+- **Abilities have no universal once-per-turn default.** The indexed official rulebook lists “Use Abilities (as many as you want)” ([`par` rulebook](https://www.pokemon.com/static-assets/content-assets/cms2/pdf/trading-card-game/rulebook/par_rulebook_en.pdf)). Follow each Ability's exact timing, conditions, costs, and usage limit: a limit may be per Pokémon, across a named Ability, or otherwise worded. A continuous Ability applies while its conditions hold; it is not a once-per-turn button. “As many as you want” does not override any card-text restriction.
+- **Playing a Stadium and using its effect are different allowances.** Normally play only one Stadium **from hand** per turn. You cannot play one with the same name as the Stadium already in play, regardless of its owner. A legal different-name Stadium discards the old one and replaces its effects. You may first use an existing Stadium's activated effect, if legal under its text, and then play a different-name Stadium if your Stadium-play allowance remains unused. The new Stadium's effect follows its own printed timing, costs, and usage scope; replacement does not promise another use of an effect whose wording imposes a broader shared limit. A continuous passive effect applies while its conditions hold; it is not a once-per-turn activation. These ordinary play/replacement limits come from the indexed [`par` rulebook, “Play Trainer cards”](https://www.pokemon.com/static-assets/content-assets/cms2/pdf/trading-card-game/rulebook/par_rulebook_en.pdf); sequencing is an application of the separate play and effect-use allowances, not a new card-specific ruling.
 
 Going first can give an evolution deck earlier access to its second turn. Going second allows earlier Supporter use and an immediate attack, potentially an early win or "donk" if the opponent loses their only Pokémon. Neither choice is universally preferable; matchup, deck plan, and card exceptions matter.
+
+### Trainer play conditions, optional steps, and hidden searches
+
+**Being an Item does not make a card freely discardable from hand.** Before playing a Trainer, check its timing, restrictions, required costs, and publicly determinable prerequisites/targets. Do not play it when the public state makes its required effect impossible. A cost is not an optional effect: wording such as “You can use this card only if you discard…” must be satisfied before the authorized search. The indexed [Compendium ruling 925](https://compendium.pokegym.net/ruling/925/) asks about Life Herb on an undamaged Pokémon with no Special Conditions and answers, in part, “No, you cannot play a card if it is obvious that you cannot do what the card is…”; the full page was not retrievable in this pass.
+
+**“You may” makes the specified instruction optional, not every other instruction or play requirement.** Read what that clause actually governs. It does not waive costs, a required legal target, a first-turn prohibition, or a prerequisite elsewhere in the card text. Likewise, “up to 2” is not “exactly 2.” Resolve the legal card's mandatory instructions and permitted choices; do not turn optional wording into a universal permission to play any Trainer for no effect.
+
+**A legal search of a hidden deck for a specified kind of card can fail.** The player may find fewer qualifying cards, or none, even when they privately know the deck has no qualifying targets; private knowledge does not make the deck a public zone. This is different from failing a public prerequisite or refusing to pay a required cost. After legally committing costs and searching, a failed search does not refund those costs or cancel the instructed shuffle. Do not generalize this to every search: the indexed [Computer Search ruling](https://compendium.pokegym.net/category/5-trainers/computer-search/) says that searching for a Pokémon, Trainer, or another particular type can voluntarily fail because deck contents are unknown, but an unrestricted search for **any card** cannot fail in a nonempty deck. Exact text and any publicly established impossibility still matter.
+
+**Buddy-Buddy Poffin — Temporal Forces 144/162 (English, regulation mark H).** The [checked English scan](https://archives.bulbagarden.net/media/upload/6/68/Buddy-BuddyPoffinTemporalForces144.jpg) reads: “Search your deck for up to 2 Basic Pokémon with 70 HP or less and put them onto your Bench. Then, shuffle your deck.” The [Bulbapedia printing/transcription](https://bulbapedia.bulbagarden.net/wiki/Buddy-Buddy_Poffin_(Temporal_Forces_144)) agrees; the [official printing page](https://www.pokemon.com/us/pokemon-tcg/pokemon-cards/series/sv05/144) supplied indexed text but direct retrieval was blocked.
+
+- With a **full Bench**, and no other effect changing the applicable rules, do not play Poffin: the public destination has no space for any searched Pokémon. Choosing zero or pointing to the final shuffle does not bypass that prerequisite.
+- With **one free Bench space** and a nonempty deck, it can be played; put at most **one** qualifying Basic onto the Bench. Two spaces are not required merely because the text says “up to 2.”
+- With two or more spaces, choose up to two qualifying Basics. A legal hidden search can yield zero, including when the player privately knows none qualify. Follow the shuffle instruction even after finding none; do not reveal unrelated deck identities to prove failure.
+
+These Poffin examples apply the checked card text and the indexed general play/search principles above. No Poffin-specific official ruling or Judge-panel finding was retrieved, and the printing's identity/mark is not a certification of current Standard or GLC eligibility.
+
+**Potion — Sword & Shield 177/202 (English).** The [checked English scan](https://archives.bulbagarden.net/media/upload/a/a3/PotionSwordShield177.jpg) reads: “Heal 30 damage from 1 of your Pokémon.” See the [official printing page](https://www.pokemon.com/us/pokemon-tcg/pokemon-cards/series/swsh1/177) (indexed text; direct access blocked) and [Bulbapedia's printing/text history](https://bulbapedia.bulbagarden.net/wiki/Potion_(Base_Set_94)). Under ordinary conditions Potion needs one of **your damaged Pokémon** whose damage it can heal; an undamaged Pokémon is not a legal way to discard it. It can heal a Pokémon with only 10 or 20 damage, removing all that damage without requiring the full printed 30. This is **not** a choice to heal only 10 when 30 or more healable damage is present: perform the printed healing as far as possible. The [Compendium Potion page](https://compendium.pokegym.net/category/5-trainers/potion-trainer) indexes the question about choosing less than 30, but its complete answer was not retrievable here; no complete ruling quotation is claimed. Effects preventing or modifying healing require their own text to be considered.
+
 
 ## 6. Energy, attacking, retreat, and switching
 
@@ -123,6 +158,17 @@ An Energy **card** is not the same thing as the Energy units it currently provid
 - Retreat discards attached Energy cards providing the required units. Choose a legal payment from the Active Pokémon's attachments.
 - For a retreat cost of two, one card currently providing two applicable Energy can pay the cost. Discard the entire card and all Energy it provides; cards cannot be partially discarded.
 - Apply current cost modifiers and Energy restrictions before deciding whether the payment is sufficient.
+
+### Attack damage versus placing damage counters
+
+These are distinct instructions, even though both can increase the total damage recorded on a Pokémon:
+
+- **Attack damage** follows the attack's damage calculation and applicable modifiers, including Weakness/Resistance and damage prevention where relevant.
+- **Place damage counters** means place the specified number of counters directly. One counter represents 10 damage. This is an effect, not ordinary attack damage, even when an attack is the source of the instruction. Do not automatically apply Weakness, Resistance, or effects that prevent only attack damage.
+- Conditions and other card effects can place counters outside an attack. Effects that prevent effects/counter placement are not interchangeable with effects that prevent damage; follow the wording or consult the Judge.
+- Damage counters track the accumulated damage taken; placing a counter is not declaring another attack or consuming a turn by itself. Removing counters/healing still requires the appropriate rule, effect, or authorized correction.
+
+A Pokémon is Knocked Out when its **remaining HP is zero or less** (recorded damage reaches or exceeds its current HP), whether from attack damage, counter placement, a combination, or a reduction in current HP. The cause matters to card triggers: counter placement is not attack damage. Check all applicable prevention, replacement, and triggered effects and their actual timing; do not assume the normal discard destination always applies.
 
 Manual retreat requires a Benched replacement, permission to retreat, enough discardable Energy, and the unused retreat allowance. Asleep and Paralyzed prevent manual retreat and attacks; Confusion does not itself prevent retreat.
 
@@ -166,9 +212,24 @@ Benching or evolving a Pokémon removes its Special Conditions and applicable at
 
 ## 9. Knock Outs, Prizes, and winning
 
-When damage counters reach or exceed current HP, resolve a Knock Out. Normally discard the Pokémon, all underlying evolution cards, and all attachments to the owner's discard pile, subject to explicit replacement effects.
+When remaining HP is zero or less, resolve a Knock Out. Normally discard the Pokémon, all underlying evolution cards, and all attachments to the owner's discard pile. Consider **all applicable replacement/triggered effects**, not just a selected Tool, before assigning destinations; resolve conflicting or unclear interactions with the Judge.
 
 The opposing player normally takes **one of their own Prize cards** for each opposing Pokémon Knocked Out, including Knock Outs from Checkup or other effects. Card rules can change the award; many Pokémon ex award two. Read the actual rule box and applicable modifiers rather than inferring every award from a name suffix. Taking a Prize moves that hidden card to hand, not a card from the deck.
+
+### Rescue Scarf: exact printing and limited trigger
+
+**Rescue Scarf, Dragons Exalted 115/124** reads: “If the Pokémon this card is attached to is Knocked Out by damage from an attack, put that Pokémon into your hand. (Discard all cards attached to that Pokémon.)” Source: [Bulbapedia's attributed card-text entry](https://bulbapedia.bulbagarden.net/wiki/Rescue_Scarf_(Dragons_Exalted_115)), with its [English card scan](https://archives.bulbagarden.net/media/upload/3/31/RescueScarfDragonsExalted115.jpg). This is a checked card-database transcription, not a new official interaction ruling.
+
+The destination in this text is **hand for the Pokémon**, **discard for attached cards**, including Rescue Scarf and Energy—not a return of every attachment to hand. The trigger requires a Knock Out **by damage from an attack**. Placing damage counters, even by an attack, is an effect rather than attack damage and does not satisfy that trigger; neither do Poison/Burn counters. The text does not require that the attack belong to the opponent. Other applicable effects can affect resolution; exact evolution-stack or competing replacement/trigger questions require the relevant ruling rather than an invented ordering.
+
+Returning the Pokémon instead of discarding it does **not undo the Knock Out** or by itself prevent the normal Prize award. A separate applicable Prize modifier is needed to change that award.
+
+### Promotion timing
+
+If an Active Pokémon is Knocked Out **during a turn**, resolve the Knock Out, applicable effects, Prizes, and required promotion before proceeding to Pokémon Checkup. If the turn continues after an Ability/effect Knock Out, resume that same interrupted turn after promotion—no extra draw or turn allowance. If an attack ended the turn, promotion still precedes Checkup.
+
+If an Active Pokémon is Knocked Out **during Pokémon Checkup**, finish the required Checkup resolutions, then handle the Knock Out, Prizes, and promotion before the next player's turn-start draw. An empty Active Spot with an available Benched replacement is a mandatory promotion state, not permission to take unrelated actions or an automatic loss. Simultaneous cases still require the applicable ordering ruling.
+
 
 Three ordinary win conditions:
 
@@ -185,6 +246,14 @@ An ordinary effect that draws more cards than remain draws as many as possible u
 Win **fairly within the rules**. Intentional cheating is not tolerated. Legal bluffing, surprise cards, an off-meta deck, and bad luck are not cheating.
 
 Distinguish accidental procedural/rules errors, illegal decks, repeated errors, and intentional cheating. Pause a disputed game and consult the Judge about the facts, authorized correction, and applicable penalty. Do not invent a convenient redraw or reshuffle to conceal an error. An attempted move rejected before it occurs is not automatically a tournament infraction or proof of intent.
+
+### Shared responsibility for a valid board state
+
+Both players must help maintain a valid game state, not only watch their own side. Announce actions and choices clearly, allow required responses/inspection, and track damage counters, attachments, conditions, available spaces, once-per-turn actions, Prize awards, and the turn/Checkup sequence accurately.
+
+Players normally carry out card instructions themselves; automatic software resolution is a convenience, not the source of legality. Check that an effect is authorized, use its correct targets and scope, and complete mandatory consequences such as Knock Outs and promotions. Do not silently leave an impossible board state or exploit an unnoticed error.
+
+If either player notices a suspected illegal action, inconsistent counter total, unauthorized hidden-information access, or unresolved interaction, stop progression and call the Judge. Preserve the relevant state and explain what happened; do not secretly repair it, reveal additional hidden cards, or accuse a player of intentional cheating without establishing the facts. Corrections and sanctions follow applicable policy, not a negotiated advantage.
 
 Use the selected event's current penalty policy. Penalties can range from cautions/warnings through Prize penalties and game/match losses to disqualification. Not every mistake or illegal deck receives the same sanction. Significant penalties, appeals, and intent findings require the appropriate authorized Judge/Head Judge process; an AI opinion is not official tournament disciplinary authority.
 
@@ -262,5 +331,7 @@ Primary references:
 - [Official 2026 Standard rotation announcement](https://www.pokemon.com/us/news/2026-pokemon-tcg-standard-format-rotation-announcement): consult the applicable effective policy, not a permanently fixed list from this document.
 - [Gym Leader Challenge rules](https://gymleaderchallenge.com/rules) and [FAQ/rulings](https://gymleaderchallenge.com/faq): format eligibility, bans, and rulings.
 - [Official Play! Pokémon Penalty Guidelines](https://www.pokemon.com/static-assets/content-assets/cms2/pdf/play-pokemon/rules/play-pokemon-penalty-guidelines-en.pdf) and [Tournament Rules Handbook](https://www.pokemon.com/static-assets/content-assets/cms2/pdf/play-pokemon/rules/play-pokemon-tournament-rules-handbook-en.pdf): policy and adjudication authority.
+- [Rescue Scarf, Dragons Exalted 115/124: Bulbapedia card entry and transcription](https://bulbapedia.bulbagarden.net/wiki/Rescue_Scarf_(Dragons_Exalted_115)) and [English scan](https://archives.bulbagarden.net/media/upload/3/31/RescueScarfDragonsExalted115.jpg): exact attack-damage Knock Out trigger, Pokémon-to-hand instruction, and attachment-discard instruction; this third-party card source does not establish every interaction ruling.
+- Trainer evidence checked on 2026-10-28: [Buddy-Buddy Poffin TEF 144/162 scan](https://archives.bulbagarden.net/media/upload/6/68/Buddy-BuddyPoffinTemporalForces144.jpg) and [Potion SWSH 177/202 scan](https://archives.bulbagarden.net/media/upload/a/a3/PotionSwordShield177.jpg); exact English text, not current-format eligibility. Section 5 links the associated database pages, the indexed general no-effect/search rulings, and the inaccessible Potion ruling with their access limits. No Poffin-specific ruling or newly convened Judge panel is asserted.
 
 Unresolved findings must remain labeled until the Judge process supplies adequate evidence: devolution eligibility/cleanup, unusual condition-application timing, simultaneous game-end/replacement interactions, and penalty boundary cases. The older rulebook passages do not establish current rotation, current bans, or full 2026 rules compliance. A card image or prototype with a plausible name does not verify its printed mechanics.

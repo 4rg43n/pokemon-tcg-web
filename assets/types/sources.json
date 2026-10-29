@@ -1,0 +1,19 @@
+{
+  "description": "Printed Pokémon Trading Card Game type and Colorless symbol artwork, mirrored for consistent local rendering. Not video-game type icons or custom emoji substitutes.",
+  "reference": "https://bulbapedia.bulbagarden.net/wiki/Fire_(TCG)",
+  "retrieved": "2026-10-28",
+  "attribution": "Pokémon and Pokémon Trading Card Game artwork belong to their respective rights holders, including The Pokémon Company, Nintendo, Creatures, and GAME FREAK. Copies sourced from Bulbagarden Archives; no endorsement or ownership of the artwork is claimed.",
+  "files": {
+    "grass.png": "https://archives.bulbagarden.net/media/upload/2/2e/Grass-attack.png",
+    "fire.png": "https://archives.bulbagarden.net/media/upload/a/ad/Fire-attack.png",
+    "water.png": "https://archives.bulbagarden.net/media/upload/1/11/Water-attack.png",
+    "lightning.png": "https://archives.bulbagarden.net/media/upload/0/04/Lightning-attack.png",
+    "psychic.png": "https://archives.bulbagarden.net/media/upload/e/ef/Psychic-attack.png",
+    "fighting.png": "https://archives.bulbagarden.net/media/upload/4/48/Fighting-attack.png",
+    "darkness.png": "https://archives.bulbagarden.net/media/upload/a/ab/Darkness-attack.png",
+    "metal.png": "https://archives.bulbagarden.net/media/upload/6/64/Metal-attack.png",
+    "dragon.png": "https://archives.bulbagarden.net/media/upload/8/8a/Dragon-attack.png",
+    "fairy.png": "https://archives.bulbagarden.net/media/upload/4/40/Fairy-attack.png",
+    "colorless.png": "https://archives.bulbagarden.net/media/upload/1/1d/Colorless-attack.png"
+  }
+}

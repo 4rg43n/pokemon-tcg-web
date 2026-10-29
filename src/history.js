@@ -1,23 +1,23 @@
 // Per-turn game history for AI review: compact true-state snapshots in localStorage, current game only.
-import {pokemon} from "./engine.js?v=22";
-import {pokemonCard,energyCard,trainerCard} from "./decks.js?v=22";
+import {pokemon} from "./engine.js?v=66";
+import {pokemonCard,energyCard,trainerCard} from "./decks.js?v=66";
 const GAME_KEY="ptcg.game",TURN_PREFIX="ptcg.turn.";
 const cardCode=c=>c.kind==="pokemon"?"P:"+c.species:c.kind==="energy"?"E:"+c.type:"T:"+c.name;
 function fromCode(id){const i=id.indexOf(":"),kind=id.slice(0,i),value=id.slice(i+1);return kind==="P"?pokemonCard(Number(value)):kind==="E"?energyCard(value):trainerCard(value);}
 function encodeMon(m){const c={s:m.speciesIndex};if(m.damage)c.d=m.damage;if(m.energies.length)c.e=[...m.energies];if(m.playedTurn)c.t=m.playedTurn;if(m.evolvedThisTurn)c.ev=true;if(m.under.length)c.u=[...m.under];if(m.tool)c.o=cardCode(m.tool);if(m.abilityUsed!==undefined)c.ab=m.abilityUsed;return c;}
 function decodeMon(c){const e=c.e?[...c.e]:[];return {...pokemon(c.s),damage:c.d??0,energies:e,energy:e.length,playedTurn:c.t??0,evolvedThisTurn:!!c.ev,under:c.u?[...c.u]:[],tool:c.o?fromCode(c.o):null,...(c.ab!==undefined&&{abilityUsed:c.ab})};}
 export function encodeState(s){
- return {v:1,round:s.round,turn:s.turn,phase:s.phase,winner:s.winner,winReason:s.winReason,players:s.players.map(p=>({deck:p.deck.map(cardCode),hand:p.hand.map(cardCode),prizeCards:p.prizeCards.map(cardCode),discard:p.discard.map(cardCode),active:p.active&&encodeMon(p.active),bench:p.bench.map(encodeMon),attached:p.attached,retreated:p.retreated,supporterUsed:p.supporterUsed,mulligans:p.mulligans}))};
+ return {v:1,round:s.round,turn:s.turn,phase:s.phase,winner:s.winner,winReason:s.winReason,resumeTurn:s.resumeTurn,stadium:s.stadium?structuredClone(s.stadium):null,stadiumOwner:s.stadiumOwner,players:s.players.map(p=>({deck:p.deck.map(cardCode),hand:p.hand.map(cardCode),prizeCards:p.prizeCards.map(cardCode),discard:p.discard.map(cardCode),lostZone:(p.lostZone??[]).map(cardCode),active:p.active&&encodeMon(p.active),bench:p.bench.map(encodeMon),attached:p.attached,retreated:p.retreated,supporterUsed:p.supporterUsed,stadiumPlayed:!!p.stadiumPlayed,stormyUsedTurn:p.stormyUsedTurn,beachUsedTurn:p.beachUsedTurn,mulligans:p.mulligans}))};
 }
 export function decodeState(snap){
- return {players:snap.players.map(p=>({hand:p.hand.map(fromCode),deck:p.deck.map(fromCode),prizeCards:p.prizeCards.map(fromCode),discard:p.discard.map(fromCode),active:p.active&&decodeMon(p.active),bench:p.bench.map(decodeMon),prizes:p.prizeCards.length,attached:p.attached,retreated:p.retreated,supporterUsed:p.supporterUsed,mulligans:p.mulligans})),turn:snap.turn,round:snap.round,phase:snap.phase,winner:snap.winner,winReason:snap.winReason??null,log:[],selection:null};
+ return {players:snap.players.map(p=>({hand:p.hand.map(fromCode),deck:p.deck.map(fromCode),prizeCards:p.prizeCards.map(fromCode),discard:p.discard.map(fromCode),lostZone:(p.lostZone??[]).map(fromCode),active:p.active&&decodeMon(p.active),bench:p.bench.map(decodeMon),prizes:p.prizeCards.length,attached:p.attached,retreated:p.retreated,supporterUsed:p.supporterUsed,stadiumPlayed:!!p.stadiumPlayed,stormyUsedTurn:p.stormyUsedTurn,beachUsedTurn:p.beachUsedTurn,mulligans:p.mulligans})),turn:snap.turn,round:snap.round,phase:snap.phase,winner:snap.winner,winReason:snap.winReason??null,stadium:snap.stadium?structuredClone(snap.stadium):null,stadiumOwner:snap.stadiumOwner,...(snap.resumeTurn!==undefined&&{resumeTurn:snap.resumeTurn}),log:[],selection:null};
 }
 // What `viewer` knows at the start of the record's turn: own deck and prizes only as counts, opponent's hidden zones only as counts.
 export function viewFor(record,viewer){
  const {start}=record,me=start.players[viewer],opp=start.players[1-viewer],unknownPool={};
  for(const c of [...me.deck,...me.prizeCards])unknownPool[c]=(unknownPool[c]??0)+1;
- const shown=p=>({deckCount:p.deck.length,prizeCount:p.prizeCards.length,active:p.active,bench:p.bench,discard:p.discard,attached:p.attached,retreated:p.retreated,supporterUsed:p.supporterUsed,mulligans:p.mulligans});
- return structuredClone({n:record.n,player:record.player,viewer,round:start.round,turn:start.turn,phase:start.phase,winner:start.winner,me:{hand:me.hand,unknownPool,...shown(me)},opponent:{handCount:opp.hand.length,...shown(opp)},actions:record.actions,log:record.log});
+ const shown=p=>({deckCount:p.deck.length,prizeCount:p.prizeCards.length,active:p.active,bench:p.bench,discard:p.discard,lostZone:p.lostZone??[],attached:p.attached,retreated:p.retreated,supporterUsed:p.supporterUsed,stadiumPlayed:!!p.stadiumPlayed,mulligans:p.mulligans});
+ return structuredClone({n:record.n,player:record.player,viewer,round:start.round,turn:start.turn,phase:start.phase,winner:start.winner,stadium:start.stadium,stadiumOwner:start.stadiumOwner,me:{hand:me.hand,unknownPool,...shown(me)},opponent:{handCount:opp.hand.length,...shown(opp)},actions:record.actions,log:record.log});
 }
 // Reading localStorage can itself throw (e.g. blocked site data), so fall back to memory-only.
 function defaultStorage(){try{return globalThis.localStorage??null;}catch{return null;}}

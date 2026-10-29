@@ -79,8 +79,7 @@ if(target)options.push({index,priority:50,text:`Attach Air Balloon to ${target.m
 return;
 }
 const result=probe(state,"trainer",{},index);
-if(result.error&&!result.error.startsWith("Only one Supporter"))unsupported.push(card.name);
-else if(card.external)unsupported.push(card.name);
+if(result.error==="Unsupported Trainer."||result.error?.includes(" is not implemented yet."))unsupported.push(card.name);
 });
 return {options,unsupported};
 }
