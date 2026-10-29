@@ -25,6 +25,9 @@ export function registerExternalCard(raw){
   const evolvesFrom=raw.evolveFrom||raw.evolvesFrom||({"Drakloak":"Dreepy","Dragapult ex":"Drakloak","Dudunsparce":"Dunsparce"})[raw.name]||"";
   const index=species.length;
   species.push({name:raw.name,hp:Number(raw.hp)|| (stage===2?280:stage===1?120:80),id:0,type:raw.energyType||raw.pokemonType||(/starter-lightning/.test(raw.id)?"Lightning":/starter-fire/.test(raw.id)?"Fire":"Colorless"),stage,evolvesFrom,retreat:1,attacks:[{name:"Prototype Attack",cost:["Colorless"],damage:30}],image:raw.imageUrl||officialPrintImage,printing:raw.id,external:true});
+  if(raw.setCode==="CEC"&&String(raw.number)==="69"&&raw.name==="Magneton"){
+   Object.assign(species[index],{hp:80,type:"Lightning",weakness:"Fighting",resistance:"Metal",resistanceValue:-20,retreat:2,ability:{name:"Call Signal",effect:"magnetonCallSignal"},attacks:[{name:"Magnetic Blast",cost:["Lightning","Lightning","Colorless"],damage:50}]});
+  }
   if(raw.setCode==="ASR"&&String(raw.number)==="51"&&raw.name==="Regieleki"){
    Object.assign(species[index],{hp:130,type:"Lightning",weakness:"Fighting",resistance:null,retreat:3,attacks:[
     {name:"Electromagnetic Sonar",cost:["Colorless"],damage:0,effect:"regielekiSonar"},
