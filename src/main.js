@@ -192,6 +192,7 @@ function playSelected(player,target,slot){
   if(card.name==="Quick Ball"||card.name==="Ultra Ball"){showBallSearch();return;}
   if(card.name==="Nest Ball"){showNestBallSearch();return;}
   if(["Gladion","Clay","Cynthia & Caitlin"].includes(card.name)){showSupporterPrinting(card);return;}
+  if(card.name==="Professor's Letter"){showProfessorsLetter(card);return;}
   if(["Energy Retrieval","Fire Crystal"].includes(card.name)){showEnergyRecovery(card);return;}
   if(card.name==="Field Blower"){showFieldBlower(card);return;}
   if(["Pal Pad","VS Seeker"].includes(card.name)){showSupporterRecovery(card);return;}
@@ -397,6 +398,13 @@ function showTargetTrainer(card){
  const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(allowed?"":" search-ineligible");tile.disabled=!allowed;tile.innerHTML=cardHtml({kind:"pokemon",species:x.mon.speciesIndex},{small:true})+"<span>"+escape(x.mon.name)+"</span>";tile.onclick=()=>act("trainer",{target:x.target,slot:x.slot},{token});grid.append(tile);
  });panel.append(grid);
 }
+function showProfessorsLetter(card){
+ if(!canHuman()||state.phase!=="playing")return;
+ const p=state.players[state.turn],token=openModal("professors-letter",{card},"<h2>Professor's Letter</h2><p>Choose up to two Basic Energy cards from your deck, then shuffle.</p>");
+ const selected=new Set(),grid=document.createElement("div");grid.className="search-deck-gallery";
+ p.deck.forEach((c,i)=>{const ok=c.kind==="energy"&&["Fire","Water","Grass","Lightning","Psychic","Fighting","Darkness","Metal","Fairy"].includes(c.type);const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(ok?"":" search-ineligible");tile.disabled=!ok;tile.innerHTML=cardHtml(c,{small:true})+"<span>"+escape(cardName(c))+"</span>";tile.onclick=()=>{if(selected.has(i)){selected.delete(i);tile.classList.remove("chosen");}else if(selected.size<2){selected.add(i);tile.classList.add("chosen");}else setError("Choose at most two Basic Energy cards.");};grid.append(tile);});panel.append(grid);
+ actionButton("Play Professor's Letter",()=>act("trainer",{searchIndices:[...selected]},{token}));
+}
 function showEnergyRecovery(card){
  if(!canHuman()||state.phase!=="playing")return;
  const p=state.players[state.turn],crystal=card.name==="Fire Crystal",max=crystal?3:2;
@@ -596,6 +604,7 @@ for(const b of document.querySelectorAll("button[data-action]"))b.addEventListen
   if(c.name==="Quick Ball"||c.name==="Ultra Ball"){showBallSearch();return;}
   if(c.name==="Nest Ball"){showNestBallSearch();return;}
   if(["Gladion","Clay","Cynthia & Caitlin"].includes(c.name)){showSupporterPrinting(c);return;}
+  if(c.name==="Professor's Letter"){showProfessorsLetter(c);return;}
   if(["Energy Retrieval","Fire Crystal"].includes(c.name)){showEnergyRecovery(c);return;}
   if(c.name==="Field Blower"){showFieldBlower(c);return;}
   if(["Pal Pad","VS Seeker"].includes(c.name)){showSupporterRecovery(c);return;}
