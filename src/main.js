@@ -384,8 +384,8 @@ function renderFireTrainerChoices(token,card){
  const entries=pool.map((c,i)=>({c,i})).filter(({i})=>name!=="Trainers' Mail"||i<4);
  if(search&&name!=="Trainers' Mail")entries.sort((a,b)=>cardName(a.c).localeCompare(cardName(b.c)));
  for(const {c,i} of entries){
-  if(welder&&i===state.selection||name!=="Trainers' Mail"&&!eligible(c))continue;
-  const label=document.createElement("label");label.className="cost-card";const check=document.createElement("input");check.type="checkbox";check.disabled=!eligible(c);check.dataset.trainerIndex=String(i);check.setAttribute("aria-label",`Choose ${cardName(c)}${name==="Trainers' Mail"?` at Deck position ${i+1}`:""}`);
+  if(welder&&i===state.selection)continue;
+  const label=document.createElement("label");label.className="cost-card";const check=document.createElement("input");check.type="checkbox";check.disabled=!eligible(c);if(!eligible(c))label.classList.add("search-ineligible");check.dataset.trainerIndex=String(i);check.setAttribute("aria-label",`Choose ${cardName(c)}${name==="Trainers' Mail"?` at Deck position ${i+1}`:""}`);
   label.innerHTML=(name==="Trainers' Mail"?`<span>Deck position ${i+1}</span>`:"")+cardHtml(c,{small:true});label.prepend(check);grid.append(label);checks.push({check,i});
  }
  const needsTarget=welder||switchBoth||candy||["Blacksmith","Raihan","Scoop Up Net","Float Stone","Muscle Band","Vitality Band","Bird Keeper"].includes(name);
@@ -412,7 +412,18 @@ function showNestBallSearch(){
  const token=openModal("nest-search",{trainerPayload:{searchIndex:null}},"<h2>Nest Ball</h2><p>Search your entire Deck for a Basic Pokémon, put it directly on your Bench, then shuffle. Closing resolves without finding a Pokémon.</p>");
  const select=document.createElement("select");select.id="nest-ball-choice";select.setAttribute("aria-label","Basic Pokémon to Bench");
  select.innerHTML='<option value="">Do not find a Pokémon</option>'+p.deck.map((c,i)=>({c,i})).filter(({c})=>c.kind==="pokemon"&&!species[c.species]?.stage).sort((a,b)=>cardName(a.c).localeCompare(cardName(b.c))).map(({c,i})=>`<option value="${i}">${escape(cardName(c))}</option>`).join("");
- panel.append(select);const done=actionButton("Play Nest Ball",()=>{if(modalHuman(token))act("trainer",{searchIndex:select.value===""?null:Number(select.value)},{token});});done.id="nest-ball-play";
+ panel.append(select);
+ const gallery=document.createElement("div");gallery.className="search-deck-gallery";
+ p.deck.map((c,i)=>({c,i})).sort((a,b)=>cardName(a.c).localeCompare(cardName(b.c))).forEach(({c,i})=>{
+  const eligible=c.kind==="pokemon"&&!species[c.species]?.stage;
+  const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(eligible?"":" search-ineligible");
+  tile.disabled=!eligible;tile.setAttribute("aria-label",(eligible?"Select ":"Not eligible: ")+cardName(c));
+  tile.innerHTML=cardHtml(c,{small:true})+"<span>"+escape(cardName(c))+"</span>"+(eligible?"":"<small>Not eligible</small>");
+  tile.onclick=()=>{select.value=String(i);gallery.querySelectorAll(".chosen").forEach(el=>el.classList.remove("chosen"));tile.classList.add("chosen");};
+  gallery.append(tile);
+ });
+ const note=document.createElement("p");note.textContent="Showing all "+p.deck.length+" cards in your deck. Only Basic Pokémon can be selected.";panel.append(note,gallery);
+ const done=actionButton("Play Nest Ball",()=>{if(modalHuman(token))act("trainer",{searchIndex:select.value===""?null:Number(select.value)},{token});});done.id="nest-ball-play";
 }
 function showBallSearch(){
  if(!canHuman())return;
