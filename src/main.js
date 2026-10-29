@@ -6,13 +6,13 @@ import {newGame,dispatch,cardInfo} from "./engine.js?v=61";
 import {mountDeckBuilder} from "./deck-builder.js?v=59";
 import {createRecorder} from "./history.js?v=27";
 import {createPlanner} from "./planning/planner.js?v=59";
-import {renderPlanGraph} from "./planning/plan-graph.js?v=47";
+import {renderPlanGraph} from "./planning/plan-graph.js?v=65";
 import {update as coachUpdate,configure as coachConfigure} from "./coach_ui.js?v=5";
 import {describeCard,cardTooltip} from "./card-text.js?v=1";
 coachConfigure({species,canPay,retreatCost,dispatch});
 let state=newGame(),preview=null,matchDecks=null;
 const turnHistory=createRecorder();turnHistory.start(state);
-const planner=createPlanner();let aiEnabled=false,aiBusy=false,hoveredHand=null;
+const planner=createPlanner();let aiEnabled=true,aiBusy=false,hoveredCard=null;
 const $=s=>document.querySelector(s),board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log");
 const escape=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 const sprite=id=>`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
@@ -39,7 +39,7 @@ const p=state.players[state.turn];
 status.textContent=state.phase==="replacement"?`Player ${state.turn+1}: tap a Benched Pokémon to replace the Knocked Out Active`:state.phase==="retreat"?`Player ${state.turn+1}: tap a Benched Pokémon to retreat into`:state.phase==="setup"?`Setup: Player ${state.turn+1} — choose Active, optionally Bench, then Ready`:state.winner===null?`Player ${state.turn+1}'s turn · Turn ${state.round}`:`Player ${state.winner+1} won by ${state.winReason}`;
 board.innerHTML=`<div class="mat">${side(state.players[1],1)}<div class="divider"></div>${side(state.players[0],0)}<div class="hand"><div class="zone-label">${botTurn?"AI Player 2 · "+p.hand.length+" hidden cards":"Player "+(state.turn+1)+" hand · "+p.hand.length+" cards"}</div><div class="hand-cards">${botTurn?p.hand.map(()=>cardHtml(null,{back:true})).join(""):p.hand.map((c,i)=>cardHtml(c,{small:true,selected:i===state.selection,attrs:`data-hand="${i}"`})).join("")}</div><p class="hint">${state.phase==="setup"?"Choose a Basic Pokémon, tap the empty Active slot, optionally fill your Bench, then press Ready." :state.phase==="replacement"?"Tap a Benched Pokémon to promote it.":state.phase==="retreat"?"Tap a Benched Pokémon to switch it with your Active.":"Tap a hand card, then a Bench slot or Pokémon to play it. Tap a card again to inspect."}</p></div></div>`;
 // render() replaces every card, so restore the hover state on the new element before it paints; otherwise the raise animation replays on each click.
-if(hoveredHand!==null)board.querySelector(`.hand-cards [data-hand="${hoveredHand}"]`)?.classList.add("hovered");
+if(hoveredCard)board.querySelector(hoveredCard)?.classList.add("hovered");
 log.replaceChildren(...state.log.map(x=>{const li=document.createElement("li");li.textContent=x;return li;}));
 document.querySelectorAll("button[data-action]").forEach(b=>b.disabled=botTurn||state.winner!==null);
 document.querySelectorAll("button[data-action=attack],button[data-action=end]").forEach(b=>b.disabled=botTurn||state.phase!=="playing"||state.winner!==null);
@@ -56,8 +56,15 @@ function act(action,payload,fromAI=false){if(aiEnabled&&state.turn===1&&!fromAI&
 function queueAI(){if(!aiEnabled||aiBusy||state.turn!==1||state.winner!==null)return;aiBusy=true;setTimeout(()=>{try{for(let n=0;n<24&&aiEnabled&&state.turn===1&&state.winner===null;n++){const step=planner.next(state);if(!step){if(state.phase==="setup"&&!state.players[1].active){const idx=state.players[1].hand.findIndex(c=>c.kind==="pokemon"&&!species[c.species]?.stage);if(idx>=0){state=dispatch(state,"select",{index:idx}).state;state=dispatch(state,"play",{target:"active"}).state;continue;}}if(state.phase==="setup"&&state.players[1].active){state=dispatch(state,"ready").state;continue;}if(state.phase==="playing"){state=dispatch(state,"end").state;continue;}break;}if(step.select!==undefined){const sel=dispatch(state,"select",{index:step.select});if(sel.error)break;state=sel.state;}const before=state;const r=act(step.action,step.payload||{},true);if(r.error){planner.reset();error.textContent="AI skipped an invalid action: "+r.error;if(state.phase==="setup"&&state.players[1].active){state=dispatch(state,"ready").state;}else if(state.phase==="playing"){state=dispatch(state,"end").state;}break;}planner.applied(step,state);if(state===before)break;}render();coachUpdate({state,action:"ai"});}catch(e){error.textContent="AI error: "+e.message;if(state.turn===1&&state.phase==="playing")state=dispatch(state,"end").state;}finally{aiBusy=false;}},180);}
 document.querySelector("#ai-toggle").addEventListener("click",()=>{aiEnabled=!aiEnabled;render();queueAI();});
 document.querySelector("#ai-export").addEventListener("click",()=>{const blob=new Blob([planner.export()],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="pokemon-ai-plans.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
-board.addEventListener("pointerover",e=>{const card=e.target.closest(".hand-cards [data-hand]");hoveredHand=card?Number(card.dataset.hand):null;board.querySelectorAll(".hand-cards .hovered").forEach(el=>{if(el!==card)el.classList.remove("hovered");});});
-board.addEventListener("pointerleave",()=>{hoveredHand=null;board.querySelectorAll(".hand-cards .hovered").forEach(el=>el.classList.remove("hovered"));});
+// Hand cards and played Pokémon get the hover raise. hoverKey() is a selector that finds the same card again after render() rebuilds the board.
+const HOVERABLE=".hand-cards [data-hand],.slot .tcg-card:not(.empty)";
+function hoverKey(card){
+ if(card.dataset.hand!==undefined)return `.hand-cards [data-hand="${card.dataset.hand}"]`;
+ const side=card.closest(".side").classList.contains("opponent")?"opponent":"self",slot=card.closest(".slot");
+ return slot.classList.contains("active-slot")?`.side.${side} .active-slot .tcg-card:not(.empty)`:`.side.${side} .bench-row .slot[data-slot="${slot.dataset.slot}"] .tcg-card:not(.empty)`;
+}
+board.addEventListener("pointerover",e=>{const card=e.target.closest(HOVERABLE);hoveredCard=card?hoverKey(card):null;board.querySelectorAll(".hovered").forEach(el=>{if(el!==card)el.classList.remove("hovered");});});
+board.addEventListener("pointerleave",()=>{hoveredCard=null;board.querySelectorAll(".hovered").forEach(el=>el.classList.remove("hovered"));});
 board.addEventListener("click",e=>{if(aiEnabled&&state.turn===1){error.textContent="AI Player 2 controls this turn.";return;}
 const hand=e.target.closest("[data-hand]");
 if(hand){const idx=Number(hand.dataset.hand);if(state.selection===idx){showPreview(state.players[state.turn].hand[idx]);}else act("select",{index:idx});return;}

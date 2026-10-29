@@ -10,7 +10,30 @@ export function renderPlanGraph(root,planner){
  let selectedDetails=null;
  const plans=[...planner.archive.slice(-5),...(planner.active?[planner.active]:[])].reverse();
  const details=document.createElement("section");details.className="plan-inspector";details.setAttribute("aria-live","polite");
- const inspect=(key,node,plan)=>{selectedNode=key;details.replaceChildren();const title=document.createElement("h4");title.textContent=(node.type==="opponent"?"Opponent checkpoint: ":"AI action: ")+node.label;details.append(title);const summary=document.createElement("p");summary.textContent=node.detail||"No additional explanation recorded.";details.append(summary);const meta=document.createElement("p");meta.textContent="Plan "+plan.id+" · "+node.status+" · "+(node.type==="opponent"?"Player 1":"Player 2");details.append(meta);if(node.data){const pre=document.createElement("pre");pre.textContent=JSON.stringify(node.data,null,2);details.append(pre);}root.querySelectorAll(".plan-node.selected").forEach(x=>x.classList.remove("selected"));root.querySelectorAll(".plan-node").forEach(x=>{if(x.dataset.nodeKey===key)x.classList.add("selected");});};
+ const add=(tag,value)=>{const el=document.createElement(tag);el.textContent=value;details.append(el);return el;};
+ const stateLines=(heading,s)=>{if(!s)return;add("h5",heading);for(const [key,value] of Object.entries(s)){const names={active:"Active Pokémon",activeHp:"Active HP",bench:"Bench size",prizes:"Prize cards"};add("p",(names[key]||key)+": "+(value===null?"None":value));}};
+ const inspect=(key,node,plan)=>{
+  selectedNode=key;details.replaceChildren();
+  add("h4",(node.type==="opponent"?"Player 1: ":"Player 2: ")+node.label);
+  add("p","Plan "+plan.id+" · "+(node.status==="done"?"Completed":node.status==="pending"?"Awaiting execution":node.status==="matched"?"As predicted":node.status==="invalidated"?"Material deviation":node.status==="tolerated"?"Immaterial difference":node.status));
+  const d=node.data||{};
+  if(node.type==="action"){
+   const descriptions={play:"Play a card from hand",ready:"Finish setup",attack:"Use an attack",end:"End the turn",promote:"Promote a Benched Pokémon",attackOrEnd:"Choose the best available attack or end the turn"};
+   add("p",node.detail||descriptions[d.action]||"Planned game action.");
+   if(d.action==="play")add("p","Target: "+(d.payload?.target==="bench"?"Bench slot "+((d.payload?.slot??0)+1):d.payload?.target==="active"?"Active Pokémon":"Selected target"));
+   if(d.action==="attack")add("p","Attack slot: "+((d.payload?.index??0)+1));
+   if(Array.isArray(d.utility)&&d.utility.length){add("h5","Attacks considered");for(const candidate of d.utility)add("p","Attack "+(candidate.index+1)+": utility "+candidate.score+" — "+candidate.reason);}
+   if(node.status==="pending")add("p","This action has not been executed yet.");
+  }else if(node.status==="invalidated"){
+   add("p",d.reason||"Player 1 changed a state the plan expected to remain unchanged.");
+   if(d.fields?.length)add("p","Material changes: "+d.fields.join(", ")+". The AI must reconsider its plan.");
+   stateLines("Predicted state",d.expected);stateLines("Observed state",d.actual);
+  }else if(node.status==="matched"){add("p","The observed opponent state matched the plan's checked predictions. No replanning was required.");}
+  else if(node.status==="tolerated"){add("p",d.reason||"An observed difference did not affect the plan, so it can continue.");stateLines("Predicted state",d.expected);stateLines("Observed state",d.actual);}
+  else if(node.status==="pending"){add("p",d.meaning||node.detail||"Waiting to observe Player 1's turn.");stateLines("Expected opponent state",d.prediction);}
+  else add("p",node.detail||"Opponent checkpoint.");
+  root.querySelectorAll(".plan-node").forEach(x=>{const chosen=x.dataset.nodeKey===key;x.classList.toggle("selected",chosen);x.setAttribute("aria-pressed",String(chosen));});
+ };
  if(!plans.length){const p=document.createElement("p");p.textContent="No plans yet. Enable AI Player 2 to begin.";root.append(p);return;}
  for(const plan of plans){
   const group=document.createElement("section");group.className="plan-group";
