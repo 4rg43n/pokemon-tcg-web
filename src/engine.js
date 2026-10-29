@@ -551,7 +551,7 @@ function discardKnockOut(s,owner,mon){
  if(!opponent.prizes||(!p.active&&!p.bench.length)){s.winner=1-owner;s.winReason=!opponent.prizes?"taking all Prize cards":"knocking out every opposing Pokémon";}
  return taken;
 }
-export function next(s){s.turn=1-s.turn;s.round++;s.selection=null;s.players[s.turn].attached=false;s.players[s.turn].retreated=false;s.players[s.turn].supporterUsed=false;s.players[s.turn].stadiumPlayed=false;for(const mon of [s.players[s.turn].active,...s.players[s.turn].bench])if(mon){mon.evolvedThisTurn=false;mon.abilityUsed=false;}
+export function next(s){s.turn=1-s.turn;s.round++;s.selection=null;s.players[s.turn].attached=false;s.players[s.turn].retreated=false;s.players[s.turn].supporterUsed=false;s.players[s.turn].extraSupporters=0;s.players[s.turn].stadiumPlayed=false;for(const mon of [s.players[s.turn].active,...s.players[s.turn].bench])if(mon){mon.evolvedThisTurn=false;mon.abilityUsed=false;}
 if(s.players[s.turn].deck.length)s.players[s.turn].hand.push(s.players[s.turn].deck.shift());
 else{s.winner=1-s.turn;s.winReason="deck out";s.log.unshift("Deck out!");}}
 export function cardInfo(card){if(card.kind==="pokemon")return {...species[card.species],kind:"pokemon"};return card;}
