@@ -163,7 +163,32 @@ button.coach-cta{position:relative;background:var(--pk-yellow);color:var(--pk-in
 button.coach-cta::after{content:"PRESS";top:-18px}
 @keyframes coach-ring{0%,100%{outline-color:#fff}50%{outline-color:var(--pk-cyan)}}
 @media(prefers-reduced-motion:reduce){.tcg-card.coach-focus,button.coach-cta{animation:none}}
-@media(max-width:700px){.mat::before{width:220px;height:220px}.mat::after{width:56px;height:56px}.tcg-card{border-width:2px;border-radius:6px}.player-label{font-size:.65rem}.tcg-card.coach-focus{transform:translateY(-8px) scale(1.04)}.tcg-card.coach-focus::after,button.coach-cta::after{font-size:8px;top:-13px}}
+/* Readability: printed scans render sharp and larger in hand, magnify on hover, and the one recommended card is unmistakable. */
+.tcg-card.printed>img{image-rendering:auto!important;object-fit:cover!important}
+.mat{overflow:visible}
+.hand-cards .tcg-card.small{width:128px}
+.hand-cards .tcg-card{transition:transform .15s ease,box-shadow .15s ease}
+.hand-cards .tcg-card.printed:hover,.slot .tcg-card.printed:hover,.pile .tcg-card.printed:hover{transform:scale(2.3);transform-origin:bottom center;z-index:40;box-shadow:0 18px 50px #000c}
+.slot .tcg-card.printed:hover{transform-origin:center}
+.hand-cards .tcg-card.coach-dim{opacity:.45;filter:grayscale(.6) brightness(.7)}
+.hand-cards .tcg-card.coach-dim:hover{opacity:1;filter:none}
+.tcg-card.coach-playable{outline:3px solid var(--pk-cyan);outline-offset:2px;box-shadow:0 0 0 5px #0b1422,0 0 12px 3px #22e5ff66;transform:translateY(-4px)}
+.tcg-card.coach-focus,.tcg-card.printed.coach-focus{overflow:visible;outline:6px solid var(--pk-yellow);outline-offset:4px;box-shadow:0 0 0 10px #0b1422,0 0 0 14px #fff,0 0 34px 14px #ffcb05dd;transform:translateY(-22px) scale(1.12);z-index:30;animation:coach-ring-gold 1s ease-in-out infinite}
+.tcg-card.coach-focus::after{content:"TAP THIS";top:-26px;background:var(--pk-yellow);color:var(--pk-ink);font-size:12px;padding:5px 12px;box-shadow:0 3px 10px #000a}
+.tcg-card.printed.coach-focus:hover{transform:scale(2.3);transform-origin:bottom center;animation:none}
+button.coach-cta{outline:5px solid var(--pk-yellow);box-shadow:0 0 0 8px #0b1422,0 0 0 11px #fff,0 0 30px 10px #ffcb05cc;animation:coach-ring-gold 1s ease-in-out infinite}
+button.coach-cta::after{content:"PRESS THIS";background:var(--pk-yellow);color:var(--pk-ink);font-size:11px;padding:4px 10px;top:-22px}
+@keyframes coach-ring-gold{0%,100%{outline-color:var(--pk-yellow)}50%{outline-color:#fff}}
+@media(prefers-reduced-motion:reduce){.tcg-card.coach-focus,.tcg-card.printed.coach-focus,button.coach-cta{animation:none}}
+.card-view{display:flex;gap:22px;align-items:flex-start;text-align:left;max-width:760px}
+.card-view>.tcg-card{width:300px;flex:none;cursor:default}
+.card-info{flex:1;min-width:0;color:#eaf1ff}
+.card-info h2{margin:0 0 4px;color:var(--pk-yellow);font-size:1.4rem}
+.card-info .card-heading{margin:0 0 10px;color:#bcd3f0;font-weight:700;font-size:.9rem}
+.card-info h3{margin:12px 0 4px;font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;color:var(--pk-cyan)}
+.card-info p{margin:0 0 6px;line-height:1.45}
+.card-info .stat-legend{margin-top:12px;font-size:.75rem;color:#9fb4d6}
+@media(max-width:700px){.mat::before{width:220px;height:220px}.mat::after{width:56px;height:56px}.tcg-card{border-width:2px;border-radius:6px}.player-label{font-size:.65rem}.hand-cards .tcg-card.small{width:84px}.hand-cards .tcg-card.printed:hover,.slot .tcg-card.printed:hover{transform:scale(1.8)}.tcg-card.coach-focus,.tcg-card.printed.coach-focus{transform:translateY(-12px) scale(1.08)}.card-view{flex-direction:column;align-items:center;text-align:center}.card-view>.tcg-card{width:220px}.tcg-card.coach-focus{transform:translateY(-8px) scale(1.04)}.tcg-card.coach-focus::after,button.coach-cta::after{font-size:8px;top:-13px}}
 
 /* Exact-print cards use the complete card image, rather than prototype frames. */
 .tcg-card.printed{position:relative;overflow:hidden;padding:0!important;display:block!important;aspect-ratio: 0.716;border-radius:7px;background:#203a5d;}
