@@ -192,6 +192,7 @@ function playSelected(player,target,slot){
   if(card.name==="Quick Ball"||card.name==="Ultra Ball"){showBallSearch();return;}
   if(card.name==="Nest Ball"){showNestBallSearch();return;}
   if(["Gladion","Clay","Cynthia & Caitlin"].includes(card.name)){showSupporterPrinting(card);return;}
+  if(card.name==="Field Blower"){showFieldBlower(card);return;}
   if(["Pal Pad","VS Seeker"].includes(card.name)){showSupporterRecovery(card);return;}
   if(card.name==="Lusamine"){showLusamine(card);return;}
   if(["Max Potion","Devolution Spray"].includes(card.name)){showTargetTrainer(card);return;}
@@ -395,6 +396,20 @@ function showTargetTrainer(card){
  const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(allowed?"":" search-ineligible");tile.disabled=!allowed;tile.innerHTML=cardHtml({kind:"pokemon",species:x.mon.speciesIndex},{small:true})+"<span>"+escape(x.mon.name)+"</span>";tile.onclick=()=>act("trainer",{target:x.target,slot:x.slot},{token});grid.append(tile);
  });panel.append(grid);
 }
+function showFieldBlower(card){
+ if(!canHuman()||state.phase!=="playing")return;
+ const token=openModal("field-blower",{card},"<h2>Field Blower</h2><p>Choose up to two Pokémon Tools or Stadium cards in play to discard.</p>");
+ const choices=[];
+ for(let player=0;player<2;player++){
+  const p=state.players[player];
+  if(p.active?.tool)choices.push({kind:"tool",player,target:"active",card:p.active.tool});
+  p.bench.forEach((mon,slot)=>{if(mon.tool)choices.push({kind:"tool",player,target:"bench",slot,card:mon.tool});});
+ }
+ if(state.stadium)choices.push({kind:"stadium",card:state.stadium});
+ const chosen=new Set(),grid=document.createElement("div");grid.className="search-deck-gallery";
+ choices.forEach((entry,i)=>{const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile";tile.innerHTML=cardHtml(entry.card,{small:true})+"<span>"+escape(entry.card.name)+" · "+(entry.kind==="stadium"?"Stadium":"Player "+(entry.player+1))+"</span>";tile.onclick=()=>{if(chosen.has(i)){chosen.delete(i);tile.classList.remove("chosen");}else if(chosen.size<2){chosen.add(i);tile.classList.add("chosen");}else setError("Choose at most two cards.");};grid.append(tile);});panel.append(grid);
+ actionButton("Play Field Blower",()=>act("trainer",{targets:[...chosen].map(i=>{const {card,...target}=choices[i];return target;})},{token}));
+}
 function showSupporterRecovery(card){
  if(!canHuman()||state.phase!=="playing")return;
  const p=state.players[state.turn],pad=card.name==="Pal Pad";
@@ -571,6 +586,7 @@ for(const b of document.querySelectorAll("button[data-action]"))b.addEventListen
   if(c.name==="Quick Ball"||c.name==="Ultra Ball"){showBallSearch();return;}
   if(c.name==="Nest Ball"){showNestBallSearch();return;}
   if(["Gladion","Clay","Cynthia & Caitlin"].includes(c.name)){showSupporterPrinting(c);return;}
+  if(c.name==="Field Blower"){showFieldBlower(c);return;}
   if(["Pal Pad","VS Seeker"].includes(c.name)){showSupporterRecovery(c);return;}
   if(c.name==="Lusamine"){showLusamine(c);return;}
   if(["Max Potion","Devolution Spray"].includes(c.name)){showTargetTrainer(c);return;}
