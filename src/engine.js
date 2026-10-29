@@ -105,6 +105,16 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
  return {state:s};
  }
  else if(card.name==="Professor's Research"){p.discard.push(...p.hand.filter((_,i)=>i!==idx));p.hand=[];for(let n=0;n<7&&p.deck.length;n++)p.hand.push(p.deck.shift());p.supporterUsed=true;message="Professor's Research drew "+p.hand.length+" cards.";p.discard.push(card);s.selection=null;s.log.unshift("Player "+(state.turn+1)+": "+message);return {state:s};}
+ else if(card.name==="Trainers' Mail"){
+  const top=p.deck.slice(0,4);
+  const choice=payload.searchIndex;
+  if(choice!==null&&choice!==undefined&&(!Number.isInteger(choice)||choice<0||choice>=top.length||top[choice].kind!=="trainer"))return err(state,"Choose a Trainer from the top four cards.");
+  const found=choice===null||choice===undefined?null:p.deck.splice(choice,1)[0];
+  if(found)p.hand.push(found);
+  const remaining=p.deck.splice(0,Math.min(4-(found?1:0),p.deck.length));
+  p.deck.push(...remaining);
+  message="Trainers' Mail revealed "+top.length+" cards"+(found?", added "+found.name+" to hand":"; no Trainer selected")+" and put the others on the bottom of the deck.";
+ }
  else if(["Buddy-Buddy Poffin","Evolution Incense","Level Ball","Poké Pad","Trainers' Mail","Earthen Vessel","Arven","Gloria","Hisuian Heavy Ball"].includes(card.name)){
   const options=card.name==="Hisuian Heavy Ball"?p.prizeCards:p.deck;
   const allowed=c=>card.name==="Buddy-Buddy Poffin"?c.kind==="pokemon"&&!species[c.species]?.stage&&species[c.species]?.hp<=70:
