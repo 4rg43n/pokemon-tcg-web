@@ -2,7 +2,7 @@ import {retreatCost,species,energyTypes,canPay} from "./cards.js?v=66";
 import {catalog} from "./decks.js?v=66";
 import {commands as debugCommands,pokemonRefs} from "./debug.js?v=66";
 import {cardStats} from "./card-stats.js?v=66";
-import {newGame,dispatch,cardInfo} from "./engine.js?v=66";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=68";
 import {mountDeckBuilder} from "./deck-builder.js?v=66";
 import {createRecorder} from "./history.js?v=66";
 import {createPlanner} from "./planning/planner.js?v=66";
@@ -191,6 +191,7 @@ function playSelected(player,target,slot){
  if(card.kind==="trainer"){
   if(card.name==="Quick Ball"||card.name==="Ultra Ball"){showBallSearch();return;}
   if(card.name==="Nest Ball"){showNestBallSearch();return;}
+  if(["Pokégear 3.0","Battle Compressor"].includes(card.name)){showPrintedSearch(card);return;}
   if(choiceTrainers.includes(card.name)&&!["Float Stone","Muscle Band","Vitality Band"].includes(card.name)){showFireTrainerChoices(card);return;}
   act("trainer",["Potion","Air Balloon","Float Stone","Muscle Band","Vitality Band"].includes(card.name)?{target,slot}:{});return;
  }
@@ -353,6 +354,28 @@ function useAbility(token){
  for(const discard of [false,true])actionButton(discard?"Discard top card":"Keep on top",()=>{if(modalHuman(token))act("ability",{target,slot,discard},{token});});
 }
 const choiceTrainers=["Buddy-Buddy Poffin","Evolution Incense","Level Ball","Poké Pad","Trainers' Mail","Earthen Vessel","Arven","Gloria","Hisuian Heavy Ball","Night Stretcher","Rescue Stretcher","Lana's Aid","Welder","Float Stone","Muscle Band","Vitality Band","Bird Keeper","Blacksmith","Raihan","Guzma","Escape Rope","Rare Candy","Scoop Up Net"];
+function showPrintedSearch(card){
+ if(!canHuman()||state.phase!=="playing")return;
+ const p=state.players[state.turn],name=card.name;
+ const isGear=name==="Pokégear 3.0";
+ const pool=isGear?p.deck.slice(0,7):p.deck;
+ const token=openModal("printed-search",{card},`<h2>${escape(name)}</h2><p>${isGear?"Look at the top seven cards. Choose up to one Supporter; shuffle afterward.":"Search your entire deck. Choose up to three cards to discard; shuffle afterward."}</p>`);
+ const grid=document.createElement("div");grid.className="search-deck-gallery";
+ const selected=new Set();
+ pool.forEach((c,i)=>{
+  const allowed=!isGear||c.kind==="trainer"&&c.subtype==="Supporter";
+  const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(allowed?"":" search-ineligible");
+  tile.disabled=!allowed;tile.innerHTML=cardHtml(c,{small:true})+"<span>"+escape(cardName(c))+"</span>"+(allowed?"":"<small>Not eligible</small>");
+  tile.onclick=()=>{if(selected.has(i)){selected.delete(i);tile.classList.remove("chosen");return;}if(selected.size>=(isGear?1:3)){setError("Choose at most "+(isGear?1:3)+" cards.");return;}selected.add(i);tile.classList.add("chosen");};
+  grid.append(tile);
+ });
+ panel.append(grid);
+ const done=actionButton("Resolve "+name,()=>{
+  if(!modalHuman(token))return;
+  const payload=isGear?{searchIndex:selected.size?[...selected][0]:null}:{searchIndices:[...selected]};
+  act("trainer",payload,{token});
+ });done.id="printed-search-resolve";
+}
 function showFireTrainerChoices(card){
  if(!canHuman()||state.phase!=="playing")return;
  const p=state.players[state.turn];if(p.hand[state.selection]!==card)return;
@@ -477,6 +500,7 @@ for(const b of document.querySelectorAll("button[data-action]"))b.addEventListen
   const c=state.players[state.turn].hand[state.selection];if(!c)return;
   if(c.name==="Quick Ball"||c.name==="Ultra Ball"){showBallSearch();return;}
   if(c.name==="Nest Ball"){showNestBallSearch();return;}
+  if(["Pokégear 3.0","Battle Compressor"].includes(c.name)){showPrintedSearch(c);return;}
   if(choiceTrainers.includes(c.name)){showFireTrainerChoices(c);return;}
   if(c.name==="Potion"||c.name==="Air Balloon"){setError("Tap or drag onto an appropriate own Pokémon to use this Trainer.");return;}
  }
