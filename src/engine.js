@@ -239,6 +239,31 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   p.hand.splice(idx,1);s.selection=null;
   s.log.unshift("Player "+(s.turn+1)+": played "+card.name+" Stadium.");return {state:s};
  }
+ else if(card.name==="Gladion"){
+  const i=payload.prizeIndex;
+  if(!Number.isInteger(i)||i<0||i>=p.prizeCards.length)return err(state,"Choose one of your face-down Prize cards.");
+  const found=p.prizeCards.splice(i,1)[0];p.hand.push(found);
+  p.prizeCards.push(card);shuffle(p.prizeCards);p.prizes=p.prizeCards.length;
+  p.hand.splice(idx,1);p.supporterUsed=true;s.selection=null;
+  s.log.unshift("Player "+(s.turn+1)+" used Gladion to exchange one Prize card with Gladion.");return {state:s};
+ }
+ else if(card.name==="Clay"){
+  const top=p.deck.splice(0,7);const items=top.filter(c=>c.kind==="trainer"&&c.subtype==="Item");
+  p.hand.push(...items);p.discard.push(...top.filter(c=>!items.includes(c)));
+  message="Clay discarded the top "+top.length+" cards and added "+items.length+" Item cards to hand.";
+ }
+ else if(card.name==="Cynthia & Caitlin"){
+  const i=payload.discardIndex;
+  if(i!==null&&i!==undefined&&(!Number.isInteger(i)||p.discard[i]?.kind!=="trainer"||p.discard[i]?.subtype!=="Supporter"||p.discard[i]?.name==="Cynthia & Caitlin"))return err(state,"Choose another Supporter in your discard pile.");
+  if(i!==null&&i!==undefined)p.hand.push(p.discard.splice(i,1)[0]);
+  const cost=payload.discardCostIndex;
+  if(cost!==null&&cost!==undefined){
+   if(!Number.isInteger(cost)||cost===idx||!p.hand[cost])return err(state,"Discard a different card from hand to draw three.");
+   p.discard.push(p.hand.splice(cost,1)[0]);if(cost<idx)idx--;
+   for(let n=0;n<3&&p.deck.length;n++)p.hand.push(p.deck.shift());
+  }
+  message="Cynthia & Caitlin "+(i===null||i===undefined?"recovered no Supporter":"recovered a Supporter")+(cost===null||cost===undefined?".":" and drew up to three cards.");
+ }
  else if(card.name==="Pokégear 3.0"){
   const top=p.deck.slice(0,7),i=payload.searchIndex;
   if(i!==null&&i!==undefined&&(!Number.isInteger(i)||i<0||i>=top.length||top[i].kind!=="trainer"||top[i].subtype!=="Supporter"))return err(state,"Choose a Supporter from the top seven cards.");
