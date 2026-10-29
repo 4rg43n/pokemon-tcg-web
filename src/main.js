@@ -192,6 +192,7 @@ function playSelected(player,target,slot){
   if(card.name==="Quick Ball"||card.name==="Ultra Ball"){showBallSearch();return;}
   if(card.name==="Nest Ball"){showNestBallSearch();return;}
   if(["Gladion","Clay","Cynthia & Caitlin"].includes(card.name)){showSupporterPrinting(card);return;}
+  if(card.name==="Peonia"){showPeonia(card);return;}
   if(card.name==="Professor's Letter"){showProfessorsLetter(card);return;}
   if(["Energy Retrieval","Fire Crystal"].includes(card.name)){showEnergyRecovery(card);return;}
   if(card.name==="Field Blower"){showFieldBlower(card);return;}
@@ -397,6 +398,15 @@ function showTargetTrainer(card){
  const allowed=card.name==="Max Potion"?x.mon.damage>0:!!x.mon.under?.length;
  const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(allowed?"":" search-ineligible");tile.disabled=!allowed;tile.innerHTML=cardHtml({kind:"pokemon",species:x.mon.speciesIndex},{small:true})+"<span>"+escape(x.mon.name)+"</span>";tile.onclick=()=>act("trainer",{target:x.target,slot:x.slot},{token});grid.append(tile);
  });panel.append(grid);
+}
+function showPeonia(card){
+ if(!canHuman()||state.phase!=="playing")return;
+ const p=state.players[state.turn],token=openModal("peonia",{card},"<h2>Peonia</h2><p>Select up to three face-down Prize cards, then select the same number of other cards from your hand to put face down as new Prize cards.</p>");
+ const prizes=new Set(),hand=new Set(),heading=(text)=>{const h=document.createElement("h3");h.textContent=text;panel.append(h);};
+ const makeGrid=(cards,selected,limit,valid,label)=>{const grid=document.createElement("div");grid.className="search-deck-gallery";cards.forEach((c,i)=>{const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile";tile.disabled=!valid(i);tile.innerHTML=label(c,i);tile.onclick=()=>{if(selected.has(i)){selected.delete(i);tile.classList.remove("chosen");}else if(selected.size<limit()){selected.add(i);tile.classList.add("chosen");}else setError("Too many cards selected.");};grid.append(tile);});panel.append(grid);};
+ heading("Prize cards");makeGrid(p.prizeCards,prizes,()=>3,()=>true,(_,i)=>"<span>Face-down Prize "+(i+1)+"</span>");
+ heading("Cards from hand");makeGrid(p.hand,hand,()=>prizes.size,i=>i!==state.selection,(c)=>cardHtml(c,{small:true})+"<span>"+escape(cardName(c))+"</span>");
+ actionButton("Play Peonia",()=>{if(hand.size!==prizes.size){setError("Select the same number of Prize and hand cards.");return;}act("trainer",{prizeIndices:[...prizes],handIndices:[...hand]},{token});});
 }
 function showProfessorsLetter(card){
  if(!canHuman()||state.phase!=="playing")return;
@@ -604,6 +614,7 @@ for(const b of document.querySelectorAll("button[data-action]"))b.addEventListen
   if(c.name==="Quick Ball"||c.name==="Ultra Ball"){showBallSearch();return;}
   if(c.name==="Nest Ball"){showNestBallSearch();return;}
   if(["Gladion","Clay","Cynthia & Caitlin"].includes(c.name)){showSupporterPrinting(c);return;}
+  if(c.name==="Peonia"){showPeonia(c);return;}
   if(c.name==="Professor's Letter"){showProfessorsLetter(c);return;}
   if(["Energy Retrieval","Fire Crystal"].includes(c.name)){showEnergyRecovery(c);return;}
   if(c.name==="Field Blower"){showFieldBlower(c);return;}
