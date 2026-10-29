@@ -5,7 +5,7 @@ import {cardStats} from "./card-stats.js?v=27";
 import {newGame,dispatch,cardInfo} from "./engine.js?v=59";
 import {mountDeckBuilder} from "./deck-builder.js?v=59";
 import {createRecorder} from "./history.js?v=27";
-import {createPlanner} from "./planning/planner.js?v=40";
+import {createPlanner} from "./planning/planner.js?v=59";
 import {renderPlanGraph} from "./planning/plan-graph.js?v=47";
 import {update as coachUpdate,configure as coachConfigure} from "./coach_ui.js?v=3";
 coachConfigure({species,canPay,retreatCost,dispatch});
