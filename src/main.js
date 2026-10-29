@@ -2,7 +2,7 @@ import {retreatCost,species,energyTypes,canPay} from "./cards.js?v=66";
 import {catalog} from "./decks.js?v=70";
 import {commands as debugCommands,pokemonRefs} from "./debug.js?v=70";
 import {cardStats} from "./card-stats.js?v=66";
-import {newGame,dispatch,cardInfo} from "./engine.js?v=72";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=76";
 import {mountDeckBuilder} from "./deck-builder.js?v=70";
 import {createRecorder} from "./history.js?v=66";
 import {createPlanner} from "./planning/planner.js?v=66";
@@ -192,8 +192,11 @@ function playSelected(player,target,slot){
   if(card.name==="Quick Ball"||card.name==="Ultra Ball"){showBallSearch();return;}
   if(card.name==="Nest Ball"){showNestBallSearch();return;}
   if(["Gladion","Clay","Cynthia & Caitlin"].includes(card.name)){showSupporterPrinting(card);return;}
-  if(["Acro Bike","Special Charge","Super Rod","Tag Call","Counter Catcher"].includes(card.name)){showRemainingTrainer(card);return;}
-  if(["Pokégear 3.0","Battle Compressor"].includes(card.name)){showPrintedSearch(card);return;}
+  if(["Pal Pad","VS Seeker"].includes(card.name)){showSupporterRecovery(card);return;}
+  if(card.name==="Lusamine"){showLusamine(card);return;}
+  if(["Max Potion","Devolution Spray"].includes(card.name)){showTargetTrainer(card);return;}
+  if(["Acro Bike","Special Charge","Super Rod","Tag Call","Counter Catcher","Lana's Fishing Rod"].includes(card.name)){showRemainingTrainer(card);return;}
+  if(["Pokégear 3.0","Battle Compressor","Trainers' Mail"].includes(card.name)){showPrintedSearch(card);return;}
   if(choiceTrainers.includes(card.name)&&!["Float Stone","Muscle Band","Vitality Band"].includes(card.name)){showFireTrainerChoices(card);return;}
   act("trainer",["Potion","Air Balloon","Float Stone","Muscle Band","Vitality Band"].includes(card.name)?{target,slot}:{});return;
  }
@@ -384,12 +387,38 @@ function showSupporterPrinting(card){
  panel.append(label1,supporter,label2,cost);
  actionButton("Play Cynthia & Caitlin",()=>act("trainer",{discardIndex:supporter.value===""?null:Number(supporter.value),discardCostIndex:cost.value===""?null:Number(cost.value)},{token}));
 }
+function showTargetTrainer(card){
+ const p=state.players[state.turn],token=openModal("target-trainer",{card},"<h2>"+escape(card.name)+"</h2><p>Choose your Pokémon.</p>");
+ const grid=document.createElement("div");grid.className="search-deck-gallery";
+ [{mon:p.active,target:"active"},...p.bench.map((mon,slot)=>({mon,target:"bench",slot}))].filter(x=>x.mon).forEach(x=>{
+ const allowed=card.name==="Max Potion"?x.mon.damage>0:!!x.mon.under?.length;
+ const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(allowed?"":" search-ineligible");tile.disabled=!allowed;tile.innerHTML=cardHtml({kind:"pokemon",species:x.mon.speciesIndex},{small:true})+"<span>"+escape(x.mon.name)+"</span>";tile.onclick=()=>act("trainer",{target:x.target,slot:x.slot},{token});grid.append(tile);
+ });panel.append(grid);
+}
+function showSupporterRecovery(card){
+ if(!canHuman()||state.phase!=="playing")return;
+ const p=state.players[state.turn],pad=card.name==="Pal Pad";
+ const token=openModal("supporter-recovery",{card},"<h2>"+escape(card.name)+"</h2><p>"+(pad?"Choose up to two Supporter cards to shuffle into your deck.":"Choose one Supporter card to return to your hand.")+"</p>");
+ const chosen=new Set(),grid=document.createElement("div");grid.className="search-deck-gallery";
+ p.discard.forEach((c,i)=>{
+  const ok=c.kind==="trainer"&&c.subtype==="Supporter",tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(ok?"":" search-ineligible");tile.disabled=!ok;tile.innerHTML=cardHtml(c,{small:true})+"<span>"+escape(cardName(c))+"</span>";
+  tile.onclick=()=>{if(chosen.has(i)){chosen.delete(i);tile.classList.remove("chosen");}else if(chosen.size<(pad?2:1)){chosen.add(i);tile.classList.add("chosen");}else setError("Too many cards selected.");};grid.append(tile);
+ });panel.append(grid);
+ actionButton("Play "+card.name,()=>{if(!pad&&chosen.size!==1){setError("Select one Supporter.");return;}act("trainer",pad?{discardIndices:[...chosen]}:{discardIndex:[...chosen][0]},{token});});
+}
+function showLusamine(card){
+ if(!canHuman()||state.phase!=="playing")return;
+ const p=state.players[state.turn],token=openModal("lusamine",{card},"<h2>Lusamine</h2><p>Choose up to two Supporter or Stadium cards from your discard pile to return to your hand.</p>");
+ const grid=document.createElement("div");grid.className="search-deck-gallery",chosen=new Set();
+ p.discard.forEach((c,i)=>{const ok=c.kind==="trainer"&&["Supporter","Stadium"].includes(c.subtype)&&c.name!=="Lusamine";const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(ok?"":" search-ineligible");tile.disabled=!ok;tile.innerHTML=cardHtml(c,{small:true})+"<span>"+escape(cardName(c))+"</span>";tile.onclick=()=>{if(chosen.has(i)){chosen.delete(i);tile.classList.remove("chosen");}else if(chosen.size<2){chosen.add(i);tile.classList.add("chosen");}else setError("Choose up to two cards.");};grid.append(tile);});panel.append(grid);
+ actionButton("Play Lusamine",()=>act("trainer",{discardIndices:[...chosen]},{token}));
+}
 function showRemainingTrainer(card){
  if(!canHuman()||state.phase!=="playing")return;
  const name=card.name,p=state.players[state.turn],bike=name==="Acro Bike",tag=name==="Tag Call",charge=name==="Special Charge",catcher=name==="Counter Catcher";
  const pool=catcher?state.players[1-state.turn].bench:bike?p.deck.slice(0,2):tag?p.deck:p.discard;
- const eligible=c=>catcher?true:bike?true:tag?c.kind==="trainer"&&["Cynthia & Caitlin","Guzma & Hala","Bellelba & Brycen-Man"].includes(c.name)||c.kind==="pokemon"&&/TAG TEAM/i.test(cardName(c)):charge?c.kind==="energy"&&["Capture Energy","Recycle Energy","Speed Lightning Energy"].includes(c.name):c.kind==="pokemon"||c.kind==="energy"&&!["Capture Energy","Recycle Energy","Speed Lightning Energy"].includes(c.name);
- const max=catcher||bike?1:charge||tag?2:3;
+ const eligible=c=>catcher?true:bike?true:name==="Lana's Fishing Rod"?c.kind==="pokemon"||c.kind==="trainer"&&/Tool/i.test(c.subtype||""):tag?c.kind==="trainer"&&["Cynthia & Caitlin","Guzma & Hala","Bellelba & Brycen-Man"].includes(c.name)||c.kind==="pokemon"&&/TAG TEAM/i.test(cardName(c)):charge?c.kind==="energy"&&["Capture Energy","Recycle Energy","Speed Lightning Energy"].includes(c.name):c.kind==="pokemon"||c.kind==="energy"&&!["Capture Energy","Recycle Energy","Speed Lightning Energy"].includes(c.name);
+ const max=catcher||bike?1:charge||tag||name==="Lana's Fishing Rod"?2:3;
  const token=openModal("remaining-trainer",{card},`<h2>${escape(name)}</h2><p>${bike?"Choose one of the top two cards to keep; discard the other.":catcher?"Choose the opponent's Benched Pokémon to switch into the Active Spot.":tag?"Search your deck for up to two TAG TEAM cards.":charge?"Choose up to two Special Energy cards in your discard pile.":"Choose up to three Pokémon or Basic Energy cards in your discard pile."}</p><p>Selected: <span id="remaining-count">0</span> / ${max}</p>`);
  const selected=new Set(),grid=document.createElement("div");grid.className="search-deck-gallery";
  pool.forEach((c,i)=>{const ok=eligible(c),tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(ok?"":" search-ineligible");tile.disabled=!ok;tile.innerHTML=cardHtml(c,{small:true})+"<span>"+escape(cardName(c))+"</span>";tile.onclick=()=>{if(selected.has(i)){selected.delete(i);tile.classList.remove("chosen");}else{if(selected.size>=max){setError("Choose at most "+max+" cards.");return;}selected.add(i);tile.classList.add("chosen");}panel.querySelector("#remaining-count").textContent=selected.size;};grid.append(tile);});panel.append(grid);
@@ -398,22 +427,22 @@ function showRemainingTrainer(card){
 function showPrintedSearch(card){
  if(!canHuman()||state.phase!=="playing")return;
  const p=state.players[state.turn],name=card.name;
- const isGear=name==="Pokégear 3.0";
- const pool=isGear?p.deck.slice(0,7):p.deck;
- const token=openModal("printed-search",{card},`<h2>${escape(name)}</h2><p>${isGear?"Look at the top seven cards. Choose up to one Supporter; shuffle afterward.":"Search your entire deck. Choose up to three cards to discard; shuffle afterward."}</p>`);
+ const isGear=name==="Pokégear 3.0",isMail=name==="Trainers' Mail";
+ const pool=isMail?p.deck.slice(0,4):isGear?p.deck.slice(0,7):p.deck;
+ const token=openModal("printed-search",{card},`<h2>${escape(name)}</h2><p>${isMail?"Look at the top four cards. Choose up to one Trainer other than Trainers' Mail; shuffle afterward.":isGear?"Look at the top seven cards. Choose up to one Supporter; shuffle afterward.":"Search your entire deck. Choose up to three cards to discard; shuffle afterward."}</p>`);
  const grid=document.createElement("div");grid.className="search-deck-gallery";
  const selected=new Set();
  pool.forEach((c,i)=>{
-  const allowed=!isGear||c.kind==="trainer"&&c.subtype==="Supporter";
+  const allowed=isMail?c.kind==="trainer"&&c.name!=="Trainers' Mail":!isGear||c.kind==="trainer"&&c.subtype==="Supporter";
   const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(allowed?"":" search-ineligible");
   tile.disabled=!allowed;tile.innerHTML=cardHtml(c,{small:true})+"<span>"+escape(cardName(c))+"</span>"+(allowed?"":"<small>Not eligible</small>");
-  tile.onclick=()=>{if(selected.has(i)){selected.delete(i);tile.classList.remove("chosen");return;}if(selected.size>=(isGear?1:3)){setError("Choose at most "+(isGear?1:3)+" cards.");return;}selected.add(i);tile.classList.add("chosen");};
+  tile.onclick=()=>{if(selected.has(i)){selected.delete(i);tile.classList.remove("chosen");return;}if(selected.size>=(isGear||isMail?1:3)){setError("Choose at most "+(isGear||isMail?1:3)+" cards.");return;}selected.add(i);tile.classList.add("chosen");};
   grid.append(tile);
  });
  panel.append(grid);
  const done=actionButton("Resolve "+name,()=>{
   if(!modalHuman(token))return;
-  const payload=isGear?{searchIndex:selected.size?[...selected][0]:null}:{searchIndices:[...selected]};
+  const payload=isGear||isMail?{searchIndex:selected.size?[...selected][0]:null}:{searchIndices:[...selected]};
   act("trainer",payload,{token});
  });done.id="printed-search-resolve";
 }
@@ -542,8 +571,11 @@ for(const b of document.querySelectorAll("button[data-action]"))b.addEventListen
   if(c.name==="Quick Ball"||c.name==="Ultra Ball"){showBallSearch();return;}
   if(c.name==="Nest Ball"){showNestBallSearch();return;}
   if(["Gladion","Clay","Cynthia & Caitlin"].includes(c.name)){showSupporterPrinting(c);return;}
-  if(["Acro Bike","Special Charge","Super Rod","Tag Call","Counter Catcher"].includes(c.name)){showRemainingTrainer(c);return;}
-  if(["Pokégear 3.0","Battle Compressor"].includes(c.name)){showPrintedSearch(c);return;}
+  if(["Pal Pad","VS Seeker"].includes(c.name)){showSupporterRecovery(c);return;}
+  if(c.name==="Lusamine"){showLusamine(c);return;}
+  if(["Max Potion","Devolution Spray"].includes(c.name)){showTargetTrainer(c);return;}
+  if(["Acro Bike","Special Charge","Super Rod","Tag Call","Counter Catcher","Lana's Fishing Rod"].includes(c.name)){showRemainingTrainer(c);return;}
+  if(["Pokégear 3.0","Battle Compressor","Trainers' Mail"].includes(c.name)){showPrintedSearch(c);return;}
   if(choiceTrainers.includes(c.name)){showFireTrainerChoices(c);return;}
   if(c.name==="Potion"||c.name==="Air Balloon"){setError("Tap or drag onto an appropriate own Pokémon to use this Trainer.");return;}
  }
