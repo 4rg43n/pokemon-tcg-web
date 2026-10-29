@@ -481,10 +481,11 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   const target=payload.target==="bench"?p.bench[payload.slot]:p.active;
   if(!target)return err(state,"Choose a Pokémon to pick up.");
   if(target===p.active&&!p.bench.length)return err(state,"You need a Benched Pokémon before picking up your Active.");
-  if(target===p.active){p.active=p.bench.shift();}else p.bench.splice(payload.slot,1);
+  if(/(?:\\bV\\b|\\bVSTAR\\b|\\bVMAX\\b|\\bGX\\b|\\bex\\b)/i.test(target.name)||target.ruleBox)return err(state,"Scoop Up Net cannot return a Pokémon V or Pokémon-GX.");
+  if(target===p.active){const slot=payload.switchSlot;if(!Number.isInteger(slot)||!p.bench[slot])return err(state,"Choose a Benched Pokémon to promote.");p.active=p.bench.splice(slot,1)[0];}else p.bench.splice(payload.slot,1);
   p.hand.push(basic(target.speciesIndex));for(const under of target.under)p.hand.push(basic(under));
-  for(const type of target.energies)p.hand.push(energy(type));if(target.tool)p.hand.push(target.tool);
-  message="Scoop Up Net returned a Pokémon and attached cards to hand.";
+  for(const type of target.energies)p.discard.push(energy(type));if(target.tool)p.discard.push(target.tool);
+  message="Scoop Up Net returned the Pokémon cards to hand and discarded attached Energy and Tools.";
  }
  else if(card.name==="Rare Candy"){
   const target=payload.target==="bench"?p.bench[payload.slot]:p.active;
