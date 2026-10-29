@@ -1,4 +1,5 @@
 // Plain-language card descriptions for tooltips and the big card view. Text describes what this prototype does.
+import {describeMechanic} from "./trainer-mechanics.js?v=1";
 const costText=cost=>cost.join(" + ")||"free";
 
 const ATTACK_EFFECT_TEXT={
@@ -64,7 +65,10 @@ const TRAINER_TEXT={
 "Trainers' Mail":"Look at the top 4 cards of your deck and put a Trainer other than Trainers' Mail among them into your hand, then shuffle your deck.",
 "VS Seeker":"Put a Supporter card from your discard pile into your hand.",
 "Vitality Band":"The attacks of the Pokémon this card is attached to do 10 more damage.",
-"Welder":"Attach up to 2 Fire Energy from your hand to one of your Pokémon, then draw 3 cards."
+"Welder":"Attach up to 2 Fire Energy from your hand to one of your Pokémon, then draw 3 cards.",
+"Iono":"Each player shuffles their hand and puts it on the bottom of their deck, then draws a card for each Prize card they have left.",
+"Pokégear 3.0":"Look at the top 7 cards of your deck and put a Supporter among them into your hand, then shuffle.",
+"Battle Compressor":"Search your deck for up to 3 cards and discard them, then shuffle."
 };
 
 const pokemonHeading=card=>`${card.stage===2?"Stage 2":card.stage===1?"Stage 1":"Basic"} ${card.type||"Colorless"} Pokémon · ${card.hp} HP${card.evolvesFrom?` · evolves from ${card.evolvesFrom}`:""}`;
@@ -81,7 +85,7 @@ export function describeCard(card){
 if(card.kind==="energy")return {heading:`Basic ${card.type||""} Energy`.replace("  "," "),sections:[{title:"How to use it",lines:["Attach one Energy from your hand to one of your Pokémon each turn. Energy pays for attacks and for retreating."]}]};
 if(card.kind==="trainer"){
 const subtype=card.subtype||"Item";
-const lines=[TRAINER_TEXT[card.name]||(card.external?"This prototype has no automated effect for this card yet; unsupported Trainers are rejected and stay in hand.":"No effect text recorded.")];
+const lines=[TRAINER_TEXT[card.name]||describeMechanic(card.name)||(card.external?"This prototype has no automated effect for this card yet; unsupported Trainers are rejected and stay in hand.":"No effect text recorded.")];
 return {heading:`Trainer · ${subtype}`,sections:[{title:"What it does",lines},{title:"Rules",lines:[SUBTYPE_RULE[subtype]||SUBTYPE_RULE.Item]}]};
 }
 const sections=[];

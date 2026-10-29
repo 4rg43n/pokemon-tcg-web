@@ -2,6 +2,7 @@
 import {species,canPay,retreatCost} from "./cards.js?v=66";
 export const pokemon=(i)=>({...species[i],speciesIndex:i,damage:0,energy:0,energies:[],evolvedThisTurn:false,playedTurn:0,under:[],tool:null});
 import {defaultDeck, expandDeck, validateDeck, energyCard as energy, pokemonCard as basic} from "./decks.js?v=66";
+import {TRAINER_MECHANICS,applyTrainerMechanic} from "./trainer-mechanics.js?v=1";
 function shuffle(cards){for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]];}return cards;}
 function player(i,deck){
  const cards=shuffle(expandDeck(deck||defaultDeck(i)));
@@ -342,6 +343,7 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   if(payload.target==="bench")p.bench[payload.slot]=evolved;else p.active=evolved;
   p.hand.splice(payload.evolutionIndex,1);if(payload.evolutionIndex<idx)idx--;message="Rare Candy evolved "+target.name+" into "+evolved.name+".";
  }
+ else if(TRAINER_MECHANICS[card.name]){const result=applyTrainerMechanic(state,idx,payload,{species,shuffle,energyCard:energy});return result.error?err(state,result.error):result;}
  else if(card.external){return err(state,card.name+" is not implemented yet. This card will remain in your hand until its effect is supported.");}
  else return err(state,"Unsupported Trainer.");
  p.hand.splice(idx,1);p.discard.push(card);if(card.subtype==="Supporter")p.supporterUsed=true;s.selection=null;s.log.unshift("Player "+(state.turn+1)+": "+message);return {state:s};

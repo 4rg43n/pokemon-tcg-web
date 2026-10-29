@@ -80,6 +80,8 @@ return;
 }
 const result=probe(state,"trainer",{},index);
 if(result.error==="Unsupported Trainer."||result.error?.includes(" is not implemented yet."))unsupported.push(card.name);
+else if(result.error&&!result.error.startsWith("Only one Supporter"))options.push({index,priority:45,text:`Play ${card.name}: tap it, press Play Trainer and follow the prompt to choose its targets.`});
+else if(!result.error)options.push({index,priority:48,text:`Play ${card.name}: tap it, then press Play Trainer. ${card.subtype==="Supporter"?"It's your one Supporter for this turn.":"Items are free to play, so use them before you attack."}`});
 });
 return {options,unsupported};
 }
