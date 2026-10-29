@@ -279,7 +279,7 @@ function zoneEntries(token){
   else if(scope.kind==="bottom")indices=Array.from({length:scope.count},(_,index)=>cards.length-scope.count+index);
  }
  const entries=indices?indices.map(index=>({c:cards[index],index})):cards.map((c,index)=>({c,index}));
- if((token.zone==="deck"||token.zone==="prizeCards")&&(!token.authorized||token.scope.kind==="entire"))entries.sort((a,b)=>cardName(a.c).localeCompare(cardName(b.c)));
+ if((token.zone==="deck"||token.zone==="prizeCards")&&(!token.authorized||token.scope.kind==="entire"))entries.sort((a,b)=>Number(eligible(b.c))-Number(eligible(a.c))||cardName(a.c).localeCompare(cardName(b.c)));
  return entries;
 }
 function renderZoneCards(token){
