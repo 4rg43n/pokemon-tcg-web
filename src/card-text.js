@@ -1,6 +1,5 @@
 // Plain-language card descriptions for tooltips and the big card view. Text describes what this prototype does.
 const ENERGY_SYMBOL={Fire:"🔥",Lightning:"⚡",Water:"💧",Grass:"🌿",Psychic:"🔮",Fighting:"✊",Darkness:"🌙",Metal:"⚙️",Colorless:"★"};
-const costText=cost=>cost.map(type=>ENERGY_SYMBOL[type]||"★").join("")||"free";
 
 const ATTACK_EFFECT_TEXT={
 discardEnergy:"Discard an Energy from this Pokémon.",
@@ -68,12 +67,10 @@ const TRAINER_TEXT={
 "Welder":"Attach up to 2 Fire Energy from your hand to one of your Pokémon, then draw 3 cards."
 };
 
-const pokemonHeading=card=>`${card.stage===2?"Stage 2":card.stage===1?"Stage 1":"Basic"} ${card.type||"Colorless"} Pokémon · ${card.hp} HP${card.evolvesFrom?` · evolves from ${card.evolvesFrom}`:""}`;
-
 function attackLines(card){
 return (card.attacks||[]).map(attack=>{
 const effect=attack.text||ATTACK_EFFECT_TEXT[attack.effect]||"";
-return `${costText(attack.cost)} ${attack.name}${attack.damage?` — ${attack.damage} damage`:""}${effect?`. ${effect}`:""}`;
+return `${attack.cost.map(type=>ENERGY_SYMBOL[type]||"★").join("")||"free"} ${attack.name}${attack.damage?` — ${attack.damage} damage`:""}${effect?`. ${effect}`:""}`;
 });
 }
 
@@ -87,13 +84,13 @@ return {heading:`Trainer · ${subtype}`,sections:[{title:"What it does",lines},{
 }
 const sections=[];
 if(card.ability)sections.push({title:`Ability: ${card.ability.name}`,lines:[card.ability.text]});
-sections.push({title:"Attacks",lines:attackLines(card).length?attackLines(card):["No attacks recorded."]});
+const attacks=attackLines(card);
+sections.push({title:"Attacks",lines:attacks.length?attacks:["No attacks recorded."]});
 sections.push({title:"Battle stats",lines:[`Weakness ${card.weakness||"—"} · Resistance ${card.resistance||"—"} · Retreat Cost ${card.retreat??"?"}`]});
 if(card.external)sections.push({title:"Prototype note",lines:["This is a real printed card; the prototype gives it the simplified attacks listed above rather than its printed text."]});
-return {heading:pokemonHeading(card),sections};
+return {heading:`${card.stage===2?"Stage 2":card.stage===1?"Stage 1":"Basic"} ${card.type||"Colorless"} Pokémon · ${card.hp} HP${card.evolvesFrom?` · evolves from ${card.evolvesFrom}`:""}`,sections};
 }
 
-// One-line tooltip for hovering a card on the table.
 export function cardTooltip(card){
 const description=describeCard(card);
 const detail=description.sections.map(section=>section.lines[0]).filter(Boolean).slice(0,2).join(" ");

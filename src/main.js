@@ -7,7 +7,7 @@ import {mountDeckBuilder} from "./deck-builder.js?v=59";
 import {createRecorder} from "./history.js?v=27";
 import {createPlanner} from "./planning/planner.js?v=59";
 import {renderPlanGraph} from "./planning/plan-graph.js?v=47";
-import {update as coachUpdate,configure as coachConfigure} from "./coach_ui.js?v=4";
+import {update as coachUpdate,configure as coachConfigure} from "./coach_ui.js?v=5";
 import {describeCard,cardTooltip} from "./card-text.js?v=1";
 coachConfigure({species,canPay,retreatCost,dispatch});
 let state=newGame(),preview=null,matchDecks=null;
@@ -84,7 +84,6 @@ if(preview.type==="debug"){renderDebug();return;}
 if(preview.type==="card"){const c=preview.card,description=describeCard(c);modal.querySelector(".modal-content").innerHTML=`<div class="card-view">${cardHtml(c)}<div class="card-info"><h2>${escape(c.name||"Card")}</h2><p class="card-heading">${escape(description.heading)}</p>${description.sections.map(section=>`<h3>${escape(section.title)}</h3>${section.lines.map(line=>`<p>${escape(line)}</p>`).join("")}`).join("")}${c.hp?'<p class="stat-legend">Weakness and Resistance are shown for reference; this prototype does not apply them to damage yet.</p>':""}</div></div>`;}
 if(preview.type==="card"&&preview.card.ability){
  const c=preview.card,p=state.players[state.turn],own=c===p.active||p.bench.includes(c);
- const text=document.createElement("p");text.textContent=c.ability.name+": "+c.ability.text;modal.querySelector(".modal-content").append(text);
  if(own&&state.phase==="playing"){const button=document.createElement("button");button.textContent="Use "+c.ability.name;button.disabled=!!c.abilityUsed||state.winner!==null;button.onclick=useAbilityFromPreview;modal.querySelector(".modal-content").append(button);}
 }
 else if(preview.type!=="card") modal.querySelector(".modal-content").innerHTML=`<h2>${escape(preview.name)} · ${preview.cards.length} cards</h2><div class="pile-list">${preview.name==="deck"?"Deck contents are hidden during play.":preview.cards.length?preview.cards.map(c=>cardHtml(c,{small:true})).join(""):"No cards yet."}</div>`;
