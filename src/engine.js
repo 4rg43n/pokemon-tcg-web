@@ -61,6 +61,12 @@ if(action==="stadium"){
   const found=p.deck.splice(i,1)[0];const mon=pokemon(found.species);mon.playedTurn=s.round;p.bench.push(mon);shuffle(p.deck);p.stormyUsedTurn=s.round;
   s.log.unshift("Player "+(s.turn+1)+" used Stormy Mountains to Bench "+mon.name+".");return {state:s};
  }
+ if(s.stadium.name==="PokéStop"){
+  if(p.pokestopUsedTurn===s.round)return err(state,"PokéStop was already used this turn.");
+  const top=p.deck.splice(0,3);let taken=0;
+  for(const c of top){if(c.kind==="trainer"&&c.subtype==="Item"){p.hand.push(c);taken++;}else p.discard.push(c);}
+  p.pokestopUsedTurn=s.round;s.log.unshift("Player "+(s.turn+1)+" used PokéStop: drew "+taken+" Item card(s) and discarded "+(top.length-taken)+" other card(s).");return {state:s};
+ }
  if(s.stadium.name==="Tropical Beach"){
   if(p.beachUsedTurn===s.round)return err(state,"Tropical Beach was already used this turn.");
   const amount=Math.max(0,7-p.hand.length);for(let n=0;n<amount&&p.deck.length;n++)p.hand.push(p.deck.shift());
