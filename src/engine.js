@@ -239,6 +239,24 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   p.hand.splice(idx,1);s.selection=null;
   s.log.unshift("Player "+(s.turn+1)+": played "+card.name+" Stadium.");return {state:s};
  }
+ else if(card.name==="Pokégear 3.0"){
+  const top=p.deck.slice(0,7),i=payload.searchIndex;
+  if(i!==null&&i!==undefined&&(!Number.isInteger(i)||i<0||i>=top.length||top[i].kind!=="trainer"||top[i].subtype!=="Supporter"))return err(state,"Choose a Supporter from the top seven cards.");
+  const found=i===null||i===undefined?null:p.deck.splice(i,1)[0];if(found)p.hand.push(found);
+  shuffle(p.deck);message="Pokégear 3.0 looked at the top "+top.length+" cards"+(found?" and took "+found.name:" and took no Supporter")+"; deck shuffled.";
+ }
+ else if(card.name==="Battle Compressor"){
+  const indices=payload.searchIndices;
+  if(!Array.isArray(indices)||indices.length>3||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||i<0||i>=p.deck.length))return err(state,"Choose up to three distinct cards from your deck.");
+  for(const i of [...indices].sort((a,b)=>b-a))p.discard.push(p.deck.splice(i,1)[0]);
+  shuffle(p.deck);message="Battle Compressor discarded "+indices.length+" selected deck cards and shuffled.";
+ }
+ else if(card.name==="Iono"){
+  const counts=[p.prizes,o.prizes];
+  for(const player of [p,o]){player.deck.push(...player.hand);player.hand=[];shuffle(player.deck);}
+  for(const [j,player] of [p,o].entries())for(let n=0;n<counts[j]&&player.deck.length;n++)player.hand.push(player.deck.shift());
+  message="Iono shuffled each player's hand into the bottom of their deck and each player drew cards equal to their remaining Prize cards.";
+ }
  else if(card.name==="Energy Retrieval"||card.name==="Fire Crystal"){
   const max=card.name==="Fire Crystal"?3:2;
   const eligible=p.discard.map((c,i)=>({c,i})).filter(({c})=>c.kind==="energy"&&(card.name!=="Fire Crystal"||c.type==="Fire")).slice(0,max);
