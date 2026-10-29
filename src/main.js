@@ -1,136 +1,379 @@
-import {retreatCost,species,energyTypes} from "./cards.js?v=43";
-import {catalog} from "./decks.js?v=44";
-import {commands as debugCommands,pokemonRefs} from "./debug.js?v=45";
-import {cardStats} from "./card-stats.js?v=27";
-import {newGame,dispatch,cardInfo} from "./engine.js?v=44";
-import {mountDeckBuilder} from "./deck-builder.js?v=44";
-import {createRecorder} from "./history.js?v=27";
-import {createPlanner} from "./planning/planner.js?v=40";
-import {renderPlanGraph} from "./planning/plan-graph.js?v=47";
-import {update as coachUpdate} from "./coach_ui.js?v=1";
-let state=newGame(),preview=null,matchDecks=null;
+import {retreatCost,species,energyTypes} from "./cards.js?v=48";
+import {catalog} from "./decks.js?v=48";
+import {commands as debugCommands,pokemonRefs} from "./debug.js?v=48";
+import {cardStats} from "./card-stats.js?v=48";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=48";
+import {mountDeckBuilder} from "./deck-builder.js?v=48";
+import {createRecorder} from "./history.js?v=48";
+import {createPlanner} from "./planning/planner.js?v=48";
+import {renderPlanGraph} from "./planning/plan-graph.js?v=48";
+import {update as coachUpdate} from "./coach_ui.js?v=48";
+import {typeSymbol} from "./type-symbols.js?v=48";
+const $=s=>document.querySelector(s);
+const board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log"),modal=$("#modal"),panel=$("#modal .modal-content");
+const escape=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+const sprite=id=>`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+let state=newGame(),matchDecks=null,screen="menu",acknowledged=null;
+let preview=null,revision=0,dragging=null,lastFocus=null;
 const turnHistory=createRecorder();turnHistory.start(state);
 const planner=createPlanner();let aiEnabled=false,aiBusy=false;
-const $=s=>document.querySelector(s),board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log");
-const escape=s=>String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
-const sprite=id=>`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
-function cardHtml(data,opts={}){
-const {small=false,selected=false,back=false,empty=false,attrs=""}=opts;
-if(empty)return `<div class="tcg-card empty">${escape(data||"Empty")}</div>`;
-if(back)return '<div class="tcg-card back"><span>Pokémon</span></div>';
-if(data.kind==="energy")return `<div class="tcg-card energy ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="energy-symbol">⚡</div><strong>${escape(data.type||"Basic")} Energy</strong></div>`;
-if(data.kind==="trainer")return `<div class="tcg-card trainer ${small?"small":""} ${selected?"selected":""}" ${attrs}><span class="card-type">TRAINER</span><strong>${escape(data.name)}</strong><small>${escape(data.subtype||"Item")}</small>${data.image?`<img src="${escape(data.image)}" alt="${escape(data.name)}" loading="lazy">`:""}${data.name==="Air Balloon"?'<span class="tool-effect">🎈 Retreat costs 2 less</span>':""}</div>`;
-const c=data.kind==="pokemon"&&data.species!==undefined?cardInfo(data):data;
-return `<div class="tcg-card pokemon ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="card-top"><strong>${escape(c.name)}</strong><span>${c.hp} HP</span></div><img src="${c.image|| (c.printing?`https://images.pokemontcg.io/${c.printing.split("-")[0]}/${c.printing.split("-")[1]}.png`:sprite(c.id))}" alt="" loading="lazy"><div class="card-bottom"><span>${escape((c.energies||[]).map(x=>x==="Fire"?"🔥":"⚡").join("")||"—")}</span><span>${Math.max(0,c.hp-(c.damage||0))} HP</span></div>${c.tool?`<div class="attached-tool" title="Air Balloon: retreat costs 2 less">🎈 Air Balloon</div>`:""}${cardStats(c)}</div>`;
+const humanTurn=()=>!aiEnabled||state.turn!==1;
+const handoff=()=>humanTurn()&&acknowledged!==state.turn;
+const gameVisible=()=>screen==="game"&&!document.hidden;
+const canHuman=(inModal=false)=>gameVisible()&&humanTurn()&&!handoff()&&state.winner===null&&(inModal||!preview);
+const canReadOwnHand=player=>gameVisible()&&player===state.turn&&humanTurn()&&acknowledged===player;
+const zoneAccessAllowed=token=>!token.protected||(token.ownHand?canReadOwnHand(token.player):canHuman(true));
+const canReferee=()=>canHuman(true)&&state.phase==="playing";
+const validToken=token=>!!token&&token===preview&&token.revision===revision&&token.actor===state.turn;
+const cardName=c=>c?.kind==="pokemon"&&c.species!==undefined?species[c.species].name:c?.name||`${c?.type||"Basic"} Energy`;
+const displayCard=c=>c?.kind==="pokemon"&&c.species!==undefined?cardInfo(c):c;
+const costHtml=cost=>cost.map(type=>`<span class="cost-type">${typeSymbol(type)}<span>${escape(type)}</span></span>`).join(" + ");
+const zoneName=zone=>({hand:"Hand",deck:"Deck",discard:"Discard",lostZone:"Lost Zone",prizeCards:"Prizes"}[zone]);
+const playerLabel=i=>`Player ${i+1}`;
+function syncCoachPrivacy(){
+ const root=$("#coach");if(!root)return;
+ const visible=gameVisible()&&humanTurn()&&!handoff();root.hidden=!visible;
+ if(!visible)root.querySelector(".coach-bubble")?.replaceChildren();
 }
+function updateCoach(event){coachUpdate(event);syncCoachPrivacy();}
+function setError(message){error.textContent=message;const local=panel.querySelector(".modal-error");if(local)local.textContent=message;}
+function aiAllowed(){return aiEnabled&&state.turn===1&&!preview&&state.winner===null;}
+function queueAI(){if(!aiAllowed()||aiBusy)return;aiBusy=true;setTimeout(()=>{try{for(let n=0;n<12&&aiAllowed();n++){const step=planner.next(state);if(!step)break;if(step.select!==undefined){const sel=dispatch(state,"select",{index:step.select});if(sel.error)break;state=sel.state;}const before=state;const r=act(step.action,step.payload||{},{source:"ai"});if(!r){planner.reset();error.textContent="AI paused: "+error.textContent;aiEnabled=false;break;}planner.applied(step,state);if(state===before)break;}render();updateCoach({state,action:"ai"});}catch(e){aiEnabled=false;error.textContent="AI error: "+e.message;}finally{aiBusy=false;}},180);}
+function clearModal(){preview=null;modal.hidden=true;panel.replaceChildren();if(lastFocus?.isConnected)lastFocus.focus();lastFocus=null;}
+function closeModal(){
+ // A revealed search cannot be abandoned as a free peek: reserve its costs
+ // until this atomic action pays them, resolves the search, and shuffles.
+ if(preview?.ballCost&&validToken(preview)){
+  const token=preview;
+  if(!act("trainer",{discardIndices:token.ballCost,searchIndex:null},{source:"settle",token}))return false;
+  $("#action-notice").textContent="Closed search resolved without finding a Pokémon. Discard costs were paid and the deck shuffled.";
+ }else if(preview?.snackPayload&&validToken(preview)){
+  const token=preview;
+  if(!act("ability",token.snackPayload,{source:"settle",token}))return false;
+  $("#action-notice").textContent="Snack Seek resolved by keeping the top card. The Ability was used.";
+ }else clearModal();
+ renderControls();queueAI();return true;
+}
+function openModal(type,data={},html=""){
+ lastFocus=document.activeElement;preview={type,...data,actor:state.turn,revision};modal.hidden=false;
+ panel.innerHTML=html+'<p class="modal-error" role="alert"></p>';renderControls();$(".close-modal").focus();return preview;
+}
+function modalHuman(token){if(!validToken(token)||!canHuman(true)){setError("This choice expired. Close it and inspect again during your turn.");return false;}return true;}
+function actionButton(text,callback,{disabled=false,parent=panel}={}){const token=preview,b=document.createElement("button");b.type="button";b.textContent=text;b.disabled=disabled;b.addEventListener("click",()=>{if(validToken(token))callback();});parent.append(b);return b;}
+function inputLabel(text,{parent=panel,placeholder="",type="text"}={}){const label=document.createElement("label");label.className="modal-label";label.textContent=text;const input=document.createElement("input");input.type=type;input.placeholder=placeholder;label.append(input);parent.append(label);return input;}
+function act(action,payload={},options={}){
+ const {source="human",token}=options;
+ if(source==="human"&&(!canHuman(!!token)||(token&&!validToken(token)))){setError("Only the acknowledged current player can make this choice.");return false;}
+ if(source==="ai"&&!aiAllowed()){setError("AI action canceled: the playmat is not available.");return false;}
+ if(source==="referee"&&(!canReferee()||!validToken(token))){setError("Counters can only change during the current player's turn after handoff.");return false;}
+ if(source==="settle"&&(!validToken(token)||(!token.ballCost&&!token.snackPayload)||!humanTurn()))return false;
+ let result;
+ try{result=action==="reset"?{state:newGame(options.decks??matchDecks)}:dispatch(state,action,payload);}catch(cause){setError(cause.message||String(cause));return false;}
+ if(result.error){setError(result.error);if(source!=="ai")updateCoach({prev:state,state,action,error:result.error});return false;}
+ if(action==="reset"){planner.reset();turnHistory.start(result.state);}else{turnHistory.record(state,result.state,action,payload);planner.onChange(state,result.state,action);}
+ const prev=state,oldTurn=state.turn;state=result.state;revision++;dragging=null;clearModal();
+ if(action==="reset"||oldTurn!==state.turn)acknowledged=null;
+ setError("");$("#action-notice").textContent="";render();if(source!=="ai"){updateCoach({prev,state,action,error:""});queueAI();}return true;
+}
+function cardHtml(data,opts={}){
+ const {small=false,selected=false,back=false,empty=false,attrs=""}=opts;
+ if(empty)return `<div class="tcg-card empty">${escape(data||"Empty")}</div>`;
+ if(back)return '<div class="tcg-card back" aria-label="Face-down card"><span>Pokémon</span></div>';
+ if(data.kind==="energy")return `<div class="tcg-card energy ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="energy-symbol">${typeSymbol(data.type)}</div><strong>${escape(data.type||"Basic")} Energy</strong></div>`;
+ if(data.kind==="trainer")return `<div class="tcg-card trainer ${small?"small":""} ${selected?"selected":""}" ${attrs}><span class="card-type">TRAINER</span><strong>${escape(data.name)}</strong><small>${escape(data.subtype||"Item")}</small>${data.image?`<img src="${escape(data.image)}" alt="" loading="lazy">`:""}${data.name==="Air Balloon"?'<span class="tool-effect">Retreat costs 2 less</span>':""}</div>`;
+ const c=displayCard(data);
+ return `<div class="tcg-card pokemon ${small?"small":""} ${selected?"selected":""}" ${attrs}><div class="card-top"><strong>${escape(c.name)}</strong><span>${typeSymbol(c.type)} ${c.hp} HP</span></div><img src="${escape(c.image||(c.printing?`https://images.pokemontcg.io/${c.printing.split("-")[0]}/${c.printing.split("-")[1]}.png`:sprite(c.id)))}" alt="" loading="lazy"><div class="card-bottom"><span class="attached-energies">${(c.energies||[]).map(type=>typeSymbol(type)).join("")||"—"}</span><span>${Math.max(0,c.hp-(c.damage||0))} HP</span></div><span class="damage-total">${c.damage||0} damage · ${(c.damage||0)/10} counters</span>${c.tool?'<div class="attached-tool">Air Balloon · retreat −2</div>':""}${cardStats(c)}</div>`;
+}
+function fieldVisible(player){return state.phase!=="setup"||(player===state.turn&&humanTurn()&&!handoff()&&gameVisible());}
+function placementAllowed(card,player,target,slot){
+ if(!card||player!==state.turn||!canHuman()||!["setup","playing"].includes(state.phase))return false;
+ const p=state.players[player],mon=target==="active"?p.active:p.bench[slot];
+ if(card.kind==="pokemon"){
+  const def=species[card.species];
+  if(!def.stage)return target==="active"?state.phase==="setup"&&!p.active:!!p.active&&!mon&&p.bench.length<5;
+  return state.phase==="playing"&&state.round>2&&mon?.name===def.evolvesFrom&&mon.playedTurn!==state.round&&!mon.evolvedThisTurn;
+ }
+ if(state.phase!=="playing")return false;
+ if(card.kind==="energy")return !!mon&&!p.attached;
+ if(card.name==="Potion")return !!mon&&mon.damage>0;
+ if(card.name==="Air Balloon")return !!mon&&!mon.tool;
+ return false;
+}
+function fieldSlot(p,player,target,slot){
+ const c=target==="active"?p.active:p.bench[slot],visible=fieldVisible(player),selected=state.players[state.turn].hand[dragging?.index??state.selection];
+ const highlight=placementAllowed(selected,player,target,slot)?" playable":"";
+ const label=`Player ${player+1} ${target==="active"?"Active":`Bench ${slot+1}`}`;
+ return `<div class="field-position"><div class="slot ${target==="active"?"active-slot":""}${highlight}" role="button" tabindex="0" aria-label="${escape(label+(c&&visible?`: ${c.name}`:""))}" data-player="${player}" data-target="${target}" ${target==="bench"?`data-slot="${slot}"`:""}>${c?(visible?cardHtml(c,{small:target==="bench"}):cardHtml(null,{back:true})):cardHtml(target==="active"?"Choose Active":"Bench",{empty:true})}</div>${c&&visible?`<button class="field-inspect" type="button" data-inspect-field="${target}" data-player="${player}" data-slot="${slot??0}" aria-label="Inspect ${escape(label)}">Inspect</button>`:""}</div>`;
+}
+function pileButton(player,zone,count){return `<button type="button" class="pile zone-button" data-zone="${zone}" data-player="${player}" aria-label="Inspect Player ${player+1} ${zoneName(zone)} (${count} cards)"><span class="zone-label">${zoneName(zone)} · ${count}</span>${zone==="deck"||zone==="prizeCards"?cardHtml(null,{back:true}):'<span class="pile-icon" aria-hidden="true">▤</span>'}</button>`;}
 function side(p,i){
-const own=i===state.turn;
-const bench=Array.from({length:5},(_,n)=>`<div class="slot" data-target="${own?"bench":"other"}" data-slot="${n}">${p.bench[n]?cardHtml(p.bench[n],{small:true}):cardHtml("Bench",{empty:true})}</div>`).join("");
-const prizes=Array.from({length:6},(_,n)=>`<div class="prize">${n<p.prizes?cardHtml(null,{back:true}):'<div class="prize-taken"></div>'}</div>`).join("");
-return `<section class="side ${i===1?"opponent":"self"} ${own?"current":""}"><div class="prize-area"><div class="zone-label">Prizes · ${p.prizes}</div><div class="prizes">${prizes}</div></div><div class="field"><div class="player-label">Player ${i+1} ${own?"• CURRENT TURN":""}</div><div class="bench-row">${bench}</div><div class="active-row"><div class="slot active-slot" data-target="${own?"active":"other"}">${p.active?cardHtml(p.active):cardHtml("Choose Active",{empty:true})}</div></div></div><div class="pile-area"><div class="pile" data-pile="deck" data-player="${i}"><div class="zone-label">Deck · ${p.deck.length}</div>${cardHtml(null,{back:true})}</div><div class="pile" data-pile="discard" data-player="${i}"><div class="zone-label">Discard · ${p.discard.length}</div>${p.discard.length?cardHtml(p.discard[p.discard.length-1],{small:true}):cardHtml("Discard",{empty:true})}</div></div></section>`;
+ return `<section class="side ${i===1?"opponent":"self"} ${i===state.turn?"current":""}" aria-label="Player ${i+1} play area"><div class="prize-area">${pileButton(i,"prizeCards",p.prizes)}<button type="button" class="zone-link" data-zone="hand" data-player="${i}">Hand · ${p.hand.length}</button></div><div class="field"><div class="player-label">${playerLabel(i)} ${i===state.turn?"· CURRENT TURN":""}${state.phase==="setup"&&!fieldVisible(i)?" · face-down setup":""}</div><div class="bench-row">${Array.from({length:5},(_,slot)=>fieldSlot(p,i,"bench",slot)).join("")}</div><div class="active-row">${fieldSlot(p,i,"active")}</div></div><div class="pile-area">${pileButton(i,"deck",p.deck.length)}${pileButton(i,"discard",p.discard.length)}${pileButton(i,"lostZone",(p.lostZone||[]).length)}</div></section>`;
+}
+function renderPlans(){
+ renderPlanGraph($("#ai-graph"),planner);
+ $("#ai-plans").textContent=JSON.stringify({active:planner.active,archived:planner.archive.slice(-3)},null,2);
 }
 function render(){
-const p=state.players[state.turn];
-status.textContent=state.phase==="replacement"?`Player ${state.turn+1}: tap a Benched Pokémon to replace the Knocked Out Active`:state.phase==="retreat"?`Player ${state.turn+1}: tap a Benched Pokémon to retreat into`:state.phase==="setup"?`Setup: Player ${state.turn+1} — choose Active, optionally Bench, then Ready`:state.winner===null?`Player ${state.turn+1}'s turn · Turn ${state.round}`:`Player ${state.winner+1} won by ${state.winReason}`;
-board.innerHTML=`<div class="mat">${side(state.players[1],1)}<div class="divider"></div>${side(state.players[0],0)}<div class="hand"><div class="zone-label">Player ${state.turn+1}'s hand · ${p.hand.length} cards</div><div class="hand-cards">${p.hand.map((c,i)=>cardHtml(c,{small:true,selected:i===state.selection,attrs:`data-hand="${i}"`})).join("")}</div><p class="hint">${state.phase==="setup"?"Choose a Basic Pokémon, tap the empty Active slot, optionally fill your Bench, then press Ready." :state.phase==="replacement"?"Tap a Benched Pokémon to promote it.":state.phase==="retreat"?"Tap a Benched Pokémon to switch it with your Active.":"Tap a hand card, then a Bench slot or Pokémon to play it. Tap a card again to inspect."}</p></div></div>`;
-log.replaceChildren(...state.log.map(x=>{const li=document.createElement("li");li.textContent=x;return li;}));
-document.querySelectorAll("button[data-action=attack],button[data-action=end]").forEach(b=>b.disabled=state.phase!=="playing"||state.winner!==null);
-const attack=document.querySelector("button[data-action=attack]");attack.textContent=p.active?.attacks?.length>1?"Choose Attack":"Attack";
-const retreat=document.querySelector("button[data-action=retreat]");retreat.textContent=`Retreat (${retreatCost(p.active)} Energy)`;retreat.hidden=state.phase!=="playing";retreat.disabled=state.phase!=="playing"||!state.players[state.turn].bench.length||state.players[state.turn].retreated||!p.active||p.active.energy<retreatCost(p.active);
-const playTrainer=document.querySelector("button[data-action=trainer]");playTrainer.hidden=state.phase!=="playing"||p.hand[state.selection]?.kind!=="trainer";
-const aiButton=document.querySelector("#ai-toggle");aiButton.textContent=aiEnabled?"AI Player 2: ON":"AI Player 2: OFF";
-renderPlanGraph(document.querySelector("#ai-graph"),planner);
-const panel=document.querySelector("#ai-plans");if(panel)panel.textContent=JSON.stringify({active:planner.active,archived:planner.archive.slice(-3)},null,2);
-const ready=document.querySelector("button[data-action=ready]");ready.hidden=state.phase!=="setup";ready.disabled=state.phase!=="setup"||!state.players[state.turn].active;
+ const p=state.players[state.turn],visible=humanTurn()&&!handoff()&&gameVisible();
+ status.textContent=state.winner!==null?`Player ${state.winner+1} won by ${state.winReason}`:state.phase==="replacement"?`${playerLabel(state.turn)}: promote a Benched Pokémon`:state.phase==="retreat"?`${playerLabel(state.turn)}: complete retreat`:state.phase==="setup"?`Setup: ${playerLabel(state.turn)} — choose Active and Bench, then Ready`:`${playerLabel(state.turn)} · Turn ${state.round}`;
+ $("#privacy-status").textContent="Keep private cards out of the other player's view. Both players maintain a valid board; consult a Judge for disputes or uncertainty.";
+ board.innerHTML=`<div class="mat">${side(state.players[1],1)}<div class="divider"></div>${side(state.players[0],0)}<section id="handoff" ${handoff()?"":"hidden"}><h2>Pass to Player ${state.turn+1}</h2><p>Other players: look away before this player reveals their private hand.</p><button type="button" id="accept-handoff">I am Player ${state.turn+1} — reveal my hand</button></section><div class="hand"><div class="zone-label">Player ${state.turn+1}'s hand · ${p.hand.length} cards · ${visible?"private to current human":"hidden"}</div><div class="hand-cards">${visible?p.hand.map((c,i)=>cardHtml(c,{small:true,selected:i===state.selection,attrs:`data-hand="${i}" role="button" tabindex="0" draggable="${canHuman()}" aria-label="${escape(cardName(c))}; select, then tap a highlighted target; select again to inspect"`})).join(""):'<p class="privacy-note">Private cards are not shown to spectators or during handoff.</p>'}</div><p class="hint">${visible?(state.phase==="setup"?"Select a Basic Pokémon and tap an empty Active/Bench slot. Ready finishes your setup.":state.phase==="replacement"||state.phase==="retreat"?"Tap one of your Benched Pokémon.":"Select or drag a hand card to a highlighted own slot. Select again to inspect. Keyboard: Tab and Enter/Space. Public Inspect buttons never play a card."):"Public face-up cards, Discards, and Lost Zones remain inspectable."}</p></div></div>`;
+ const visibleLog=state.phase==="setup"?["Setup Pokémon identities stay private until both players are Ready."]:state.log;
+ log.replaceChildren(...visibleLog.map(text=>{const li=document.createElement("li");li.textContent=text;return li;}));
+ renderPlans();renderControls();syncCoachPrivacy();
 }
-function act(action,payload,fromAI=false){const prev=state,result=action==="reset"?{state:newGame(matchDecks)}:dispatch(state,action,payload);if(!result.error){if(action==="reset"){planner.reset();turnHistory.start(result.state);}else{turnHistory.record(state,result.state,action,payload);planner.onChange(state,result.state,action);}}state=result.state;error.textContent=result.error||"";render();if(!fromAI){coachUpdate({prev,state,action,error:result.error||""});queueAI();}return result;}
-function queueAI(){if(!aiEnabled||aiBusy||state.turn!==1||state.winner!==null)return;aiBusy=true;setTimeout(()=>{try{for(let n=0;n<12&&aiEnabled&&state.turn===1&&state.winner===null;n++){const step=planner.next(state);if(!step)break;if(step.select!==undefined){const sel=dispatch(state,"select",{index:step.select});if(sel.error)break;state=sel.state;}const before=state;const r=act(step.action,step.payload||{},true);if(r.error){planner.reset();error.textContent="AI paused: "+r.error;aiEnabled=false;break;}planner.applied(step,state);if(state===before)break;}render();coachUpdate({state,action:"ai"});}catch(e){aiEnabled=false;error.textContent="AI error: "+e.message;}finally{aiBusy=false;}},180);}
-document.querySelector("#ai-toggle").addEventListener("click",()=>{aiEnabled=!aiEnabled;render();queueAI();});
-document.querySelector("#ai-export").addEventListener("click",()=>{const blob=new Blob([planner.export()],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="pokemon-ai-plans.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
-board.addEventListener("click",e=>{
-const hand=e.target.closest("[data-hand]");
-if(hand){const idx=Number(hand.dataset.hand);if(state.selection===idx){showPreview(state.players[state.turn].hand[idx]);}else act("select",{index:idx});return;}
-const target=e.target.closest("[data-target]");
-if(target){if((state.phase==="replacement"||state.phase==="retreat")&&target.dataset.target==="bench"){act(state.phase==="replacement"?"promote":"switch",{slot:Number(target.dataset.slot)});return;}
-if(state.phase==="replacement"||state.phase==="retreat"){error.textContent="Tap one of your Benched Pokémon.";return;}
-if(state.selection!==null){if(target.dataset.target==="other"){error.textContent="Play cards on the current player's side.";return;}act("play",{target:target.dataset.target,slot:Number(target.dataset.slot)});}
-else{const i=target.closest(".side").classList.contains("opponent")?1:0;const p=state.players[i],c=target.classList.contains("active-slot")?p.active:p.bench[Number(target.dataset.slot)];if(c)showPreview(c);}return;}
-const pile=e.target.closest("[data-pile]");if(pile){const p=state.players[Number(pile.dataset.player)],cards=p[pile.dataset.pile];showPile(pile.dataset.pile,cards);return;}
-if(state.selection!==null)act("deselect");
-});
-function showPreview(c){const d=c.kind==="pokemon"&&c.species!==undefined?cardInfo(c):c;preview={type:"card",card:d};renderModal();}
-function showPile(type,cards){preview={type:"pile",name:type,cards};renderModal();}
-function useAbilityFromPreview(){
- const p=state.players[state.turn],c=preview?.card;
- const slot=p.bench.indexOf(c),target=p.active===c?"active":slot>=0?"bench":null;
- if(target){
- if(c.ability.name==="Snack Seek"){
-  if(!p.deck.length){error.textContent="No cards left to look at.";return;}
-  const panel=$("#modal .modal-content");panel.innerHTML="<h2>Snack Seek</h2><p>Top card of your deck</p>"+cardHtml(p.deck[0]);
-  for(const discard of [false,true]){const button=document.createElement("button");button.textContent=discard?"Discard card":"Keep on top";button.onclick=()=>{act("ability",{target,slot,discard});preview=null;$("#modal").hidden=true;};panel.append(button);}return;
+function renderControls(){
+ const p=state.players[state.turn],allowed=canHuman(),playing=allowed&&state.phase==="playing";
+ for(const b of document.querySelectorAll("button[data-action]"))b.disabled=!playing;
+ const ready=$('[data-action="ready"]');ready.hidden=state.phase!=="setup";ready.disabled=!allowed||state.phase!=="setup"||!p.active;
+ const retreat=$('[data-action="retreat"]');retreat.hidden=state.phase!=="playing";retreat.innerHTML=`Retreat (${retreatCost(p.active)} ${typeSymbol("Colorless")} Colorless Energy)`;retreat.disabled=!playing||!p.bench.length||p.retreated||!p.active||p.active.energy<retreatCost(p.active);
+ const trainer=$('[data-action="trainer"]');trainer.hidden=p.hand[state.selection]?.kind!=="trainer"||!humanTurn();trainer.disabled=!playing;
+ $('[data-action="attack"]').textContent=p.active?.attacks?.length>1?"Choose Attack":"Attack";
+ $("#ai-toggle").textContent=aiEnabled?"AI Player 2: ON":"AI Player 2: OFF";
+ $("#ai-toggle").disabled=!!preview;
+}
+function playSelected(player,target,slot){
+ if(!canHuman())return;
+ if(player!==state.turn){setError("Play cards only on your own side.");return;}
+ const card=state.players[state.turn].hand[state.selection];if(!card)return;
+ const mon=target==="active"?state.players[player].active:state.players[player].bench[slot];
+ if(card.kind==="pokemon"&&!species[card.species].stage&&mon){setError("A Basic Pokémon needs an empty slot; it cannot replace an occupied Pokémon.");return;}
+ if(card.kind==="trainer"){
+  if(card.name==="Quick Ball"||card.name==="Ultra Ball"){showBallSearch();return;}
+  act("trainer",card.name==="Potion"||card.name==="Air Balloon"?{target,slot}:{});return;
  }
- act("ability",{target,slot});preview=null;$("#modal").hidden=true;
+ act("play",{target,slot});
 }
+function inspectField(player,target,slot){
+ if(!fieldVisible(player))return;
+ const c=target==="active"?state.players[player].active:state.players[player].bench[slot];if(c)showPreview(c,{field:{player,target,slot}});
 }
-function renderModal(){const modal=$("#modal");if(!preview){modal.hidden=true;return;}modal.hidden=false;
-if(preview.type==="debug"){renderDebug();return;}
-if(preview.type==="card"){const c=preview.card;modal.querySelector(".modal-content").innerHTML=cardHtml(c)+`<p>${escape(c.name||"")}${c.attacks?.length?" · "+c.attacks.map(a=>a.name+" ("+a.cost.join(" + ")+"): "+a.damage+" damage").join(", "):""}</p>${c.hp?'<p class="stat-legend">★ = Colorless Energy for retreat · ? = data not yet recorded · — = no Weakness or Resistance. These stats are informational; Weakness and Resistance damage rules are not implemented.</p>':""}`;}
-if(preview.type==="card"&&preview.card.ability){
- const c=preview.card,p=state.players[state.turn],own=c===p.active||p.bench.includes(c);
- const text=document.createElement("p");text.textContent=c.ability.name+": "+c.ability.text;modal.querySelector(".modal-content").append(text);
- if(own&&state.phase==="playing"){const button=document.createElement("button");button.textContent="Use "+c.ability.name;button.disabled=!!c.abilityUsed||state.winner!==null;button.onclick=useAbilityFromPreview;modal.querySelector(".modal-content").append(button);}
+board.addEventListener("click",e=>{
+ if(e.target.closest("#accept-handoff")){if(!preview&&gameVisible()&&humanTurn()){acknowledged=state.turn;updateCoach({state,action:"handoff"});render();}return;}
+ const zone=e.target.closest("[data-zone]");if(zone){showZone(Number(zone.dataset.player),zone.dataset.zone);return;}
+ const inspect=e.target.closest("[data-inspect-field]");if(inspect){inspectField(Number(inspect.dataset.player),inspect.dataset.inspectField,Number(inspect.dataset.slot));return;}
+ const hand=e.target.closest("[data-hand]");if(hand){if(!canHuman())return;const index=Number(hand.dataset.hand);if(state.selection===index)showPreview(state.players[state.turn].hand[index],{private:true});else act("select",{index});return;}
+ const slot=e.target.closest("[data-target]");if(!slot)return;
+ const player=Number(slot.dataset.player),target=slot.dataset.target,n=Number(slot.dataset.slot);
+ if(canHuman()&&player===state.turn){
+  if((state.phase==="replacement"||state.phase==="retreat")&&target==="bench"){act(state.phase==="replacement"?"promote":"switch",{slot:n});return;}
+  if(state.selection!==null){playSelected(player,target,n);return;}
+ }
+ inspectField(player,target,n);
+});
+board.addEventListener("keydown",e=>{
+ if(e.key==="Escape"&&canHuman()&&state.selection!==null){e.preventDefault();act("deselect");return;}
+ const el=e.target.closest('[role="button"]');if(el&&(e.key==="Enter"||e.key===" ")){e.preventDefault();el.click();}
+});
+function highlightDrag(){for(const slot of board.querySelectorAll("[data-target]"))slot.classList.toggle("playable",placementAllowed(state.players[state.turn].hand[dragging?.index??state.selection],Number(slot.dataset.player),slot.dataset.target,Number(slot.dataset.slot)));}
+board.addEventListener("dragstart",e=>{const hand=e.target.closest("[data-hand]");if(!hand||!canHuman()){e.preventDefault();return;}dragging={index:Number(hand.dataset.hand),revision,actor:state.turn};e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",String(dragging.index));highlightDrag();});
+board.addEventListener("dragover",e=>{const slot=e.target.closest("[data-target]");if(slot&&dragging&&canHuman()){e.preventDefault();e.dataTransfer.dropEffect=placementAllowed(state.players[state.turn].hand[dragging.index],Number(slot.dataset.player),slot.dataset.target,Number(slot.dataset.slot))?"move":"none";}});
+board.addEventListener("drop",e=>{
+ e.preventDefault();const slot=e.target.closest("[data-target]"),drag=dragging;dragging=null;if(!slot||!drag||drag.revision!==revision||drag.actor!==state.turn||!canHuman()){highlightDrag();return;}
+ const player=Number(slot.dataset.player),target=slot.dataset.target,n=Number(slot.dataset.slot),card=state.players[state.turn].hand[drag.index];
+ if(!placementAllowed(card,player,target,n)){setError(player!==state.turn?"Drop only on your own side.":"That is not an available target for this card.");highlightDrag();return;}
+ if(state.selection!==drag.index&&!act("select",{index:drag.index}))return;playSelected(player,target,n);
+});
+board.addEventListener("dragend",()=>{dragging=null;highlightDrag();});
+function renderCardDetails(token,c,{back}={}){
+ if(token.type==="zone"&&!zoneEntries(token)?.some(entry=>entry.c===c)){clearModal();renderControls();return;}
+ const d=displayCard(c);panel.innerHTML=cardHtml(c)+`<h2>${escape(cardName(c))}</h2>${d.attacks?.map(a=>`<p>${escape(a.name)} · ${costHtml(a.cost)} · ${a.damage} damage</p>`).join("")||""}${d.hp?'<p class="stat-legend">? = data not yet recorded; — = no Weakness or Resistance. Weakness and Resistance stats are informational; their damage rules are not implemented. Damage counters represent 10 damage each.</p>':""}<p class="modal-error" role="alert"></p>`;
+ if(d.ability){const text=document.createElement("p");text.textContent=`${d.ability.name}: ${d.ability.text}`;panel.append(text);}
+ if(token.type==="zone"&&token.authorized){const note=document.createElement("p");note.id="inspection-scope";note.textContent=`Authorized scope: ${inspectionScopeText(token.scope,token.zone)}. Details do not expand this permission.`;panel.append(note);}
+ if(back){const button=actionButton("Back to cards",()=>{if(validToken(token))back();});if(token.type==="zone"){button.id="inspection-back";button.focus();}}
+ if(token.field){
+  const {player,target,slot}=token.field;
+  if(player===state.turn&&d.ability&&canHuman(true)&&state.phase==="playing")actionButton(`Use ${d.ability.name}`,()=>useAbility(token),{disabled:!!d.abilityUsed||state.winner!==null});
+  if(canReferee()){
+   const note=document.createElement("p");note.textContent=`Manual counter placement/removal, not attack damage: ${d.damage||0} damage (${(d.damage||0)/10} counters). Resolve uncertain rulings with a Judge; players are responsible for legality.`;panel.append(note);
+   const reason=inputLabel("Card/rule and reason for counter change",{placeholder:"Explain the authorized effect or correction"});reason.id="counter-reason";
+   for(const counters of [-1,1]){const button=actionButton(counters===1?"Place 1 counter (+10)":"Remove 1 counter (−10)",()=>{if(!validToken(token)||!canReferee())return;if(!reason.value.trim()){setError("Enter the authorizing card/rule and reason.");return;}act("adjustDamage",{player,target,...(target==="bench"?{slot}:{}),counters,reason:reason.value.trim()},{source:"referee",token});},{disabled:counters<0&&!d.damage});button.dataset.counterChange=String(counters);button.setAttribute("aria-label",counters===1?"Place one damage counter (+10 damage)":"Remove one damage counter (minus 10 damage)");}
+  }
+ }
 }
-else if(preview.type!=="card") modal.querySelector(".modal-content").innerHTML=`<h2>${escape(preview.name)} · ${preview.cards.length} cards</h2><div class="pile-list">${preview.name==="deck"?"Deck contents are hidden during play.":preview.cards.length?preview.cards.map(c=>cardHtml(c,{small:true})).join(""):"No cards yet."}</div>`;
+function showPreview(card,options={}){if(options.private&&!canHuman())return;const token=openModal("card",{...options,card});renderCardDetails(token,card);}
+function validInspectionScope(scope,zone,size){
+ if(!scope||!Number.isInteger(scope.count)||scope.count<0||scope.count>size)return false;
+ if(scope.kind==="entire")return scope.count===size;
+ if(scope.kind==="top"||scope.kind==="bottom")return zone==="deck"&&scope.count>0;
+ if(scope.kind!=="positions"||!["hand","prizeCards"].includes(zone)||!Array.isArray(scope.positions))return false;
+ return scope.count>0&&scope.count===scope.positions.length&&new Set(scope.positions).size===scope.count&&scope.positions.every(index=>Number.isInteger(index)&&index>=0&&index<size);
+}
+function inspectionScopeText(scope,zone){
+ if(scope.kind==="entire")return `Entire ${zoneName(zone)} (${scope.count} cards)`;
+ if(scope.kind==="positions")return `${zoneName(zone)} positions ${scope.positions.map(index=>index+1).join(", ")} (${scope.count} cards)`;
+ return `${scope.kind==="top"?"Top":"Bottom"} ${scope.count} Deck card${scope.count===1?"":"s"} (in deck order)`;
+}
+function zoneEntries(token){
+ if(!validToken(token)||!zoneAccessAllowed(token))return null;
+ const cards=state.players[token.player]?.[token.zone];if(!Array.isArray(cards))return null;
+ let indices;
+ if(token.protected&&!token.ownHand){
+  if(!token.authorized||token.zoneSize!==cards.length||!validInspectionScope(token.scope,token.zone,cards.length))return null;
+  const {scope}=token;
+  if(scope.kind==="positions")indices=scope.positions;
+  else if(scope.kind==="top")indices=Array.from({length:scope.count},(_,index)=>index);
+  else if(scope.kind==="bottom")indices=Array.from({length:scope.count},(_,index)=>cards.length-scope.count+index);
+ }
+ const entries=indices?indices.map(index=>({c:cards[index],index})):cards.map((c,index)=>({c,index}));
+ if((token.zone==="deck"||token.zone==="prizeCards")&&(!token.authorized||token.scope.kind==="entire"))entries.sort((a,b)=>cardName(a.c).localeCompare(cardName(b.c)));
+ return entries;
+}
+function renderZoneCards(token){
+ const entries=zoneEntries(token);if(!entries){clearModal();renderControls();return;}
+ const scoped=token.authorized,scopeText=scoped?inspectionScopeText(token.scope,token.zone):"";
+ panel.innerHTML=`<h2>Player ${token.player+1} ${zoneName(token.zone)} · ${entries.length} cards</h2>${token.ownHand?"<p>Your own hand · read-only inspection.</p>":""}${scoped?`<p id="inspection-scope" class="permission-note">${escape(scopeText)}. Manual permission declared — players are responsible for legality. Access ends when this dialog closes or control changes. Ordered peeks retain deck order; selected positions retain their position labels; entire Deck/Prize searches are alphabetical. Inspection never moves, reorders, or shuffles cards.</p>`:""}<div class="inspection-grid" aria-label="Authorized inspection cards"></div><p class="modal-error" role="alert"></p>`;
+ const grid=panel.querySelector(".inspection-grid");
+ for(const {c,index} of entries){
+  const position=scoped&&token.scope.kind!=="entire"?`${token.zone==="prizeCards"?"Prize":zoneName(token.zone)} position ${index+1}`:"";
+  const b=document.createElement("button");b.type="button";b.className="inspect-card";b.setAttribute("aria-label",`${position?position+": ":""}Inspect ${cardName(c)}`);b.innerHTML=(position?`<span>${escape(position)}</span>`:"")+cardHtml(c,{small:true});
+  b.dataset.inspectionPosition=String(index+1);
+  b.addEventListener("click",()=>{if(zoneEntries(token)?.some(entry=>entry.index===index&&entry.c===c))renderCardDetails(token,c,{back:()=>{renderZoneCards(token);panel.querySelector(`[data-inspection-position="${index+1}"]`)?.focus();}});});grid.append(b);
+ }
+ if(!entries.length)grid.textContent="No cards in this authorized scope.";
+}
+function showZone(player,zone){
+ if(!Number.isInteger(player)||player<0||player>=state.players.length||!["hand","deck","discard","lostZone","prizeCards"].includes(zone))return;
+ const publicZone=zone==="discard"||zone==="lostZone",ownHand=zone==="hand"&&canReadOwnHand(player);
+ if(publicZone||ownHand){const token=openModal("zone",{player,zone,protected:!publicZone,ownHand});renderZoneCards(token);return;}
+ const allowed=canHuman(),zoneSize=state.players[player][zone].length;
+ const token=openModal("authorization",{player,zone,zoneSize},`<h2>Player ${player+1} ${zoneName(zone)} · protected zone</h2><p>Hidden cards may be inspected only when a card or rule authorizes this particular access and scope, including effects targeting an opponent's zone. A manual declaration is not proof of legality; consult a Judge if disputed or uncertain.</p>`);
+ if(!allowed){const text=document.createElement("p");text.className="permission-note";text.textContent="Only the acknowledged current player may declare permission. Close this dialog and complete the handoff first.";panel.append(text);return;}
+ const form=document.createElement("form");form.id="inspection-form";form.setAttribute("aria-label","Declare authorized hidden-zone inspection");form.addEventListener("submit",event=>event.preventDefault());panel.append(form);
+ const card=inputLabel("Authorizing card or rule",{parent:form,placeholder:"Name the card or rule granting this access"});card.id="inspection-authority";
+ const reason=inputLabel("Reason for permitted inspection",{parent:form,placeholder:"Why may you inspect this player's zone?"});reason.id="inspection-reason";
+ const scopeLabel=document.createElement("label");scopeLabel.className="modal-label";scopeLabel.textContent="Authorized inspection scope";
+ const scopeSelect=document.createElement("select");scopeSelect.id="inspection-scope-choice";scopeSelect.innerHTML='<option value="">Choose the exact authorized scope</option>'+(zone==="deck"?'<option value="top">Top N Deck cards only</option><option value="bottom">Bottom N Deck cards only</option>':'<option value="positions">Selected face-down positions only</option>')+'<option value="entire">Entire zone — only if explicitly authorized</option>';scopeLabel.append(scopeSelect);form.append(scopeLabel);
+ const countArea=document.createElement("div");countArea.hidden=true;form.append(countArea);
+ const count=inputLabel("Number of authorized Deck cards",{parent:countArea,type:"number"});count.id="inspection-count";count.min="1";count.max=String(zoneSize);count.step="1";count.value="1";count.disabled=true;
+ const positionsArea=document.createElement("fieldset");positionsArea.id="inspection-positions";positionsArea.hidden=true;positionsArea.disabled=true;const legend=document.createElement("legend");legend.textContent="Choose only authorized face-down positions (no identity previews)";positionsArea.append(legend);
+ const positions=[];
+ if(zone!=="deck")for(let index=0;index<zoneSize;index++){
+  const label=document.createElement("label");label.className="modal-label";const checkbox=document.createElement("input");checkbox.type="checkbox";checkbox.name="inspection-position";checkbox.value=String(index+1);checkbox.setAttribute("aria-label",`${zone==="prizeCards"?"Prize":"Hand"} position ${index+1}`);label.append(checkbox,document.createTextNode(`${zone==="prizeCards"?"Prize":"Hand"} position ${index+1} · face-down`));positionsArea.append(label);positions.push({checkbox,index});
+ }
+ form.append(positionsArea);
+ scopeSelect.addEventListener("change",()=>{const ordered=scopeSelect.value==="top"||scopeSelect.value==="bottom";countArea.hidden=!ordered;count.disabled=!ordered;positionsArea.hidden=scopeSelect.value!=="positions";positionsArea.disabled=positionsArea.hidden;});
+ const note=document.createElement("p");note.textContent="Only the chosen scope will be revealed. Card/rule, reason, and scope are recorded publicly; inspected card identities are not. Do not include private card identities in the declaration. No cards are moved or shuffled.";form.append(note);
+ const submit=actionButton("Declare scope and inspect privately",()=>{
+  if(!modalHuman(token))return;if(!card.value.trim()||!reason.value.trim()){setError("Name the authorizing card/rule and explain the permitted access.");return;}
+  const kind=scopeSelect.value,chosen=positions.filter(({checkbox})=>checkbox.checked).map(({index})=>index);
+  const scope=kind==="positions"?{kind,positions:chosen,count:chosen.length}:{kind,count:kind==="entire"?zoneSize:Number(count.value)};
+  if(token.zoneSize!==state.players[player][zone].length||!validInspectionScope(scope,zone,zoneSize)){setError("Choose an explicit scope, a whole-number count within the current Deck, or at least one valid face-down position. Reopen inspection if the zone changed.");return;}
+  if(act("inspectZone",{player,zone,reason:`Card/rule: ${card.value.trim()}; reason: ${reason.value.trim()}; scope: ${inspectionScopeText(scope,zone)}`},{token})){
+   const access=openModal("zone",{player,zone,protected:true,authorized:true,scope,zoneSize});renderZoneCards(access);
+  }
+ },{parent:form});submit.id="inspection-authorize";
+}
+function useAbility(token){
+ if(!modalHuman(token)||!token.field)return;
+ const {target,slot,player}=token.field,c=target==="active"?state.players[player].active:state.players[player].bench[slot];
+ if(player!==state.turn||!c?.ability)return;
+ if(c.ability.name!=="Snack Seek"){act("ability",{target,slot},{token});return;}
+ if(c.abilityUsed){setError("This Ability has already been used this turn.");return;}
+ const top=state.players[state.turn].deck[0];if(!top){setError("No cards left to inspect.");return;}
+ token.snackPayload={target,slot,discard:false};
+ panel.innerHTML='<h2>Snack Seek · authorized top-card inspection</h2>'+cardHtml(top)+'<p>Privately choose whether to keep the top card or discard it. This does not authorize inspecting the rest of the deck. Closing keeps the card on top and uses this Ability.</p><p class="modal-error" role="alert"></p>';
+ for(const discard of [false,true])actionButton(discard?"Discard top card":"Keep on top",()=>{if(modalHuman(token))act("ability",{target,slot,discard},{token});});
 }
 function showBallSearch(){
- const p=state.players[state.turn],idx=state.selection,card=p.hand[idx],required=card.name==="Quick Ball"?1:2;
- preview={type:"ball-search"};$("#modal").hidden=false;const panel=$("#modal .modal-content");panel.innerHTML="<h2>"+escape(card.name)+"</h2><p>Discard "+required+" other card(s), then choose a Pokémon to reveal and add to your hand.</p>";
- const checks=[];
- p.hand.forEach((c,i)=>{if(i===idx)return;const label=document.createElement("label"),check=document.createElement("input");check.type="checkbox";label.style.display="block";label.append(check,document.createTextNode(c.kind==="pokemon"?species[c.species].name:c.name));panel.append(label);checks.push({check,index:i});});
- const select=document.createElement("select");select.setAttribute("aria-label","Pokémon to find");select.innerHTML='<option value="">Finish without finding a Pokémon</option>'+p.deck.map((c,i)=>({c,i})).filter(({c})=>c.kind==="pokemon"&&(card.name==="Ultra Ball"||!species[c.species].stage)).map(({c,i})=>'<option value="'+i+'">'+escape(species[c.species].name)+'</option>').join('');panel.append(select);
- const status=document.createElement("p"),done=document.createElement("button");done.textContent="Play "+card.name;done.onclick=()=>{const payload={discardIndices:checks.filter(x=>x.check.checked).map(x=>x.index),searchIndex:select.value===""?null:Number(select.value)},result=dispatch(state,"trainer",payload);if(result.error){status.textContent=result.error;return;}turnHistory.record(state,result.state,"trainer",payload);const prev=state;state=result.state;render();coachUpdate({prev,state,action:"trainer"});error.textContent="";preview=null;$("#modal").hidden=true;};panel.append(status,done);
+ if(!canHuman())return;
+ const p=state.players[state.turn],index=state.selection,card=p.hand[index];if(!card||!["Quick Ball","Ultra Ball"].includes(card.name))return;
+ const required=card.name==="Quick Ball"?1:2;
+ if(p.hand.length-1<required){setError(`${card.name} requires ${required} other hand card(s) to discard.`);return;}
+ const token=openModal("ball",{index},`<h2>${escape(card.name)}</h2><p>Choose exactly ${required} other hand card(s) to discard. The deck stays hidden until costs are committed.</p><div class="cost-grid"></div>`);
+ const checks=[],grid=panel.querySelector(".cost-grid");
+ p.hand.forEach((c,i)=>{if(i===index)return;const label=document.createElement("label");label.className="cost-card";const checkbox=document.createElement("input");checkbox.type="checkbox";checkbox.setAttribute("aria-label",`Discard ${cardName(c)}`);label.innerHTML=cardHtml(c,{small:true});label.prepend(checkbox);grid.append(label);checks.push({checkbox,index:i});});
+ actionButton("Commit discard costs and inspect deck",()=>{
+  if(!modalHuman(token))return;const costs=checks.filter(x=>x.checkbox.checked).map(x=>x.index);if(costs.length!==required){setError(`Choose exactly ${required} other cards.`);return;}
+  token.ballCost=costs;renderBallGrid(token,card);
+ });
 }
-function chooseAttack(index){
- const p=state.players[state.turn],move=p.active.attacks[index];
- if(move.effect!=="pickAndStick"){act("attack",{index});$("#modal").hidden=true;preview=null;return;}
- preview={type:"energy-choice"};$("#modal").hidden=false;
- const panel=$("#modal .modal-content");panel.innerHTML="<h2>Pick and Stick</h2><p>Choose up to 2 Basic Energy cards and where to attach each. This attack ends your turn.</p>";
+function renderBallGrid(token,card){
+ if(!modalHuman(token))return;
+ panel.innerHTML=`<h2>${escape(card.name)} · authorized deck search</h2><p>Discard cost committed. Choose ${card.name==="Quick Ball"?"a Basic":"any"} Pokémon to reveal, or finish without finding one. Resolving shuffles the deck. Closing or leaving now resolves a failed search and pays the costs.</p><div class="inspection-grid search-grid"></div><p id="search-choice" aria-live="polite">No Pokémon chosen.</p><p class="modal-error" role="alert"></p>`;
+ token.searchIndex=null;
+ const grid=panel.querySelector(".search-grid");
+ state.players[state.turn].deck.map((c,i)=>({c,i})).sort((a,b)=>cardName(a.c).localeCompare(cardName(b.c))).forEach(({c,i})=>{
+  const eligible=c.kind==="pokemon"&&(card.name==="Ultra Ball"||!species[c.species].stage),entry=document.createElement("div");entry.className="search-card";entry.innerHTML=cardHtml(c,{small:true});
+  actionButton("Inspect",()=>{
+   if(!modalHuman(token))return;const detail=$("#search-detail"),d=displayCard(c);
+   detail.innerHTML=cardHtml(c)+`<h3>${escape(cardName(c))}</h3>${d.evolvesFrom?`<p>Evolves from ${escape(d.evolvesFrom)}</p>`:""}${d.attacks?.map(move=>`<p>${escape(move.name)} · ${costHtml(move.cost)} · ${move.damage} damage${move.text?` · ${escape(move.text)}`:""}</p>`).join("")||""}${d.ability?`<p>${escape(d.ability.name)}: ${escape(d.ability.text)}</p>`:""}`;
+  },{parent:entry});
+  if(eligible)actionButton("Choose",()=>{if(!modalHuman(token))return;token.searchIndex=i;for(const el of grid.children)el.classList.remove("chosen");entry.classList.add("chosen");$("#search-choice").textContent=`Reveal and take ${cardName(c)}.`;},{parent:entry});
+  else{const note=document.createElement("small");note.textContent="Not eligible";entry.append(note);}grid.append(entry);
+ });
+ const detail=document.createElement("div");detail.id="search-detail";detail.setAttribute("aria-live","polite");panel.append(detail);
+ actionButton("Finish without finding a Pokémon",()=>{if(modalHuman(token))act("trainer",{discardIndices:token.ballCost,searchIndex:null},{token});});
+ actionButton("Reveal chosen Pokémon and finish",()=>{if(!modalHuman(token))return;if(token.searchIndex===null){setError("Choose an eligible Pokémon, or finish without finding one.");return;}act("trainer",{discardIndices:token.ballCost,searchIndex:token.searchIndex},{token});});
+}
+function chooseAttack(index,from){
+ if(from?!modalHuman(from):!canHuman())return;
+ const p=state.players[state.turn],move=p.active?.attacks[index];if(!move)return;
+ if(move.effect!=="pickAndStick"){act("attack",{index},from?{token:from}:{});return;}
+ const token=openModal("attack-energy",{},'<h2>Pick and Stick</h2><p>Choose up to two distinct Basic Energy from Discard and a target for each. This attack ends your turn.</p>');
  const fields=[];
- p.discard.forEach((card,i)=>{if(card.kind!=="energy")return;const label=document.createElement("label");label.style.display="block";label.textContent=card.name+" ";const select=document.createElement("select");
- select.innerHTML='<option value="">Leave in discard</option><option value="active">Active: '+escape(p.active.name)+'</option>'+p.bench.map((c,n)=>'<option value="'+n+'">Bench '+(n+1)+': '+escape(c.name)+'</option>').join('');label.append(select);panel.append(label);fields.push({select,index:i});});
- const done=document.createElement("button");done.textContent="Use Pick and Stick";done.onclick=()=>{const attachments=fields.filter(x=>x.select.value!=="").map(x=>({index:x.index,target:x.select.value==="active"?"active":"bench",slot:Number(x.select.value)}));const result=dispatch(state,"attack",{index,attachments});if(result.error){error.textContent=result.error;return;}turnHistory.record(state,result.state,"attack",{index,attachments});const prev=state;state=result.state;error.textContent="";render();coachUpdate({prev,state,action:"attack"});preview=null;$("#modal").hidden=true;};panel.append(done);
+ p.discard.forEach((card,i)=>{if(card.kind!=="energy")return;const label=document.createElement("label");label.className="modal-label";label.innerHTML=typeSymbol(card.type)+" "+escape(cardName(card));const select=document.createElement("select");select.setAttribute("aria-label",`Attach discarded ${cardName(card)} ${i+1} to`);select.innerHTML=`<option value="">Leave in discard</option><option value="active">Active: ${escape(p.active.name)}</option>`+p.bench.map((c,n)=>`<option value="${n}">Bench ${n+1}: ${escape(c.name)}</option>`).join("");label.append(select);panel.append(label);fields.push({select,index:i});});
+ actionButton("Use Pick and Stick",()=>{if(!modalHuman(token))return;const attachments=fields.filter(x=>x.select.value!=="").map(x=>({index:x.index,target:x.select.value==="active"?"active":"bench",...(x.select.value==="active"?{}:{slot:Number(x.select.value)})}));act("attack",{index,attachments},{token});});
 }
-function showAttacks(){const moves=state.players[state.turn].active.attacks;preview={type:"attacks"};const modal=$("#modal");modal.hidden=false;modal.querySelector(".modal-content").innerHTML="<h2>Choose an attack</h2>"+moves.map((a,i)=>`<button type="button" data-attack="${i}" style="display:block;margin:12px 0;padding:12px;width:100%;text-align:left">${escape(a.name)} — ${escape(a.cost.join(" + "))} — ${a.damage} damage</button>`).join("");}
-$("#modal").addEventListener("click",e=>{const attack=e.target.closest("[data-attack]");if(attack){chooseAttack(Number(attack.dataset.attack));return;}});
-$("#modal").addEventListener("click",e=>{if(e.target.id==="modal"||e.target.closest(".close-modal")){$("#modal").hidden=true;preview=null;}});
-document.querySelectorAll("button[data-action]").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.action==="attack"){if(state.players[state.turn].active?.attacks?.length>1)showAttacks();else chooseAttack(0);return;}if(b.dataset.action==="trainer"){const card=state.players[state.turn].hand[state.selection];if(card?.name==="Quick Ball"||card?.name==="Ultra Ball"){showBallSearch();return;}if(card?.name==="Potion"||card?.name==="Air Balloon"){error.textContent=card.name==="Air Balloon"?"Tap your Active or a Benched Pokémon to attach Air Balloon.":"Tap a damaged Pokémon to use Potion.";return;}act("trainer");}else act(b.dataset.action);$("#modal").hidden=true;preview=null;}));
-render();
-
-coachUpdate({state,action:"init"});
-const deckBuilder=mountDeckBuilder({start(decks){matchDecks=structuredClone(decks);state=newGame(matchDecks);turnHistory.start(state);planner.reset();error.textContent="";preview=null;$("#modal").hidden=true;render();coachUpdate({state,action:"reset"});},inspect:showPreview,onClose:started=>started?showGame():showMenu()});
-$("#open-decks").addEventListener("click",()=>deckBuilder.open());
-
-function hideModal(){preview=null;$("#modal").hidden=true;}
+function showAttacks(){
+ if(!canHuman())return;const p=state.players[state.turn];if(!p.active)return;
+ const token=openModal("attacks",{},"<h2>Choose an attack</h2>");
+ p.active.attacks.forEach((move,index)=>{const button=actionButton("",()=>chooseAttack(index,token));button.innerHTML=`${escape(move.name)} · ${costHtml(move.cost)} · ${move.damage} damage`;});
+}
+for(const b of document.querySelectorAll("button[data-action]"))b.addEventListener("click",()=>{
+ if(!canHuman())return;const action=b.dataset.action;
+ if(action==="attack"){showAttacks();return;}
+ if(action==="trainer"){
+  const c=state.players[state.turn].hand[state.selection];if(!c)return;
+  if(c.name==="Quick Ball"||c.name==="Ultra Ball"){showBallSearch();return;}
+  if(c.name==="Potion"||c.name==="Air Balloon"){setError("Tap or drag onto an appropriate own Pokémon to use this Trainer.");return;}
+ }
+ act(action);
+});
+modal.addEventListener("click",e=>{if(e.target===modal||e.target.closest(".close-modal"))closeModal();});
+modal.addEventListener("keydown",e=>{
+ if(e.key==="Escape"){e.preventDefault();closeModal();return;}
+ if(e.key!=="Tab")return;
+ const focusable=[...modal.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),[tabindex="0"]')].filter(el=>!el.hidden);
+ if(!focusable.length)return;const first=focusable[0],last=focusable[focusable.length-1];
+ if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+});
+$("#ai-toggle").addEventListener("click",()=>{if(preview||screen!=="game")return;aiEnabled=!aiEnabled;acknowledged=null;render();queueAI();});
+$("#ai-export").addEventListener("click",()=>{
+ const blob=new Blob([planner.export()],{type:"application/json"}),url=URL.createObjectURL(blob),link=document.createElement("a");
+ link.href=url;link.download="pokemon-ai-plans.json";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+function startMatch(decks){
+ if(!closeModal())return;matchDecks=decks?structuredClone(decks):null;acknowledged=null;
+ if(act("reset",{},{source:"system",decks:matchDecks}))showGame();
+}
+function confirmNewMatch(){
+ const token=openModal("new-match",{},"<h2>Start a new match?</h2><p>This ends the current match and deals the current decks again. Use Deck Builder to edit decks first.</p>");
+ actionButton("Confirm new match",()=>{if(validToken(token))startMatch(matchDecks);});actionButton("Keep current match",closeModal);
+}
+const deckBuilder=mountDeckBuilder({start:startMatch,inspect:card=>showPreview(card),onClose:started=>started?showGame():showMenu()});
 function showMenu(){
- hideModal();$("main").hidden=true;$("#deck-builder").hidden=true;$("#main-menu").hidden=false;
- $("#menu-play").textContent="";
- const title=document.createElement("strong");title.textContent=state.winner!==null?"View finished game":state.phase==="setup"?"Play":"Resume Game";
- const hint=document.createElement("span");hint.textContent="Return to the current playmat";
- $("#menu-play").append(title,hint);$("#menu-play").focus();window.scrollTo(0,0);
+ if(!closeModal())return;screen="menu";acknowledged=null;$("main").hidden=true;$("#deck-builder").hidden=true;$("#main-menu").hidden=false;
+ $("#menu-play strong").textContent=state.winner!==null?"View finished match":"Resume / open match";render();$("#menu-play").focus();window.scrollTo(0,0);
 }
-function showGame(){hideModal();$("#main-menu").hidden=true;$("#deck-builder").hidden=true;$("main").hidden=false;render();$("#open-menu").focus();window.scrollTo(0,0);}
-function openBuilder(){hideModal();$("#main-menu").hidden=true;deckBuilder.open();window.scrollTo(0,0);}
-$("#menu-play").disabled=false;$("#menu-decks").disabled=false;
-$("#menu-message").textContent="Your match stays in memory while you visit the menu. Save decks to keep them after reloading.";
+function showGame(){if(!closeModal())return;screen="game";$("#main-menu").hidden=true;$("#deck-builder").hidden=true;$("main").hidden=false;render();queueAI();$("#open-menu").focus();window.scrollTo(0,0);}
+function openBuilder(){if(!closeModal())return;screen="builder";acknowledged=null;$("#main-menu").hidden=true;$("main").hidden=true;deckBuilder.open();render();window.scrollTo(0,0);}
 $("#menu-play").addEventListener("click",showGame);
+$("#menu-new").addEventListener("click",confirmNewMatch);
+$("#new-match").addEventListener("click",confirmNewMatch);
 $("#menu-decks").addEventListener("click",openBuilder);
+$("#open-decks").addEventListener("click",openBuilder);
 $("#open-menu").addEventListener("click",showMenu);
+document.addEventListener("visibilitychange",()=>{if(document.hidden){closeModal();acknowledged=null;dragging=null;}render();if(!document.hidden)queueAI();});
+$("#menu-message").textContent="Your match stays in memory while you visit the menu. Save decks to keep them after reloading.";
 showMenu();
+
+updateCoach({state,action:"init"});
 
 // Debug menu. "Me" is Player 1 when the AI plays Player 2, otherwise whoever's turn it is; the opponent is the other player.
 const debugMe=()=>aiEnabled?0:state.turn;
 const debugScenarios=[["prizesToOne","Set my Prizes to 1"],["emptyOpponentDeck","Empty opponent's deck"],["knockOutOpponentActive","Knock out opponent's Active"],["clearOpponentBench","Clear opponent's Bench"],["skipTurn","Skip to opponent's turn"],["resetTurnFlags","Reset my once-per-turn actions"]];
-function openDebug(){preview={type:"debug",view:"menu",message:""};renderModal();}
+function openDebug(){if(!closeModal())return;openModal("debug",{view:"menu",message:""});renderDebug();}
 function debugCards(cards,numbered){return cards.length?`<div class="pile-list">${cards.map((c,i)=>numbered?`<div class="debug-card"><small>#${i+1}</small>${cardHtml(c,{small:true})}</div>`:cardHtml(c,{small:true})).join("")}</div>`:"<p>No cards.</p>";}
 function debugPlan(){
  const plan=planner.active;
@@ -146,7 +389,7 @@ function renderDebug(){
  if(view==="plan"){content.innerHTML=`${back}<h2>AI current plan</h2>${debugPlan()}`;return;}
  const options=items=>items.map(([v,l])=>`<option value="${escape(v)}">${escape(l)}</option>`).join("");
  const mons=pokemonRefs(state).map(x=>[x.ref,x.label]);
- content.innerHTML=`<h2>Debug · acting as Player ${me+1}</h2>${note}
+ content.innerHTML=`<h2>Debug · acting as Player ${me+1}</h2><p class="permission-note">Privileged testing tools: these can reveal hidden cards and change the game without a legal card effect. Not normal play, not permission to inspect, and not a Judge ruling.</p>${note}
 <h3>View</h3><div class="debug-row"><button type="button" data-debug="deck">Show opponent deck</button><button type="button" data-debug="hand">Show opponent hand</button><button type="button" data-debug="plan">Show AI current plan</button></div>
 <h3>Test scenarios</h3><div class="debug-row">${debugScenarios.map(([id,label])=>`<button type="button" data-debug="${id}">${escape(label)}</button>`).join("")}</div>
 <h3>Put a card in my hand</h3><div class="debug-row"><select id="debug-card">${options(catalog.map(c=>[c.id,c.name]))}</select><button type="button" data-debug="addCardToHand">Add to hand</button></div>
@@ -158,7 +401,7 @@ function runDebug(name){
  const prev=state,r=debugCommands[name](state,debugMe(),args);
  if(r.error){preview.message=r.error;renderDebug();return;}
  turnHistory.record(prev,r.state,"debug",{command:name,...args});planner.onChange(prev,r.state,"debug");
- state=r.state;error.textContent="";preview.message=r.message;render();renderDebug();queueAI();
+ const oldTurn=state.turn;state=r.state;revision++;dragging=null;if(oldTurn!==state.turn)acknowledged=null;preview.actor=state.turn;preview.revision=revision;error.textContent="";preview.message=r.message;render();renderDebug();queueAI();
 }
 $("#modal").addEventListener("click",e=>{const b=e.target.closest("[data-debug]");if(!b||preview?.type!=="debug")return;const name=b.dataset.debug;if(["menu","deck","hand","plan"].includes(name)){preview.view=name;preview.message="";renderDebug();}else runDebug(name);});
 $("#open-debug").addEventListener("click",openDebug);

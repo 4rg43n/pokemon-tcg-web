@@ -1,5 +1,5 @@
-import {getCardDetail} from "./external-cards.js";
-import {parseLimitless} from "./limitless-import.js";
+import {getCardDetail} from "./external-cards.js?v=48";
+import {parseLimitless} from "./limitless-import.js?v=48";
 const API="https://api.tcgdex.net/v2/en";
 let setsPromise;
 let setCodeIndexPromise;
