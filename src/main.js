@@ -192,6 +192,7 @@ function playSelected(player,target,slot){
   if(card.name==="Quick Ball"||card.name==="Ultra Ball"){showBallSearch();return;}
   if(card.name==="Nest Ball"){showNestBallSearch();return;}
   if(["Gladion","Clay","Cynthia & Caitlin"].includes(card.name)){showSupporterPrinting(card);return;}
+  if(["Pal Pad","VS Seeker"].includes(card.name)){showSupporterRecovery(card);return;}
   if(card.name==="Lusamine"){showLusamine(card);return;}
   if(["Max Potion","Devolution Spray"].includes(card.name)){showTargetTrainer(card);return;}
   if(["Acro Bike","Special Charge","Super Rod","Tag Call","Counter Catcher","Lana's Fishing Rod"].includes(card.name)){showRemainingTrainer(card);return;}
@@ -394,6 +395,17 @@ function showTargetTrainer(card){
  const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(allowed?"":" search-ineligible");tile.disabled=!allowed;tile.innerHTML=cardHtml({kind:"pokemon",species:x.mon.speciesIndex},{small:true})+"<span>"+escape(x.mon.name)+"</span>";tile.onclick=()=>act("trainer",{target:x.target,slot:x.slot},{token});grid.append(tile);
  });panel.append(grid);
 }
+function showSupporterRecovery(card){
+ if(!canHuman()||state.phase!=="playing")return;
+ const p=state.players[state.turn],pad=card.name==="Pal Pad";
+ const token=openModal("supporter-recovery",{card},"<h2>"+escape(card.name)+"</h2><p>"+(pad?"Choose up to two Supporter cards to shuffle into your deck.":"Choose one Supporter card to return to your hand.")+"</p>");
+ const chosen=new Set(),grid=document.createElement("div");grid.className="search-deck-gallery";
+ p.discard.forEach((c,i)=>{
+  const ok=c.kind==="trainer"&&c.subtype==="Supporter",tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(ok?"":" search-ineligible");tile.disabled=!ok;tile.innerHTML=cardHtml(c,{small:true})+"<span>"+escape(cardName(c))+"</span>";
+  tile.onclick=()=>{if(chosen.has(i)){chosen.delete(i);tile.classList.remove("chosen");}else if(chosen.size<(pad?2:1)){chosen.add(i);tile.classList.add("chosen");}else setError("Too many cards selected.");};grid.append(tile);
+ });panel.append(grid);
+ actionButton("Play "+card.name,()=>{if(!pad&&chosen.size!==1){setError("Select one Supporter.");return;}act("trainer",pad?{discardIndices:[...chosen]}:{discardIndex:[...chosen][0]},{token});});
+}
 function showLusamine(card){
  if(!canHuman()||state.phase!=="playing")return;
  const p=state.players[state.turn],token=openModal("lusamine",{card},"<h2>Lusamine</h2><p>Choose up to two Supporter or Stadium cards from your discard pile to return to your hand.</p>");
@@ -559,6 +571,7 @@ for(const b of document.querySelectorAll("button[data-action]"))b.addEventListen
   if(c.name==="Quick Ball"||c.name==="Ultra Ball"){showBallSearch();return;}
   if(c.name==="Nest Ball"){showNestBallSearch();return;}
   if(["Gladion","Clay","Cynthia & Caitlin"].includes(c.name)){showSupporterPrinting(c);return;}
+  if(["Pal Pad","VS Seeker"].includes(c.name)){showSupporterRecovery(c);return;}
   if(c.name==="Lusamine"){showLusamine(c);return;}
   if(["Max Potion","Devolution Spray"].includes(c.name)){showTargetTrainer(c);return;}
   if(["Acro Bike","Special Charge","Super Rod","Tag Call","Counter Catcher","Lana's Fishing Rod"].includes(c.name)){showRemainingTrainer(c);return;}
