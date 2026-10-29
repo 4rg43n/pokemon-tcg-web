@@ -3,9 +3,9 @@ Browser-based Pokémon TCG educational playmat and deck builder.
 
 https://4rg43n.github.io/pokemon-tcg-web/
 
-## Human playmat update (v60)
+## Human playmat update (v62)
 
-The v60 integration combines the human-to-human hotseat controls below with
+The v62 integration combines the human-to-human hotseat controls below with
 coworkers' existing playmat, coach, imports, and planning/debug features.
 The user has requested publication for manual UI testing; browser testing is
 deferred, not awaiting browser-control approval or a prerequisite to publishing.
@@ -100,7 +100,7 @@ From the repository root, the available regression entry points are:
 node --experimental-default-type=module --test tests/limitless-import.test.mjs src/engine.test.mjs
 ```
 
-Validation of the reconciled v60 source: **33 regression tests passed** and
+Validation of the reconciled v62 source: **33 regression tests passed** and
 syntax checks passed for all 18 JavaScript source files. A Node engine smoke
 run completed both players' default-deck setup, four passed turns, mandatory
 draws, and manual counter placement/removal. No browser interactions were
@@ -111,19 +111,19 @@ TCGdex resolution or browser import flow.
 python3 -m http.server 8765
 ```
 
-Open `http://127.0.0.1:8765/` for manual browser checks. Publish v60 for the
+Open `http://127.0.0.1:8765/` for manual browser checks. Publish v62 for the
 requested user testing without representing the deferred browser pass as
 complete. Manual acceptance should exercise private handoff, scoped
 inspection/detail/Back, search-cost settlement and cancellation,
 drag/tap/keyboard placement, and counter Knock Out/Prize/promotion flows.
 Microsoft Edge and iPad Safari remain separate, unverified acceptance surfaces.
-The visible release and production module/stylesheet cache keys are **v60**.
+The visible release and production module/stylesheet cache keys are **v62**.
 Confirm the visible version before manual testing; Pages deployment may lag.
 
 ## Historical feature notes
 
 The v16–v22 notes preserve feature history, followed by the existing v36 coach
-documentation. They are not new browser-test or acceptance results for v60.
+documentation. They are not new browser-test or acceptance results for v62.
 
 ## Deck builder (v16)
 

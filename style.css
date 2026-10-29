@@ -187,3 +187,10 @@ header h1 small{font-size:.55em;opacity:.7}#privacy-status{margin:3px 0 10px}
 .tcg-card.printed.image-unavailable .print-fallback{display:flex}
 .tcg-card.printed .print-fallback small{display:block;font-size:.7em;margin-top:6px}
 .tcg-card.printed .print-damage{position:absolute;bottom:4px;right:4px;background:#b72828;color:#fff;padding:2px 5px;border-radius:5px;font-size:11px}
+
+/* Search dialogs show the actual inspected cards in a scrollable gallery. */
+.print-search-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:12px;max-height:380px;overflow-y:auto;padding:12px 4px;margin:12px 0}
+.print-search-tile{min-width:0;text-align:center;font-size:12px;overflow-wrap:anywhere;border:2px solid transparent;border-radius:8px;padding:4px}
+.print-search-tile.chosen{border-color:#facc15;background:#234a68}
+.print-search-tile .tcg-card{width:100%;max-width:130px;margin:0 auto 5px}
+.print-search-tile button{font-size:12px;padding:5px 8px;margin-top:5px}

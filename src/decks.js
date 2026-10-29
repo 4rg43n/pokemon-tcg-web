@@ -1,4 +1,4 @@
-import {species,energyTypes} from "./cards.js?v=60";
+import {species,energyTypes} from "./cards.js?v=62";
 export const pokemonCard=species=>({kind:"pokemon",species});
 export const energyCard=type=>({kind:"energy",type,name:type+" Energy"});
 export const trainerCard=name=>({image:name==="Quick Ball"?"assets/cards/quick-ball.jpg":name==="Ultra Ball"?"assets/cards/ultra-ball.jpg":undefined,kind:"trainer",name,subtype:name==="Air Balloon"?"Pokémon Tool":(name==="Professor's Research"||name==="Lillie's Determination"||name==="Nemona")?"Supporter":"Item"});

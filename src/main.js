@@ -1,14 +1,14 @@
-import {retreatCost,species,energyTypes,canPay} from "./cards.js?v=60";
-import {catalog} from "./decks.js?v=60";
-import {commands as debugCommands,pokemonRefs} from "./debug.js?v=60";
-import {cardStats} from "./card-stats.js?v=60";
-import {newGame,dispatch,cardInfo} from "./engine.js?v=60";
-import {mountDeckBuilder} from "./deck-builder.js?v=60";
-import {createRecorder} from "./history.js?v=60";
-import {createPlanner} from "./planning/planner.js?v=60";
-import {renderPlanGraph} from "./planning/plan-graph.js?v=60";
-import {update as coachUpdate,configure as coachConfigure} from "./coach_ui.js?v=60";
-import {typeSymbol} from "./type-symbols.js?v=60";
+import {retreatCost,species,energyTypes,canPay} from "./cards.js?v=62";
+import {catalog} from "./decks.js?v=62";
+import {commands as debugCommands,pokemonRefs} from "./debug.js?v=62";
+import {cardStats} from "./card-stats.js?v=62";
+import {newGame,dispatch,cardInfo} from "./engine.js?v=62";
+import {mountDeckBuilder} from "./deck-builder.js?v=62";
+import {createRecorder} from "./history.js?v=62";
+import {createPlanner} from "./planning/planner.js?v=62";
+import {renderPlanGraph} from "./planning/plan-graph.js?v=62";
+import {update as coachUpdate,configure as coachConfigure} from "./coach_ui.js?v=62";
+import {typeSymbol} from "./type-symbols.js?v=62";
 coachConfigure({species,canPay,retreatCost,dispatch});
 const $=s=>document.querySelector(s);
 const board=$("#board"),status=$("#status"),error=$("#error"),log=$("#log"),modal=$("#modal"),panel=$("#modal .modal-content");
@@ -82,7 +82,7 @@ function closeModal(){
   $("#action-notice").textContent="Closed search resolved without finding a Pokémon. Discard costs were paid and the deck shuffled.";
  }else if(preview?.trainerPayload&&validToken(preview)){
   const token=preview;
-  if(!act("trainer",token.trainerPayload,{source:"settle",token}))return false;
+  if(!act(token.settleAction||"trainer",token.trainerPayload,{source:"settle",token}))return false;
   $("#action-notice").textContent="Closed search resolved without finding a card. Committed costs and the card effect were resolved.";
  }else if(preview?.snackPayload&&validToken(preview)){
   const token=preview;
@@ -173,6 +173,10 @@ function renderControls(){
  $('[data-action="attack"]').textContent=p.active?.attacks?.length>1?"Choose Attack":"Attack";
  $("#ai-toggle").textContent=aiEnabled?"AI Player 2: ON":"AI Player 2: OFF";
  $("#ai-toggle").disabled=!!preview;
+ let stadiumButton=$("#stadium-action");
+ if(!stadiumButton){stadiumButton=document.createElement("button");stadiumButton.id="stadium-action";stadiumButton.type="button";stadiumButton.addEventListener("click",showStadiumAction);$("#ai-toggle").after(stadiumButton);}
+ stadiumButton.hidden=!["Stormy Mountains","Tropical Beach"].includes(state.stadium?.name);
+ stadiumButton.textContent="Use "+(state.stadium?.name||"Stadium");stadiumButton.disabled=!playing;
 }
 function playSelected(player,target,slot){
  if(!canHuman())return;
@@ -278,6 +282,22 @@ function renderZoneCards(token){
   b.addEventListener("click",()=>{if(zoneEntries(token)?.some(entry=>entry.index===index&&entry.c===c))renderCardDetails(token,c,{back:()=>{renderZoneCards(token);panel.querySelector(`[data-inspection-position="${index+1}"]`)?.focus();}});});grid.append(b);
  }
  if(!entries.length)grid.textContent="No cards in this authorized scope.";
+}
+function showStadiumAction(){
+ if(!canHuman()||state.phase!=="playing"||!state.stadium)return;
+ if(state.stadium.name==="Tropical Beach"){act("stadium");return;}
+ if(state.stadium.name!=="Stormy Mountains")return;
+ const failure=dispatch(state,"stadium",{searchIndex:null}).error;if(failure){setError(failure);return;}
+ const p=state.players[state.turn],token=openModal("stadium",{trainerPayload:{searchIndex:null},settleAction:"stadium"},"<h2>Stormy Mountains</h2><p>Search your Deck for a Basic Lightning or Dragon Pokémon to Bench, then shuffle. Closing resolves without finding a Pokémon and uses this turn's activation.</p><div class=\"print-search-grid\"></div>");
+ const select=document.createElement("select");select.setAttribute("aria-label","Basic Lightning or Dragon Pokémon");select.innerHTML='<option value="">Do not find a Pokémon</option>';
+ const grid=panel.querySelector(".print-search-grid");
+ p.deck.forEach((card,index)=>{
+  const eligible=card.kind==="pokemon"&&!species[card.species]?.stage&&["Lightning","Dragon"].includes(species[card.species]?.type);
+  const tile=document.createElement("div");tile.className="print-search-tile";tile.innerHTML=cardHtml(card,{small:true});
+  if(eligible){const option=document.createElement("option");option.value=String(index);option.textContent=cardName(card);select.append(option);actionButton("Choose "+cardName(card),()=>{if(modalHuman(token))select.value=String(index);},{parent:tile});}
+  grid.append(tile);
+ });
+ panel.append(select);actionButton("Use Stormy Mountains",()=>{if(modalHuman(token))act("stadium",{searchIndex:select.value===""?null:Number(select.value)},{token});});
 }
 function showZone(player,zone){
  if(!Number.isInteger(player)||player<0||player>=state.players.length||!["hand","deck","discard","lostZone","prizeCards"].includes(zone))return;

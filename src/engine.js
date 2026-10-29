@@ -1,7 +1,7 @@
 // Lightweight two-player prototype; intentionally not a complete official TCG rules engine.
-import {species,canPay,retreatCost} from "./cards.js?v=60";
+import {species,canPay,retreatCost} from "./cards.js?v=62";
 export const pokemon=(i)=>({...species[i],speciesIndex:i,damage:0,energy:0,energies:[],evolvedThisTurn:false,playedTurn:0,under:[],tool:null});
-import {defaultDeck, expandDeck, validateDeck, energyCard as energy, pokemonCard as basic} from "./decks.js?v=60";
+import {defaultDeck, expandDeck, validateDeck, energyCard as energy, pokemonCard as basic} from "./decks.js?v=62";
 function shuffle(cards){for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]];}return cards;}
 function player(i,deck){
  const cards=shuffle(expandDeck(deck||defaultDeck(i)));
@@ -48,6 +48,25 @@ if(action==="adjustDamage"){
  }
  return {state:s};
 }
+if(action==="stadium"){
+ if(s.phase!=="playing")return err(state,"Stadium abilities can only be used during play.");
+ if(!s.stadium)return err(state,"No Stadium in play.");
+ if(s.stadium.name==="Stormy Mountains"){
+  if(p.stormyUsedTurn===s.round)return err(state,"Stormy Mountains was already used this turn.");
+  if(p.bench.length>=5)return err(state,"Your Bench is full.");
+  const i=payload.searchIndex;
+  if(i===null){p.stormyUsedTurn=s.round;shuffle(p.deck);return {state:s};}
+  if(!Number.isInteger(i)||p.deck[i]?.kind!=="pokemon"||species[p.deck[i].species]?.stage||!["Lightning","Dragon"].includes(species[p.deck[i].species].type))return err(state,"Select a Basic Lightning or Dragon Pokémon.");
+  const found=p.deck.splice(i,1)[0];const mon=pokemon(found.species);mon.playedTurn=s.round;p.bench.push(mon);shuffle(p.deck);p.stormyUsedTurn=s.round;
+  s.log.unshift("Player "+(s.turn+1)+" used Stormy Mountains to Bench "+mon.name+".");return {state:s};
+ }
+ if(s.stadium.name==="Tropical Beach"){
+  if(p.beachUsedTurn===s.round)return err(state,"Tropical Beach was already used this turn.");
+  const amount=Math.max(0,7-p.hand.length);for(let n=0;n<amount&&p.deck.length;n++)p.hand.push(p.deck.shift());
+  p.beachUsedTurn=s.round;next(s);s.log.unshift("Player "+(state.turn+1)+" used Tropical Beach to draw "+amount+" cards and end the turn.");return {state:s};
+ }
+ return err(state,"This Stadium has no manually activated effect.");
+}
 if(action==="deselect"){s.selection=null;return {state:s};}
 if(action==="select"){
 const idx=payload.index;
@@ -90,7 +109,7 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
  let idx=s.selection;const card=p.hand[idx];if(!card||card.kind!=="trainer")return err(state,"Select a Trainer card first.");
  if(card.subtype==="Supporter"&&p.supporterUsed)return err(state,"Only one Supporter per turn.");
  if(card.subtype==="Supporter"&&s.turn===0&&s.round===1)return err(state,"The first player cannot play a Supporter on their first turn.");
- const isStadium=card.subtype==="Stadium"||["Magma Basin","PokéStop","Silent Lab"].includes(card.name);
+ const isStadium=card.subtype==="Stadium"||["Magma Basin","PokéStop","Silent Lab","Stormy Mountains","Tropical Beach"].includes(card.name);
  if(isStadium&&p.stadiumPlayed)return err(state,"Only one Stadium may be played from hand per turn.");
  if(isStadium&&s.stadium?.name===card.name)return err(state,"A Stadium with that name is already in play.");
  if(card.name==="Air Balloon"){
@@ -208,6 +227,11 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   if(target.tool)return err(state,"That Pokémon already has a Tool.");
   target.tool=card;p.hand.splice(idx,1);s.selection=null;
   s.log.unshift("Player "+(s.turn+1)+": attached "+card.name+" to "+target.name+".");return {state:s};
+ }
+ else if(["Stormy Mountains","Tropical Beach"].includes(card.name)){
+  if(s.stadium)s.players[s.stadiumOwner??s.turn].discard.push(s.stadium);
+  s.stadium=card;s.stadiumOwner=s.turn;p.stadiumPlayed=true;p.hand.splice(idx,1);s.selection=null;
+  s.log.unshift("Player "+(s.turn+1)+": played "+card.name+" Stadium.");return {state:s};
  }
  else if(card.name==="PokéStop"||card.name==="Silent Lab"){
   if(s.stadium)s.players[s.stadiumOwner??s.turn].discard.push(s.stadium);
