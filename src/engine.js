@@ -387,9 +387,11 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   message=card.name+" returned "+eligible.length+" Basic Energy card(s) from discard to hand.";
  }
  else if(card.name==="Professor's Letter"){
-  let found=0;
-  for(let i=p.deck.length-1;i>=0&&found<2;i--)if(p.deck[i].kind==="energy"){p.hand.push(p.deck.splice(i,1)[0]);found++;}
-  shuffle(p.deck);message="Professor's Letter searched for "+found+" Basic Energy card(s), then shuffled the deck.";
+  const indices=payload.searchIndices??[];
+  const basicEnergy=c=>c?.kind==="energy"&&["Fire","Water","Grass","Lightning","Psychic","Fighting","Darkness","Metal","Fairy"].includes(c.type);
+  if(!Array.isArray(indices)||indices.length>2||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||!basicEnergy(p.deck[i])))return err(state,"Choose up to two Basic Energy cards from your deck.");
+  for(const i of [...indices].sort((a,b)=>b-a))p.hand.push(p.deck.splice(i,1)[0]);
+  shuffle(p.deck);message="Professor's Letter searched for "+indices.length+" selected Basic Energy card(s), then shuffled the deck.";
  }
  else if(card.name==="Pal Pad"){
   const indices=payload.discardIndices??[];
