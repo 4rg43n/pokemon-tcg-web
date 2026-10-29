@@ -341,8 +341,14 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   const mon=payload.target==="bench"?p.bench[payload.slot]:p.active;
   if(!mon||!mon.under?.length)return err(state,"Choose one of your evolved Pokémon.");
   const previous=mon.under.pop(),old=mon.speciesIndex;
-  p.hand.push(basic(old));const prev=species[previous];mon.speciesIndex=previous;mon.name=prev.name;mon.hp=prev.hp;mon.attacks=prev.attacks;mon.ability=prev.ability;mon.under=[...mon.under];mon.damage=Math.min(mon.damage,Math.max(0,mon.hp-10));
-  message="Devolution Spray returned "+species[old].name+" to hand.";
+  p.hand.push(basic(old));const prev=species[previous];mon.speciesIndex=previous;mon.name=prev.name;mon.hp=prev.hp;mon.attacks=prev.attacks;mon.ability=prev.ability;
+  if(mon.damage>=mon.hp){
+   const owner=s.turn,knocked=payload.target==="bench"?p.bench.splice(payload.slot,1)[0]:(p.active=null,mon);
+   discardKnockOut(s,owner,knocked);
+   if(payload.target!=="bench"&&p.bench.length){p.active=p.bench.shift();}
+   if(!p.active&&!p.bench.length){s.winner=1-owner;s.winReason="no Pokémon remaining after devolution";}
+  }
+  message="Devolution Spray returned "+species[old].name+" to hand"+(mon.damage>=mon.hp?" and the devolved Pokémon was Knocked Out.":".");
  }
  else if(card.name==="Acro Bike"){
   const top=p.deck.splice(0,2);if(top.length){
