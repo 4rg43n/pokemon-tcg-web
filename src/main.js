@@ -192,6 +192,7 @@ function playSelected(player,target,slot){
   if(card.name==="Quick Ball"||card.name==="Ultra Ball"){showBallSearch();return;}
   if(card.name==="Nest Ball"){showNestBallSearch();return;}
   if(["Gladion","Clay","Cynthia & Caitlin"].includes(card.name)){showSupporterPrinting(card);return;}
+  if(card.name==="Lusamine"){showLusamine(card);return;}
   if(["Max Potion","Devolution Spray"].includes(card.name)){showTargetTrainer(card);return;}
   if(["Acro Bike","Special Charge","Super Rod","Tag Call","Counter Catcher","Lana's Fishing Rod"].includes(card.name)){showRemainingTrainer(card);return;}
   if(["Pokégear 3.0","Battle Compressor"].includes(card.name)){showPrintedSearch(card);return;}
@@ -393,6 +394,13 @@ function showTargetTrainer(card){
  const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(allowed?"":" search-ineligible");tile.disabled=!allowed;tile.innerHTML=cardHtml({kind:"pokemon",species:x.mon.speciesIndex},{small:true})+"<span>"+escape(x.mon.name)+"</span>";tile.onclick=()=>act("trainer",{target:x.target,slot:x.slot},{token});grid.append(tile);
  });panel.append(grid);
 }
+function showLusamine(card){
+ if(!canHuman()||state.phase!=="playing")return;
+ const p=state.players[state.turn],token=openModal("lusamine",{card},"<h2>Lusamine</h2><p>Choose up to two Supporter or Stadium cards from your discard pile to return to your hand.</p>");
+ const grid=document.createElement("div");grid.className="search-deck-gallery",chosen=new Set();
+ p.discard.forEach((c,i)=>{const ok=c.kind==="trainer"&&["Supporter","Stadium"].includes(c.subtype)&&c.name!=="Lusamine";const tile=document.createElement("button");tile.type="button";tile.className="search-deck-tile"+(ok?"":" search-ineligible");tile.disabled=!ok;tile.innerHTML=cardHtml(c,{small:true})+"<span>"+escape(cardName(c))+"</span>";tile.onclick=()=>{if(chosen.has(i)){chosen.delete(i);tile.classList.remove("chosen");}else if(chosen.size<2){chosen.add(i);tile.classList.add("chosen");}else setError("Choose up to two cards.");};grid.append(tile);});panel.append(grid);
+ actionButton("Play Lusamine",()=>act("trainer",{discardIndices:[...chosen]},{token}));
+}
 function showRemainingTrainer(card){
  if(!canHuman()||state.phase!=="playing")return;
  const name=card.name,p=state.players[state.turn],bike=name==="Acro Bike",tag=name==="Tag Call",charge=name==="Special Charge",catcher=name==="Counter Catcher";
@@ -551,6 +559,7 @@ for(const b of document.querySelectorAll("button[data-action]"))b.addEventListen
   if(c.name==="Quick Ball"||c.name==="Ultra Ball"){showBallSearch();return;}
   if(c.name==="Nest Ball"){showNestBallSearch();return;}
   if(["Gladion","Clay","Cynthia & Caitlin"].includes(c.name)){showSupporterPrinting(c);return;}
+  if(c.name==="Lusamine"){showLusamine(c);return;}
   if(["Max Potion","Devolution Spray"].includes(c.name)){showTargetTrainer(c);return;}
   if(["Acro Bike","Special Charge","Super Rod","Tag Call","Counter Catcher","Lana's Fishing Rod"].includes(c.name)){showRemainingTrainer(c);return;}
   if(["Pokégear 3.0","Battle Compressor"].includes(c.name)){showPrintedSearch(c);return;}
