@@ -171,6 +171,11 @@ if(action==="trainer"||(action==="play"&&p.hand[s.selection]?.kind==="trainer"))
   target.tool=card;p.hand.splice(idx,1);s.selection=null;
   s.log.unshift("Player "+(s.turn+1)+": attached "+card.name+" to "+target.name+".");return {state:s};
  }
+ else if(["Stormy Mountains","Tropical Beach"].includes(card.name)){
+  if(s.stadium)s.players[s.stadiumOwner??s.turn].discard.push(s.stadium);
+  s.stadium=card;s.stadiumOwner=s.turn;p.hand.splice(idx,1);s.selection=null;
+  s.log.unshift("Player "+(s.turn+1)+": played "+card.name+" Stadium.");return {state:s};
+ }
  else if(card.name==="PokéStop"||card.name==="Silent Lab"){
   if(s.stadium)s.players[s.stadiumOwner??s.turn].discard.push(s.stadium);
   s.stadium=card;s.stadiumOwner=s.turn;
